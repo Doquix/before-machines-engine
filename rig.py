@@ -2,7 +2,8 @@
 import math
 from lib import *
 
-L = dict(head=46, neck=8, torso=70, ua=40, fa=38, th=48, sh=46)
+L = dict(head=46, neck=0, torso=100, ua=38.5, fa=37, th=37, sh=35.5)
+SHO = 28; SHO_Y = 21; HIP = 10   # E012 frontal rig: shoulders at the torso edges, hips apart
 POSES = {
     'idle':    dict(torso=0, head=0, uaF=14, faF=6, uaB=-14, faB=-6, thF=5, shF=0, thB=-5, shB=0),
     'point':   dict(torso=4, head=0, uaF=92, faF=98, uaB=-10, faB=-6, thF=8, shF=0, thB=-6, shB=0),
@@ -45,8 +46,8 @@ def joints(p, f=1, legs=1.0, hands=None):
         d1 = d(a1, f); k1 = (o[0] + d1[0] * l1, o[1] + d1[1] * l1)
         d2 = d(a2, f); k2 = (k1[0] + d2[0] * l2, k1[1] + d2[1] * l2)
         return k1, k2
-    J['kneeF'], J['footF'] = chain(pel, p['thF'], th, p['shF'], sh)
-    J['kneeB'], J['footB'] = chain(pel, p['thB'], th, p['shB'], sh)
+    J['kneeF'], J['footF'] = chain((f * HIP, 0.0), p['thF'], th, p['shF'], sh)
+    J['kneeB'], J['footB'] = chain((-f * HIP, 0.0), p['thB'], th, p['shB'], sh)
     low = max(J['footF'][1], J['footB'][1])
     for k in list(J): J[k] = (J[k][0], J[k][1] - low)
     J['pelvis'] = (0.0, -low)
@@ -55,7 +56,7 @@ def joints(p, f=1, legs=1.0, hands=None):
     J['neck'] = (nx, ny)
     ht = math.radians(p['torso'] + p['head'])
     J['head'] = (nx + f * math.sin(ht) * (L['neck'] + L['head']), ny - math.cos(ht) * (L['neck'] + L['head']))
-    sF = (nx + f * 19, ny + 7); sB = (nx - f * 19, ny + 7)
+    sF = (nx + f * SHO, ny + SHO_Y); sB = (nx - f * SHO, ny + SHO_Y)
     J['shF'], J['shB'] = sF, sB
     J['elF'], J['haF'] = chain(sF, p['uaF'], L['ua'], p['faF'], L['fa'])
     J['elB'], J['haB'] = chain(sB, p['uaB'], L['ua'], p['faB'], L['fa'])
@@ -80,7 +81,7 @@ EXPR = {  # brow tilt (deg, + = inner up), brow raise, lid, mouth, eye scale, pu
 
 def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False, r=36, beard=None):
     bt, br, lid, mouth, es, ps = EXPR[expr]
-    ex0 = hx + f * 7
+    ex0 = hx + f * 2
     for i, side in enumerate((-1, 1)):
         ex = ex0 + side * 12.5; ey = hy - 3
         rx, ry = 7.6 * es, 9.6 * es
@@ -110,10 +111,10 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
         pn.line([(ex0 - 1.5, hy - 5), (ex0 + 1.5, hy - 5)], INK, 2.6, caps=False)
         pn.line([(ex0 - f * 24, hy - 5), (hx - f * r * 0.92, hy - 9)], INK, 2.4)
     if beard:
-        bx = hx + f * 6
+        bx = hx + f * 1
         pn.poly([(bx - 20, hy + 26), (bx + 20, hy + 26), (bx + 17, hy + r + 4), (bx + f * 2, hy + r + 16), (bx - 17, hy + r + 4)],
                 fill=beard, outline=INK, width=2.4)
-    mx, my = hx + f * 8, hy + 17
+    mx, my = hx + f * 2, hy + 17
     if mouth == 'flat': pn.line([(mx - 7, my), (mx + 7, my)], INK, 3.2)
     elif mouth == 'smile': pn.arc(mx, my - 6, 9, 20, 160, INK, 3.2)
     elif mouth == 'frown': pn.arc(mx, my + 7, 8, 200, 340, INK, 3.2)
@@ -168,12 +169,13 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     # legs
     hose = MAIL if O['hose'] == 'mail' else O['hose']
     for s in ('B', 'F'):
-        limb(pn, [J['pelvis'], J['knee' + s], J['foot' + s]], hose, 6)
+        hp_ = (J['pelvis'][0] + (f * HIP if s == 'F' else -f * HIP), J['pelvis'][1])
+        limb(pn, [hp_, J['knee' + s], J['foot' + s]], hose, 6.5)
         fx, fy = J['foot' + s]
         pn.ell(fx + f * 6, fy - 3, 11, 6, fill=O['boot'], outline=INK, width=2.6)
     # arms behind clothing
     def arm(s):
-        limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 5.5)
+        limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
     if not arms_front:
         arm('B'); arm('F')
     # body garment
@@ -181,9 +183,9 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     ux, uy = f * math.sin(t), -math.cos(t)          # up along torso
     nx_, ny_ = -uy, ux                                # sideways
     nk = J['neck']; pl = J['pelvis']
-    hl_ = 58 if O.get('long') else 30
+    hl_ = 24
     hem = (pl[0] - ux * hl_, pl[1] - uy * hl_)
-    sw, hw = 21, 31 + (6 if O.get('long') else 0)
+    sw, hw = 25, 35
     body = [(nk[0] + nx_ * sw - ux * 2, nk[1] + ny_ * sw - uy * 2), (nk[0] - nx_ * sw - ux * 2, nk[1] - ny_ * sw - uy * 2),
             (hem[0] - nx_ * hw, hem[1] - ny_ * hw), (hem[0] + nx_ * hw, hem[1] + ny_ * hw)]
     if O.get('mail'):
@@ -234,7 +236,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
         else:
             sh_, el_ = J['sh' + s], J['el' + s]
-            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.42), lerp(sh_[1], el_[1], 0.42))], O['sleeve'], 13)
+            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
         hx_, hy_ = J['ha' + s]
         pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
     # head and headwear

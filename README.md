@@ -39,7 +39,7 @@ Render in two parallel halves, check each frame count, join, then master: pre li
 
 **Audience.** Mostly US men aged 55 and over. One text element at a time, room to read, fewer but meaningful moves.
 
-**Rig.** Bone limbs (cream fill, dark outline), big head (about a third of body height) with round expressive eyes, shoulders at the torso edges so arms hang visibly at the sides, short sleeve caps, small hands and shoes. Garments stop at the knee so thighs and knees always show. Every figure casts a contact shadow and stands on solid ground.
+**Rig.** The E012 structure (see `docs/reference/e012_rig_sheet.png`): front-on body, big round head (about a third of body height) with round expressive eyes, a long torso, shoulders at the torso edges so the arms hang fully visible at the sides, hips set apart, bone limbs (cream fill, dark outline), short sleeve caps, small hands and shoes. In engine units: head r 46, torso 100, upper arm 38.5, forearm 37, thigh 37, shin 35.5, shoulders plus or minus 28, hips plus or minus 10. Garments stop at the knee so thighs and knees always show. Every figure casts a contact shadow and stands on solid ground.
 
 **Edit.**
 * Hard cuts by default, a slide push (about 0.35 s, always from the right) at 3 or 4 chapter turns, a 0.3 s dissolve on big brightness jumps, and match dissolves when the same object appears on both sides of a change. No radial wipes.
