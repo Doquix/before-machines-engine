@@ -63,7 +63,13 @@ def joints(p, f=1, legs=1.0, hands=None):
     if hands:
         for side in ('F', 'B'):
             if side in hands and hands[side] is not None:
-                J['el' + side], J['ha' + side] = ik(*J['sh' + side], *hands[side], L['ua'], L['fa'], f)
+                # natural elbows: hang down when there is a choice, otherwise bend outward on their own side
+                out_ = f if side == 'F' else -f
+                e1, h1 = ik(*J['sh' + side], *hands[side], L['ua'], L['fa'], out_)
+                e2, h2 = ik(*J['sh' + side], *hands[side], L['ua'], L['fa'], -out_)
+                if abs(e1[1] - e2[1]) > 10:
+                    e1, h1 = (e1, h1) if e1[1] > e2[1] else (e2, h2)
+                J['el' + side], J['ha' + side] = e1, h1
     return J
 
 EXPR = {  # brow tilt (deg, + = inner up), brow raise, lid, mouth, eye scale, pupil scale

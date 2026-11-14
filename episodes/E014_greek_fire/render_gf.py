@@ -486,18 +486,16 @@ def sc_bul(base, pn, t):
         ps.append((x, p, o))
     # the bronze tube carried between them at shoulder height
     k_ = 1.0
-    sh_y = gy - (L['th'] + L['sh'] + L['torso'] - SHO_Y - 4) * k_
+    sh_y = gy - (L['th'] + L['sh'] + 10) * k_   # carried at waist height in both hands
     tx0, tx1 = ps[0][0] - 60, ps[1][0] + 90
     def tube_grip(pn_, J):
         pass
     tube(pn, (tx0, sh_y + 6), (tx1, sh_y - 8), 34)
     siphon_head(pn, tx1 + 30, sh_y - 10, 0.7, 1)
     for i, (x, p, o) in enumerate(ps):
-        gx = (tx0 + 70) if i == 0 else (tx1 - 120)
-        gy_ = lerp(sh_y + 6, sh_y - 8, (gx - tx0) / (tx1 - tx0))
-        loc = ((gx - x) / k_, (gy_ - gy) / k_)
+        def on_tube(xx): return ((xx - x) / k_, (lerp(sh_y + 6, sh_y - 8, (xx - tx0) / (tx1 - tx0)) - gy) / k_)
         figure(pn, x, gy, k_, 1, p, o, 'happy' if t > T['captured'] else 'determined', look=(0.8, 0), blink=blink_at(t, i + 2),
-               hands={'F': loc, 'B': (loc[0] - 34, loc[1] + 4)}, grip=tube_grip)
+               hands={'F': on_tube(x + 24), 'B': on_tube(x - 24)}, grip=tube_grip)
     # third man with fuel jars
     x3 = x0 + 470
     def held(pn_, J):
