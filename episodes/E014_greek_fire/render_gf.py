@@ -243,7 +243,7 @@ def sc_kalli(base, pn, t):
     p = walk_pose(t) if walking else pose('idle')
     ex = 'worried' if look_back else ('determined' if t < T['kalname'] else 'neutral')
     def held(pn_, J):
-        hx, hy = J['haB']
+        hx, hy = (J['haF'][0] + J['haB'][0]) / 2, (J['haF'][1] + J['haB'][1]) / 2
         pn_.push(hx, hy, 1.0)
         pn_.rect(-34, -12, 34, 12, fill=(236, 222, 186), outline=INK, width=3, r=10)
         pn_.circ(-34, 0, 12, fill=(214, 196, 156), outline=INK, width=3); pn_.circ(34, 0, 12, fill=(214, 196, 156), outline=INK, width=3)
@@ -251,7 +251,9 @@ def sc_kalli(base, pn, t):
     # distant smoke over the hills behind him
     smoke(pn, 980, 1060, 1.3, t, 2, 0.8)
     road(pn, 1320)
-    J = figure(pn, x, 1320, 2.05, -1, p, 'kalli', ex, look=(-1.0, -0.1) if look_back else (0.8, -0.1), blink=blink_at(t, 2), held=held)
+    belly = -(L['th'] + L['sh']) - 14
+    J = figure(pn, x, 1320, 2.05, -1, p, 'kalli', ex, look=(-1.0, -0.1) if look_back else (0.8, -0.1), blink=blink_at(t, 2), held=held,
+               hands={'F': (-20, belly), 'B': (20, belly)})
     hx = x + J['head'][0] * 2.05; hy = 1320 + J['head'][1] * 2.05
     tag(pn, 400, 600, 'KALLINIKOS', 72, pop(t, T['kalname']), rot_=-4, sub='FROM HELIOPOLIS, SYRIA', string_to=(hx, hy - 60))
 
@@ -484,14 +486,18 @@ def sc_bul(base, pn, t):
         ps.append((x, p, o))
     # the bronze tube carried between them at shoulder height
     k_ = 1.0
-    sh_y = gy - (88 + 72 - 8) * k_
+    sh_y = gy - (L['th'] + L['sh'] + L['torso'] - SHO_Y - 4) * k_
     tx0, tx1 = ps[0][0] - 60, ps[1][0] + 90
+    def tube_grip(pn_, J):
+        pass
+    tube(pn, (tx0, sh_y + 6), (tx1, sh_y - 8), 34)
+    siphon_head(pn, tx1 + 30, sh_y - 10, 0.7, 1)
     for i, (x, p, o) in enumerate(ps):
-        loc = ((tx0 + 60 + i * 170 - x) / k_ if i == 0 else (tx1 - 110 - x) / k_, (sh_y - 10 - gy) / k_)
+        gx = (tx0 + 70) if i == 0 else (tx1 - 120)
+        gy_ = lerp(sh_y + 6, sh_y - 8, (gx - tx0) / (tx1 - tx0))
+        loc = ((gx - x) / k_, (gy_ - gy) / k_)
         figure(pn, x, gy, k_, 1, p, o, 'happy' if t > T['captured'] else 'determined', look=(0.8, 0), blink=blink_at(t, i + 2),
-               hands={'F': loc, 'B': (loc[0] - 30, loc[1] + 6)})
-    tube(pn, (tx0, sh_y - 14), (tx1, sh_y - 30), 34)
-    siphon_head(pn, tx1 + 30, sh_y - 32, 0.7, 1)
+               hands={'F': loc, 'B': (loc[0] - 34, loc[1] + 4)}, grip=tube_grip)
     # third man with fuel jars
     x3 = x0 + 470
     def held(pn_, J):
@@ -508,9 +514,9 @@ def sc_sput(base, pn, t):
     pn.rect(-80, gy, 1160, 2300, fill=(126, 112, 82))
     hard = t > T['make'] - 0.1
     ang = (22 if hard else 10) * math.sin((t - T['sput']) * (12 if hard else 6))
-    le, re = lever_pump(pn, 720, gy, 1.3, ang)
-    tube(pn, (720 + 40, gy - 120), (950, gy - 120), 30)
-    siphon_head(pn, 1010, gy - 120, 0.8, 1)
+    le, re = lever_pump(pn, 720, gy, 1.0, ang)
+    tube(pn, (720 + 30, gy - 100), (950, gy - 100), 28)
+    siphon_head(pn, 1010, gy - 100, 0.8, 1)
     fx = le[0] - 110
     loc = ((le[0] - fx) / 2.0, (le[1] - gy) / 2.0)
     ex = 'determined' if t < T['work'] - 0.05 else 'confused'
@@ -518,11 +524,11 @@ def sc_sput(base, pn, t):
            hands={'F': loc, 'B': (loc[0] - 8, loc[1] + 8)}, blink=blink_at(t, 1))
     if t > T['make']:
         q = P(t, T['make'], 0.5)
-        jet(pn, 1018, gy - 120, math.radians(10), 70 * q, 0, t, 0.5, grav=0.02)
+        jet(pn, 1018, gy - 100, math.radians(10), 70 * q, 0, t, 0.5, grav=0.02)
     if t > T['work'] - 0.05:
         q = P(t, T['work'] - 0.05, 1.0)
         for i in range(5):
-            pn.circ(1030 + i * 14, gy - 150 - 160 * q - i * 12, 18 + 40 * q, fill=(90, 86, 86, int(170 * (1 - q))))
+            pn.circ(1030 + i * 14, gy - 130 - 160 * q - i * 12, 18 + 40 * q, fill=(90, 86, 86, int(170 * (1 - q))))
         tag(pn, 540, 420, '?', 120, pop(t, T['work']), rot_=6)
 
 def sc_whole(base, pn, t):

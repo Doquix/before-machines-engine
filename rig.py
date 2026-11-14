@@ -154,9 +154,11 @@ def lion(pn, x, y, s):
     pn.line([(x - 9 * s, y - 1 * s), (x - 13 * s, y - 7 * s), (x - 10 * s, y - 10 * s)], g, 1.8 * s)
 
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
-           hands=None, held=None, back=None, arms_front=False, alpha=255, shadow=True):
+           hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None):
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
+    # holding something: arms and hands go in front of the clothing so the grip reads
+    if arms_front is None: arms_front = bool(held or hands or grip)
     pn.push(x, y, k)
     if shadow:
         pn.ell(f * 6, 3, 46, 9, fill=(20, 14, 10, 70))
@@ -229,6 +231,8 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
         pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
     if arms_front:
+        if held: held(pn, J)          # the prop sits under the hands
+        if grip: grip(pn, J)
         arm('B'); arm('F')
     # sleeves on upper arm bones (and full mail sleeves)
     for s in ('B', 'F'):
@@ -293,7 +297,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         for i in range(9):
             xx = hx - r + i * r / 4
             pn.line([(xx, hy - r * .78 + 4), (xx + 4, hy - r * .78 + 18)], lerpc(O['fur'], INK, .3), 2, caps=False)
-    if held: held(pn, J)
+    if held and not arms_front: held(pn, J)
     pn.pop()
     return J
 
