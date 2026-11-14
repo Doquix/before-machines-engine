@@ -1,0 +1,9 @@
+# generated per episode
+*.wav
+*.mp3
+*.mp4
+still_*.png
+map_*.png
+timing.json
+cues.json
+__pycache__/
