@@ -12,6 +12,8 @@ import cv
 from cv import galley, corvus, pestle, spike_shape, plank_rect, formation, ROM_HULL, ROM_STRIPE, PUN_HULL, PUN_STRIPE, CV_FT, DECK_Y
 import env
 import make_map as MM
+import fx
+from fx import smear, speed_lines, focus_lines, impact, particles
 
 TM = json.load(open('timing.json'))
 WORDS, CAPS, VO_END = TM['words'], TM['caps'], TM['dur']
@@ -115,18 +117,38 @@ def legion_frame(base, pn, t, t_slam, t_stomp, t_thrust, t_smug, expr_end='smug'
     formation(pn, 40, 1040, 1270 + 10 * st, 0.68, 6, t, 'legion3', 'determined', seed=3)
     if t_stomp is not None and t > t_stomp:
         for x in range(90, 1040, 150): dust(pn, x, 1272, t, t_stomp, 0.5, (226, 216, 180))
+    if t_stomp is not None:
+        for i, x in enumerate(range(90, 1040, 190)):
+            particles(pn, 'dust', x, 1272, t, t_stomp, 0.7, seed=i, cone=math.pi * 0.7, ground=1290)
     # the Keeper: shield slam, then a thrust, then the smug look
-    sl = P(t, t_slam - 0.18, 0.18)
-    p = mix(pose('idle', uaB=40, faB=70), pose('idle', uaB=10, faB=20), ei3(sl)) if t_slam is not None else pose('idle')
-    if t_thrust is not None and t > t_thrust - 0.1:
-        q = eoback(P(t, t_thrust - 0.1, 0.25))
-        p = mix(p, pose('slash', uaB=10, faB=20), clamp(q, 0, 1.15))
+    def kp(tt):
+        sl = P(tt, t_slam - 0.18, 0.18) if t_slam is not None else 1
+        p = mix(pose('idle', uaB=40, faB=70), pose('idle', uaB=10, faB=20), ei3(sl)) if t_slam is not None else pose('idle')
+        if t_thrust is not None and tt > t_thrust - 0.1:
+            q = eoback(P(tt, t_thrust - 0.1, 0.25))
+            p = mix(p, pose('slash', uaB=10, faB=20), clamp(q, 0, 1.15))
+        return p
+    KX, KY, KK = 540, 1400, 2.0
+    if t_thrust is not None and t_thrust - 0.12 < t < t_thrust + 0.3:
+        sm = []
+        for dt in (0.12, 0.09, 0.06, 0.03, 0.0):
+            J_ = joints(kp(t - dt), 1, 1.0)
+            h, e = J_['haF'], J_['elF']; d_ = math.hypot(h[0] - e[0], h[1] - e[1]) or 1
+            tip = (h[0] + (h[0] - e[0]) / d_ * 62, h[1] + (h[1] - e[1]) / d_ * 62)
+            sm.append(((KX + h[0] * KK, KY + h[1] * KK), (KX + tip[0] * KK, KY + tip[1] * KK)))
+        smear(pn, sm, alpha=210)
+        if t < t_thrust + 0.15:
+            b_, tp_ = sm[-1]
+            speed_lines(pn, tp_[0], tp_[1], tp_[0] - b_[0], tp_[1] - b_[1], t, length=220, n=6, spread=60, seed=4)
     ex = 'determined' if (t_smug is None or t < t_smug) else expr_end
-    figure(pn, 540, 1400, 2.0, 1, p, KEEPER, ex, look=(0.2, 0.1), blink=blink_at(t, 0.3), held=lambda pn_, J: sword_held(pn_, J))
-    if t_slam is not None: dust(pn, 520, 1405, t, t_slam, 1.1, (226, 216, 180))
+    figure(pn, KX, KY, KK, 1, kp(t), KEEPER, ex, look=(0.2, 0.1), blink=blink_at(t, 0.3), held=lambda pn_, J: sword_held(pn_, J))
+    if t_slam is not None:
+        particles(pn, 'dust', 430, 1400, t, t_slam, 1.2, seed=9, cone=math.pi * 0.9, ground=1410)
+        particles(pn, 'debris', 430, 1395, t, t_slam, 0.7, seed=3, cone=math.pi * 0.6, ground=1410, col=(150, 140, 96))
+        impact(pn, 425, 1330, t, t_slam, 0.8, seed=2)
 
 def sc_hook(base, pn, t):
-    legion_frame(base, pn, t, 0.0, T['fight0'], T['fight0'] + 0.05, T['land0'])
+    legion_frame(base, pn, t, 0.12, T['fight0'], T['fight0'] + 0.05, T['land0'])
 
 def cam_hook(t, sc, ox, oy):
     return sc + 0.05 * eio(P(t, 0, 2.6)), ox, oy
@@ -151,10 +173,8 @@ def sc_sea(base, pn, t):
            shield=t < T['exp1'] - 0.1)
     water(pn, SEA1['y'] - 4, t, col=SEA_C, light=SEA_L, amp=2.6)
     # spray when the deck pitches on "sea"
-    if t > T['sea1'] - 0.05:
-        u = P(t, T['sea1'] - 0.05, 0.7)
-        for i in range(10):
-            pn.circ(820 + i * 22, SEA1['y'] - 40 - 220 * u * (1 - u) * 2 - i * 6, 10 * (1 - u) + 4, fill=(236, 246, 250, int(220 * (1 - u))))
+    particles(pn, 'splash', 860, SEA1['y'] - 10, t, T['sea1'] - 0.05, 1.3, seed=5, ang=-math.pi * 0.6, cone=math.pi * 0.6)
+    particles(pn, 'spray', 880, SEA1['y'] - 20, t, T['sea1'] - 0.02, 1.4, seed=6, ang=-math.pi * 0.55, cone=math.pi * 0.7)
 
 def cam_sea(t, sc, ox, oy):
     m = eio(P(t, T['no1'] - 0.2, 0.45))
@@ -279,16 +299,23 @@ def sc_ram(base, pn, t):
     cx = ram_x(t)
     rate = 1.6 if t < T['row'] - 0.1 else -2.0
     C = galley(pn, cx, y + 3 * math.sin(t * 2.2), RAM['k'], t, 1, hull=PUN_HULL, stripe=PUN_STRIPE, oar_rate=rate)
+    if T['ram_s'] - 0.3 < t < T['ram']:
+        speed_lines(pn, cx + 360 * RAM['k'], y - 150, 1, 0, t, length=420, n=9, spread=45, seed=11)
+        particles(pn, 'spray', cx + 548 * RAM['k'] - 20, y - 4, t, t - (t * 7 % 1) / 7, 1.1, seed=int(t * 7), ang=-math.pi * 0.75, cone=math.pi * 0.4)
     water(pn, y - 2, t, col=SEA_C, light=SEA_L, x0=-900, x1=2200)
-    if hit and t < T['ram'] + 0.6:
+    if hit and t < T['ram'] + 1.2:
         splinters(pn, RAM['imp'], y - 30, t, T['ram'], 1.2)
-        u = P(t, T['ram'], 0.4)
-        ring(pn, RAM['imp'], y - 20, 40 + 140 * u, (255, 255, 255), u, 8)
-    # spray from the backing oars
+        particles(pn, 'chips', RAM['imp'], y - 40, t, T['ram'], 1.4, seed=12, ang=-math.pi * 0.6, cone=math.pi * 0.9)
+        particles(pn, 'splash', RAM['imp'] + 20, y, t, T['ram'] + 0.03, 1.6, seed=13, cone=math.pi * 0.7)
+        focus_lines(pn, RAM['imp'], y - 30, t, T['ram'], 0.22)
+        impact(pn, RAM['imp'], y - 30, t, T['ram'], 1.3, seed=14)
+    # spray from the backing oars, and the ship pulling away
     if t > T['row'] - 0.1:
-        for i in range(6):
-            ph = (t * 1.6 + i / 6) % 1
-            pn.circ(cx + 120 - i * 70, y + 4 - 30 * ph, 10 * (1 - ph) + 3, fill=(236, 246, 250, int(200 * (1 - ph))))
+        for i in range(4):
+            t0 = T['row'] - 0.1 + i * 0.28
+            particles(pn, 'spray', cx + 160 - i * 110, y + 4, t, t0, 1.0, seed=20 + i, ang=-math.pi * 0.6, cone=math.pi * 0.6)
+        if t < T['row'] + 0.9:
+            speed_lines(pn, cx + 300, y - 60, -1, 0, t, length=300, n=7, spread=60, seed=15)
 
 def cam_ram(t, sc, ox, oy):
     return camfocus(1.2 * sc, CX, 1180, CX, 1060, ox, oy)
@@ -305,16 +332,27 @@ def sc_sword(base, pn, t):
     for i in range(14): pn.line([(-60 + i * 90, 1236), (-60 + i * 90, 1330)], (98, 68, 40), 8)
     pn.rect(-80, 1320, 1160, 2400, fill=(146, 104, 64), outline=INK, width=4)
     for i in range(9): pn.line([(-80, 1360 + i * 64), (1160, 1360 + i * 64)], (118, 84, 50), 4, caps=False)
-    sw = P(t, T['sword'] - 0.12, 0.22)
-    raise_ = P(t, T['single'] - 0.1, 0.3)
-    p = mix('idle', pose('slash', uaF=150, faF=160), eo3(raise_))
-    if sw > 0: p = mix(p, pose('slash', uaF=96, faF=90, torso=16), eoback(sw))
-    if t > T['got'] - 0.1: p = mix(p, pose('reach', uaF=92, faF=92, torso=14), P(t, T['got'] - 0.1, 0.3))
+    def sp(tt):
+        sw_ = P(tt, T['sword'] - 0.12, 0.22)
+        p_ = mix('idle', pose('slash', uaF=150, faF=160), eo3(P(tt, T['single'] - 0.1, 0.3)))
+        if sw_ > 0: p_ = mix(p_, pose('slash', uaF=96, faF=90, torso=16), eoback(sw_))
+        if tt > T['got'] - 0.1: p_ = mix(p_, pose('reach', uaF=92, faF=92, torso=14), P(tt, T['got'] - 0.1, 0.3))
+        return p_
+    KX, KY, KK = 330, 1330, 1.7
+    for t_sw in (T['sword'] - 0.12, T['got'] - 0.1):
+        if t_sw < t < t_sw + 0.32:
+            sm = []
+            for dt in (0.15, 0.11, 0.08, 0.05, 0.025, 0.0):
+                J_ = joints(sp(t - dt), 1, 1.0)
+                h, e = J_['haF'], J_['elF']; d_ = math.hypot(h[0] - e[0], h[1] - e[1]) or 1
+                tip = (h[0] + (h[0] - e[0]) / d_ * 62, h[1] + (h[1] - e[1]) / d_ * 62)
+                sm.append(((KX + h[0] * KK, KY + h[1] * KK), (KX + tip[0] * KK, KY + tip[1] * KK)))
+            smear(pn, sm, alpha=220)
     ex = 'determined' if t < T['sword'] else ('angry' if t < T['close'] else 'confused')
-    J = figure(pn, 330, 1330, 1.7, 1, p, KEEPER, ex, look=(1.0, -0.1), blink=blink_at(t, 2), held=lambda pn_, J: sword_held(pn_, J))
-    # swing trail
-    if 0 < sw < 1:
-        pn.arc(330 + 30 * 1.7, 1330 - 190 * 1.7, 150, -70, -70 + 110 * sw, (255, 255, 255, int(160 * (1 - sw))), 8)
+    J = figure(pn, KX, KY, KK, 1, sp(t), KEEPER, ex, look=(1.0, -0.1), blink=blink_at(t, 2), held=lambda pn_, J: sword_held(pn_, J))
+    if T['sword'] < t < T['sword'] + 0.4:
+        h = J['haF']; tipw = (KX + (h[0] + 60) * KK, KY + h[1] * KK)
+        impact(pn, tipw[0] + 40, tipw[1], t, T['sword'] + 0.08, 0.45, col=(255, 255, 255), seed=31, lines=True)
     # the gap: sword tip to the enemy bow, growing
     a = P(t, T['roman4'] - 0.1, 0.3)
     if a > 0:
@@ -348,6 +386,26 @@ def sc_plan(base, pn, t):
            'happy' if t > T['rules'] else 'thinking', look=(0.8, -0.6), blink=blink_at(t, 4),
            held=lambda pn_, J: (plank_rect(pn_, J['haF'], (J['haF'][0] - 6, J['haF'][1] - 34), 6, WOOD),
                                 pn_.rect(J['haF'][0] - 18, J['haF'][1] - 44, J['haF'][0] + 10, J['haF'][1] - 30, fill=IRON, outline=INK, width=2.4)))
+    # chips fly from each hammer stroke
+    if hammering:
+        k0 = math.floor(t * 14 / (2 * math.pi))
+        for kk in (k0 - 1, k0):
+            th = (2 * math.pi * kk) / 14
+            if (th < T['romans6'] or th > T['rules'] + 0.3) and th > T['plan']:
+                particles(pn, 'chips', cx_ - 80, 1100, t, th, 0.55, seed=kk % 9, ang=-math.pi * 0.8, cone=math.pi * 0.5, ground=1180)
+    if br > 0 and t < T['rules'] + 0.3:
+        cv_ = G.get('cv')
+        if cv_:
+            piv = cv_['piv']; Lb = 24 * CV_FT * YARD['k']; a72 = math.radians(72)
+            sm = []
+            for dt in (0.12, 0.08, 0.04, 0.0):
+                bb = clamp(eoback(P(t - dt, T['rules'] - 0.15, 0.35)) if t - dt > T['rules'] - 0.15 else 0, 0, 1.08)
+                sm.append((piv, (piv[0] + math.cos(a72) * Lb * bb, piv[1] - math.sin(a72) * Lb * bb)))
+            smear(pn, sm, alpha=170)
+    if pole > 0 and G.get('cv'):
+        impact(pn, *G['cv']['top'], t, T['changed'] + 0.35, 0.45, seed=41, lines=True)
+        impact(pn, *G['cv']['piv'], t, T['rules'] + 0.15, 0.6, seed=42)
+        particles(pn, 'sparks', *G['cv']['piv'], t, T['rules'] + 0.15, 0.8, seed=43)
     # the Keeper walks in and points at the prow
     u = t - T['plan']
     x = lerp(-160, 190, eo3(clamp(u / 1.0)))
@@ -376,8 +434,18 @@ def sc_parts(base, pn, t):
     G = galley(pn, PRT['x'], PRT['y'], PRT['k'], t, 1, oars=False, corvus_ang=ang if pole > 0 else None,
                corvus_kw=dict(pole=pole, pulley=clamp(pul), bridge=clamp(br, 0, 1.06), rope=clamp(br), inner=br > 0.3,
                               hl={'bridge': 0.6 * win(t, T['wooden'] - 0.05, T['wooden'] + 0.9)}))
+    if G.get('cv') and T['hang'] - 0.05 < t < T['hang'] + 0.8:
+        piv = G['cv']['piv']; Lb = 24 * CV_FT * PRT['k']
+        sm = []
+        for dt in (0.12, 0.08, 0.04, 0.0):
+            a_ = math.radians(lerp(150, 72, eo3(P(t - dt, T['hang'] - 0.05, 0.7))))
+            bb = clamp(eoback(P(t - dt, T['hang'] - 0.05, 0.45)) if t - dt > T['hang'] - 0.05 else 0, 0, 1.06)
+            sm.append((piv, (piv[0] + math.cos(a_) * Lb * bb, piv[1] - math.sin(a_) * Lb * bb)))
+        smear(pn, sm, alpha=160)
     water(pn, PRT['y'] - 6, t, col=(120, 150, 160), light=(190, 210, 214), amp=0.6)
     bx, by = G['bow']
+    if G.get('cv'):
+        impact(pn, *G['cv']['top'], t, T['pulley'] + 0.1, 0.5, seed=51)
     if t > T['prow'] - 0.1:
         u = P(t, T['prow'] - 0.1, 0.6)
         ring(pn, bx + 100, by + 10, 60 + 160 * u, AMBER, u, 10)
@@ -436,6 +504,7 @@ def sc_dims(base, pn, t):
             q = eoback(q); rx = cx_ + sd * (L_ / 2 - 10)
             pn.line([(rx, top), (rx, top - (top - knee_y) * q)], WOOD_D, 10)
             pn.rect(rx - 16, top - (top - knee_y) * q - 8, rx + 16, top - (top - knee_y) * q + 6, fill=WOOD_D, outline=INK, width=3, r=3)
+            particles(pn, 'dust', rx, top, t, (T['rail'] if sd < 0 else T['each10']) - 0.05, 0.4, seed=140 + sd, ground=top + 2)
     # dimension arrows with their measurements
     a36 = P(t, T['n36'] - 0.05, 0.45) * (1 - m)
     if a36 > 0.01:
@@ -476,6 +545,10 @@ def sc_spike(base, pn, t):
         ring(pn, tipx, tipy, 30 + 90 * u, AMBER, u, 8)
     glint = win(t, T['spike11'] - 0.05, T['spike11'] + 0.5)
     sp_len = 430
+    if T['iron'] - 0.1 < t < T['iron'] + 0.15:
+        speed_lines(pn, tipx - 40, tipy + 120, 0, 1, t, length=200, n=6, spread=70, seed=61)
+    impact(pn, tipx - 40, tipy + 40, t, T['iron'] + 0.14, 0.7, seed=62, col=(230, 236, 244))
+    particles(pn, 'sparks', tipx - 40, tipy + 30, t, T['iron'] + 0.14, 0.8, seed=63, cone=math.pi * 1.6)
     if s > 0:
         drop = (1 - clamp(s)) * -140
         spike_shape(pn, tipx - 40, tipy + 30 + drop, math.pi / 2, sp_len * min(1.0, s), 1, lerpc(IRON, (220, 224, 230), glint * 0.5))
@@ -484,6 +557,8 @@ def sc_spike(base, pn, t):
     if a > 0:
         kx = lerp(1400, 900, eo3(a)); k_ = 1.5
         walking = a < 1
+        if walking: speed_lines(pn, kx + 40, fl - 200, -1, 0, t, length=200, n=5, spread=150, seed=64, col=(120, 105, 85), alpha=150)
+        particles(pn, 'dust', kx - 20, fl, t, T['shaped'] + 0.35, 0.8, seed=65, ground=fl + 4)
         pk = 1.16
         def held(pn_, J):
             hx, hy = J['haF']
@@ -526,6 +601,10 @@ def sc_appr(base, pn, t):
     R, C = attack_scene(base, pn, t)
     y = AP['y']
     cvp = R['cv']
+    if t < T['near'] + 0.1:
+        ex_ = enemy_ax(t)
+        speed_lines(pn, ex_ - 300 * AP['k'], y - 150, -1, 0, t, length=380, n=8, spread=45, seed=71)
+        particles(pn, 'spray', ex_ - 548 * AP['k'] + 20, y - 4, t, t - (t * 7 % 1) / 7, 1.1, seed=int(t * 7), ang=-math.pi * 0.25, cone=math.pi * 0.4)
     # Carthaginian sailors on their deck
     cb = C['bow']
     for i, dx in enumerate((60, 170)):
@@ -548,6 +627,9 @@ def sc_appr(base, pn, t):
         hands = None
         p = mix('pull', pose('shrug' if 'shrug' in POSES else 'cheer'), eoback(P(t, T['go'], 0.25)))
     figure(pn, fx, rb_[1], k_, 1, p, 'rower', 'determined' if not released else 'happy', look=(1, -0.6), blink=blink_at(t, 2), hands=hands)
+    if released and t < T['go'] + 0.35:
+        speed_lines(pn, rope_x, rb_[1] - 120, 0, -1, t, length=160, n=5, spread=20, seed=72)
+        impact(pn, rope_x, rb_[1] - 70 * k_, t, T['go'], 0.4, seed=73)
     water(pn, y - 2, t, col=SEA_C, light=SEA_L, x0=-900, x1=2200)
 
 def cam_appr(t, sc, ox, oy):
@@ -560,13 +642,17 @@ def sc_swing(base, pn, t):
     slack = P(t, T['go'], 0.4)
     R, C = attack_scene(base, pn, t, slack=slack)
     cvp = R['cv']
-    # motion trail behind the falling tip
-    if T['swung'] - 0.2 < t < T['land_dn'] + 0.15:
+    # smear behind the falling bridge
+    if T['go'] < t < T['land_dn'] + 0.12:
         piv = cvp['piv']; Lb = 24 * CV_FT * AP['k']
-        a1 = corvus_ang(t)
-        for j in range(6):
-            aa = math.radians(a1 + (j + 1) * 5)
-            pn.circ(piv[0] + math.cos(aa) * Lb, piv[1] - math.sin(aa) * Lb, 14 - j * 2, fill=(255, 255, 255, 150 - j * 22))
+        sm = []
+        for dt in (0.16, 0.12, 0.08, 0.05, 0.025, 0.0):
+            aa = math.radians(corvus_ang(max(T['go'], t - dt)))
+            sm.append(((piv[0] + math.cos(aa) * Lb * 0.35, piv[1] - math.sin(aa) * Lb * 0.35), (piv[0] + math.cos(aa) * Lb, piv[1] - math.sin(aa) * Lb)))
+        smear(pn, sm, alpha=210)
+        if t < T['land_dn']:
+            aa = math.radians(corvus_ang(t)); tp = (piv[0] + math.cos(aa) * Lb, piv[1] - math.sin(aa) * Lb)
+            speed_lines(pn, tp[0], tp[1], math.sin(aa), math.cos(aa), t, length=160, n=6, spread=40, seed=81)
     for i, dx in enumerate((-260, -330)):
         rb_ = R['bow']
         figure(pn, rb_[0] + dx, rb_[1], 0.42, 1, 'idle', 'legion2' if i == 0 else 'legion3', 'determined', look=(1, -0.3), blink=blink_at(t, 5 + i))
@@ -575,7 +661,9 @@ def sc_swing(base, pn, t):
         figure(pn, cb[0] + dx, cb[1], 0.42, -1, 'cower' if t > T['down'] else 'idle', 'punic' if i == 0 else 'punic2',
                'fear' if t > T['swung'] else 'surprised', look=(-0.6, -0.8), blink=0)
     if t > T['land_dn']:
-        dust(pn, cvp['tip'][0], cvp['tip'][1] + 20, t, T['land_dn'], 0.6, (230, 220, 200))
+        particles(pn, 'dust', cvp['tip'][0], cvp['tip'][1] + 20, t, T['land_dn'], 0.8, seed=82, ground=cvp['tip'][1] + 30)
+        particles(pn, 'chips', cvp['tip'][0], cvp['tip'][1] + 10, t, T['land_dn'], 0.7, seed=83)
+        impact(pn, cvp['tip'][0], cvp['tip'][1] + 10, t, T['land_dn'], 0.75, seed=84)
     water(pn, AP['y'] - 2, t, col=SEA_C, light=SEA_L, x0=-900, x1=2200)
 
 def cam_swing(t, sc, ox, oy):
@@ -609,6 +697,14 @@ def sc_punch(base, pn, t):
             a = -math.pi * (0.1 + i * 0.16)
             pn.line([(tipx - 6, dy_ + 34), (tipx - 6 + math.cos(a) * 46, dy_ + 34 + math.sin(a) * 18)], INK, 4)
         splinters(pn, tipx, dy_ + 20, t, T['hit'], 1.3)
+        particles(pn, 'chips', tipx, dy_ + 20, t, T['hit'], 1.6, seed=91, cone=math.pi * 0.9)
+        particles(pn, 'dust', tipx, dy_ + 30, t, T['hit'] + 0.02, 1.4, seed=92, ground=dy_ + 40)
+    if T['punch_s'] < t < T['hit']:
+        speed_lines(pn, tipx - 10, tipy - 60, 0.06, 1, t, length=260, n=7, spread=60, seed=93)
+    focus_lines(pn, tipx, dy_ + 20, t, T['hit'], 0.28)
+    impact(pn, tipx, dy_ + 20, t, T['hit'], 1.7, seed=94)
+    if False:
+        pass
     # a Carthaginian sailor recoils
     rec = P(t, T['hit'], 0.25)
     figure(pn, 860 + 60 * eo3(rec), dy_ + 34, 1.15, -1, mix('idle', 'cower', eoback(rec)) if rec > 0 else 'idle', 'punic2',
@@ -633,6 +729,8 @@ def sc_locked(base, pn, t):
         u = P(t, T['locked'] - 0.05, 0.6)
         sx, sy = cvp['spike']
         ring(pn, sx, sy, 30 + 120 * u, AMBER, u, 9)
+        particles(pn, 'sparks', sx, sy - 10, t, T['locked'], 0.7, seed=101, cone=math.pi * 1.2)
+        impact(pn, sx, sy - 10, t, T['locked'], 0.55, seed=102)
 
 def cam_locked(t, sc, ox, oy):
     m = eio(P(t, T['lock_s'], 1.6))
@@ -667,7 +765,13 @@ def sc_board(base, pn, t):
         x = min(x, tip[0] + 120 - i * 110)
         moving = x < tip[0] + 120 - i * 110 - 1
         p = walk_pose(t + i, 8, 18) if moving and t > T['legionaries'] - 0.4 else pose('brace')
+        if moving and t > T['legionaries'] - 0.4:
+            k0 = math.floor((t + i) * 8 / math.pi)
+            for kk in (k0 - 1, k0):
+                particles(pn, 'dust', x + 10, gy(x), t, kk * math.pi / 8 - i, 0.35, seed=kk % 7 + i, cone=math.pi * 0.6, ground=gy(x) + 2)
         figure(pn, x, gy(x), 0.6, 1, p, o, 'determined', look=(1, 0), blink=blink_at(t, 7 + i))
+    impact(pn, tip[0] + 110, C['bow'][1] - 40, t, T['across'] + 0.3, 0.6, seed=111)
+    particles(pn, 'dust', tip[0] + 110, C['bow'][1], t, T['across'] + 0.3, 0.8, seed=112, ground=C['bow'][1] + 4)
     water(pn, y - 2, t, col=SEA_C, light=SEA_L, amp=0.6, x0=-900, x1=2200)
 
 def cam_board(t, sc, ox, oy):
@@ -684,6 +788,8 @@ def sc_count(base, pn, t):
         a = pop(t, T['cnt'] + i * 0.011, 0.25)
         sink = P(t, T['lost18'] + (49 - i) * 0.016, 0.5)
         ship_icon(pn, x, y, 0.13, t, a * (1 - 0.65 * sink), f=-1, sink=sink)
+    focus_lines(pn, 540, 900, t, T['fifty'] - 0.04, 0.25, col=(255, 214, 160))
+    impact(pn, 540, 900, t, T['fifty'] - 0.04, 1.8, seed=121, col=(255, 220, 170))
     stamp(pn, 540, 900, 'LIKELY', t - (T['fifty'] - 0.08), sz=140)
 
 # ---------------- the sea battle becomes a land battle ----------------
@@ -707,6 +813,10 @@ def sc_landb(base, pn, t):
     for i in range(2):
         figure(pn, cb[0] + 330 + i * 90 + 30 * eio(P(t, T['battle19'], 1.6)), cb[1], 0.4, -1, 'cower', 'punic' if i else 'punic2',
                'fear', look=(-0.8, 0), blink=0)
+    for j, tc in enumerate((T['sea19'], T['battle19'] + 0.4, T['battle19b'])):
+        cxp = cb[0] + 40 + (j % 3) * 70 + 20 * eio(P(t, T['battle19'], 1.6)) + 50
+        particles(pn, 'sparks', cxp, cb[1] - 70, t, tc, 0.6, seed=130 + j, cone=math.pi * 1.4)
+        impact(pn, cxp, cb[1] - 70, t, tc, 0.35, seed=133 + j, col=(255, 240, 200))
     # water turning into a field under the ships
     col = lerpc(SEA_C, GRASS, m)
     pn.rect(-900, y - 2, 2200, 2400, fill=col + (235,))
@@ -844,7 +954,7 @@ def frame(t):
 
 # ---------------- SFX cue sheet ----------------
 def cues():
-    C = [(0.0, 'thud', 0.9), (0.0, 'clank', 0.4), (T['fight0'], 'march', 0.7), (T['fight0'] + 0.05, 'whoosh', 0.3),
+    C = [(0.12, 'thud', 1.0), (0.12, 'clank', 0.5), (0.03, 'whooshlow', 0.4), (T['fight0'], 'march', 0.7), (T['fight0'] + 0.05, 'whoosh', 0.3),
          (T['sea_s'], 'waves', 0.7), (T['sea1'], 'splash', 0.5), (T['no1'] - 0.2, 'whooshlow', 0.4), (T['exp1'], 'creak', 0.5),
          (T['mapc'], 'paper', 0.5), (T['mapc'] + 0.05, 'thud', 0.4), (T['mapc'] + 0.2, 'pop', 0.4)]
     for i in range(8): C.append((T['ruled'] + i * 0.09, 'tick', 0.35))
