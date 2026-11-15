@@ -14,7 +14,8 @@ Code rendered motion graphics for the Before Machines YouTube Shorts channel (an
 | `env.py` | Painted environments, cached, blurred and graded so figures read clearly |
 | `make_map.py` | Real coastline maps from `global-land-mask` (set `LEVELS` per episode) |
 | `timeline.py` | Pause tightening, chapter pauses (padded with silence), word onsets to `timing.json` |
-| `episodes/E014_greek_fire/` | Latest episode: `gf.py` (props and environments), `render_gf.py` (beat table, scenes, captions, cue sheet), `audio_gf.py` (SFX, modal music bed, ducking, mix) |
+| `episodes/E015_corvus/` | Latest episode: `cv.py` (galley with ram, corvus, pestle, field, beach and sea environments, map levels), `render_cv.py`, `audio_cv.py`, `timeline_cv.py` (word onsets from real timestamps), `asr_words.py` |
+| `episodes/E014_greek_fire/` | Previous episode: `gf.py` (props and environments), `render_gf.py` (beat table, scenes, captions, cue sheet), `audio_gf.py` (SFX, modal music bed, ducking, mix) |
 
 Only the beat table `T`, `SCENES`, the `sc_*` scene functions, `EPISODE_OUTFIT` and map settings are episode specific. Everything else is the engine.
 
@@ -26,7 +27,9 @@ The scripts import the engine modules from the same folder, so work in a scratch
 pip install --break-system-packages pillow numpy scipy soundfile global-land-mask
 mkdir build && cp *.py episodes/E014_greek_fire/*.py build/ && cd build
 ffmpeg -i narration.mp3 -ar 48000 -ac 1 vo_orig.wav
-python3 timeline.py              # edit PHR, SIL and DRAMA first
+pip install --break-system-packages pocketsphinx   # offline word timestamps, model bundled
+ffmpeg -i vo_orig.wav -ar 16000 -ac 1 -f s16le vo16.raw && python3 asr_words.py > asr.txt
+python3 timeline_cv.py           # edit PHR, SIL and DRAMA first; word onsets come from asr.txt
 python3 make_map.py
 python3 render_gf.py cues && python3 audio_gf.py
 python3 render_gf.py still 0.5 3.0 7.0   # always look at stills first
@@ -48,5 +51,7 @@ Render in two parallel halves, check each frame count, join, then master: pre li
 * Tags only when they add something the caption does not: a date, a name's spelling, a hedge such as LIKELY.
 * J cuts: the next shot's sounds start 0.12 s before the change.
 * Never leave a frame empty after a change, and nothing floats.
+
+**Word timing.** pocketsphinx (pip, bundled model) gives real word start times offline; E015 maps them onto the script with difflib and interpolates the few misheard words. Better than syllable splitting.
 
 **History.** Only well documented facts. Hedge reconstructions and disputed points on screen (LIKELY, LATER ACCOUNTS, ROUTE SIMPLIFIED). Every costume and prop must match the period.

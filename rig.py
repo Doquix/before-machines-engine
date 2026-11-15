@@ -19,6 +19,8 @@ POSES = {
     'walk':    dict(torso=4, head=0, uaF=20, faF=30, uaB=-20, faB=-10, thF=22, shF=4, thB=-20, shB=-30),
     'spear':   dict(torso=0, head=0, uaF=30, faF=80, uaB=-8, faB=-4, thF=5, shF=0, thB=-5, shB=0),
     'cheer':   dict(torso=-4, head=-8, uaF=160, faF=170, uaB=150, faB=165, thF=6, shF=0, thB=-6, shB=0),
+    'brace':   dict(torso=6, head=-2, uaF=70, faF=90, uaB=24, faB=60, thF=22, shF=-4, thB=-18, shB=-12),
+    'slash':   dict(torso=10, head=0, uaF=100, faF=96, uaB=10, faB=40, thF=24, shF=0, thB=-20, shB=-10),
 }
 def mix(a, b, x):
     A, B = POSES[a] if isinstance(a, str) else a, POSES[b] if isinstance(b, str) else b
@@ -141,6 +143,13 @@ OUT = {
     'arab':    dict(tunic=(224, 214, 192), sleeve=(224, 214, 192), hose=(240, 232, 214), boot=(90, 64, 40), hat='turban', cap=(240, 236, 224), beard=(54, 42, 34)),
     'arab2':   dict(tunic=(150, 120, 86), sleeve=(150, 120, 86), hose=(240, 232, 214), boot=(90, 64, 40), hat='turban', cap=(206, 196, 170), beard=(40, 32, 26)),
     'bulgar':  dict(tunic=(124, 84, 52), sleeve=(124, 84, 52), hose=(84, 74, 60), boot=(60, 44, 30), hat='fur', cap=(150, 42, 40), fur=(96, 72, 48), trim=(196, 160, 96), beard=(56, 42, 30)),
+    # E015 Roman Republic and Carthage, 260 BC
+    'legion':  dict(tunic=(150, 58, 44), sleeve=(150, 58, 44), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(196, 146, 66), plume=(40, 30, 24), pect=True, glasses=True, scutum=(150, 58, 44)),
+    'legion2': dict(tunic=(150, 58, 44), sleeve=(150, 58, 44), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(190, 140, 62), plume=(40, 30, 24), pect=True, scutum=(150, 58, 44)),
+    'legion3': dict(tunic=(214, 200, 168), sleeve=(214, 200, 168), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(184, 136, 60), plume=(120, 40, 34), pect=True, scutum=(140, 56, 42)),
+    'rower':   dict(tunic=(206, 192, 158), sleeve=(206, 192, 158), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(70, 52, 38)),
+    'punic':   dict(tunic=(232, 224, 206), sleeve=(232, 224, 206), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(40, 30, 24), beard=(44, 34, 26), clavi=(104, 46, 92)),
+    'punic2':  dict(tunic=(104, 46, 92), sleeve=(104, 46, 92), hose=(240, 232, 214), boot=(110, 80, 50), hat='cone', cap=(206, 192, 160), beard=(60, 44, 32)),
     'bulgar2': dict(tunic=(70, 86, 72), sleeve=(70, 86, 72), hose=(84, 74, 60), boot=(60, 44, 30), hat='fur', cap=(40, 70, 110), fur=(120, 92, 60), trim=(196, 160, 96), beard=(80, 60, 40)),
 }
 EPISODE_OUTFIT = 'keeper'
@@ -160,7 +169,7 @@ def lion(pn, x, y, s):
     pn.line([(x - 9 * s, y - 1 * s), (x - 13 * s, y - 7 * s), (x - 10 * s, y - 10 * s)], g, 1.8 * s)
 
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
-           hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None):
+           hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True):
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
     # holding something: arms and hands go in front of the clothing so the grip reads
@@ -234,8 +243,23 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                   (lerp(body[3][0], body[2][0], .75) + ux * 4, lerp(body[3][1], body[2][1], .75) + uy * 4),
                   (lerp(body[3][0], body[2][0], .25) + ux * 4, lerp(body[3][1], body[2][1], .25) + uy * 4)]
             pn.poly(ap, fill=O['apron'], outline=INK, width=2.4)
+        if O.get('pect'):
+            c_ = (lerp(nk[0], pl[0], 0.3), lerp(nk[1], pl[1], 0.3)); hs = 15
+            sq = [(c_[0] + (nx_ * a_ + ux * b_) * hs, c_[1] + (ny_ * a_ + uy * b_) * hs) for a_, b_ in ((-1, 1), (1, 1), (1, -1), (-1, -1))]
+            for sd in (-1, 1):
+                pn.line([(nk[0] + nx_ * sd * 20, nk[1] + ny_ * sd * 20), (c_[0] + nx_ * sd * 13 + ux * 13, c_[1] + ny_ * sd * 13 + uy * 13)], (90, 60, 36), 3.4)
+            pn.poly(sq, fill=(196, 146, 66), outline=INK, width=2.8)
+            pn.circ(c_[0], c_[1], 4, fill=(150, 104, 44))
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
         pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
+    if O.get('scutum') and shield:
+        # oval Republican scutum carried on the back arm, at the side so the body still reads
+        hb = J['haB']; sx_ = hb[0] - f * 14; sy_ = hb[1] - 30
+        pn.ell(sx_ + f * 4, sy_ + 6, 34, 64, fill=(20, 14, 10, 60))
+        pn.ell(sx_, sy_, 34, 64, fill=O['scutum'], outline=INK, width=3.4)
+        pn.ell(sx_, sy_, 28, 58, outline=lerpc(O['scutum'], WHITE, .25), width=2)
+        pn.line([(sx_, sy_ - 56), (sx_, sy_ + 56)], lerpc(O['scutum'], INK, .3), 4, caps=False)
+        pn.ell(sx_, sy_, 11, 15, fill=(196, 146, 66), outline=INK, width=2.6)
     if arms_front:
         if held: held(pn, J)          # the prop sits under the hands
         if grip: grip(pn, J)
@@ -297,6 +321,22 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         for i in range(2):
             pn.arc(hx, hy - r * .8 - 30 + i * 9, r + 2, 60, 120, cd, 2.6)
         pn.ell(hx - f * 2, hy - r * 1.08, r * .62, r * .34, fill=c, outline=INK, width=3)
+    elif hat == 'montefortino':
+        c = O['cap']; cd = lerpc(c, INK, .3); by = hy - 27
+        pn.poly([(hx - r - 3, by), (hx - r * .9, by - 20), (hx - r * .55, by - 36), (hx, by - 44),
+                 (hx + r * .55, by - 36), (hx + r * .9, by - 20), (hx + r + 3, by)], fill=c, outline=INK, width=3)
+        pn.line([(hx - r - 8, by), (hx + r + 8, by)], cd, 6)
+        for sd in (-1, 1):   # cheek guards hinge at the brim and sit outside the eyes
+            pn.poly([(hx + sd * (r - 9), by + 2), (hx + sd * (r + 3), by + 2), (hx + sd * (r + 1), hy + 20), (hx + sd * (r - 7), hy + 16)],
+                    fill=c, outline=INK, width=2.6)
+        pn.circ(hx, by - 46, 7, fill=c, outline=INK, width=2.6)        # crest knob
+        if O.get('plume'):
+            for a_ in (-14, 0, 14):
+                aa = math.radians(a_)
+                pn.line([(hx, by - 50), (hx + math.sin(aa) * 30, by - 50 - math.cos(aa) * 34)], O['plume'], 5)
+    elif hat == 'cone':
+        pn.poly([(hx - r - 2, hy - 10), (hx - r * .5, hy - r * .9), (hx + f * 4, hy - r - 26), (hx + r * .5, hy - r * .9), (hx + r + 2, hy - 10)],
+                fill=O['cap'], outline=INK, width=3)
     elif hat == 'fur':
         pn.ell(hx, hy - r * .78, r * .86, r * .82, fill=O['cap'], outline=INK, width=3)
         pn.rect(hx - r - 6, hy - r * .78, hx + r + 6, hy - r * .78 + 24, fill=O['fur'], outline=INK, width=3, r=12)
