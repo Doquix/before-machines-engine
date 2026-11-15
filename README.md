@@ -46,6 +46,8 @@ Render in two parallel halves, check each frame count, join, then master: pre li
 
 **Held objects (animator standard, applies to every prop).** Hand on the real grip point by IK, object driven by the hand, layered the way it is really held, clear of the body, weight shown in the pose, checked on a pose sheet first. Full rules in `docs/HELD_OBJECTS.md`.
 
+**Prop detail (applies to every object).** As detailed as possible while the figures stay simple: real construction, material treatment, light and shadow, true curves, light wear, period accuracy, and level of detail by screen size so it reads on a phone. Full rules in `docs/PROP_DETAIL.md`.
+
 **Edit.**
 * Hard cuts by default, a slide push (about 0.35 s, always from the right) at 3 or 4 chapter turns, a 0.3 s dissolve on big brightness jumps, and match dissolves when the same object appears on both sides of a change. No radial wipes.
 * About 6 camera punches per video, shakes only on impacts, at most one flash at half strength, camera drift at half strength.
