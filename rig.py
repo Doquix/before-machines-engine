@@ -1,5 +1,5 @@
 """Skeleton rig, poses, expressions and the medieval wardrobe (E013 Warwolf, 1304)."""
-import math
+import math, random
 from lib import *
 from detail import lod, shade, light, rivet, scratches
 
@@ -75,55 +75,174 @@ def joints(p, f=1, legs=1.0, hands=None):
                 J['el' + side], J['ha' + side] = e1, h1
     return J
 
-EXPR = {  # brow tilt (deg, + = inner up), brow raise, lid, mouth, eye scale, pupil scale
-    'neutral':    (0, 0, 0.0, 'flat', 1.0, 1.0),
-    'happy':      (4, 3, 0.0, 'smile', 1.0, 1.0),
-    'surprised':  (6, 9, 0.0, 'O', 1.15, 0.85),
-    'confused':   ('mix', 3, 0.0, 'wavy', 1.0, 1.0),
-    'worried':    (22, 3, 0.0, 'frown', 1.0, 1.0),
-    'fear':       (28, 8, 0.0, 'grim', 1.18, 0.7),
-    'determined': (-24, -2, 0.15, 'flat', 1.0, 1.0),
-    'smug':       ('smug', 1, 0.42, 'smirk', 1.0, 1.0),
-    'thinking':   ('mix', 2, 0.1, 'side', 1.0, 1.0),
-    'angry':      (-28, -3, 0.2, 'frown', 1.0, 1.0),
-}
+# ---------------- face: expressions ----------------
+# Each expression: brows (tilt deg, + = inner end up, or a named pair), brow raise, lid (0..1), eyes (shape), mouth,
+# eye scale, pupil scale, extras, and the bold expression to fall back to when the face is too small to read.
+def X(brow=0, raise_=0, lid=0.0, eyes='open', mouth='flat', es=1.0, ps=1.0, extras=(), small=None, look=None):
+    return dict(brow=brow, raise_=raise_, lid=lid, eyes=eyes, mouth=mouth, es=es, ps=ps, extras=tuple(extras), small=small, look=look)
 
-def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False, r=36, beard=None):
-    bt, br, lid, mouth, es, ps = EXPR[expr]
+EXPR = {
+    # the original ten
+    'neutral':    X(0, 0, 0.0, 'open', 'flat'),
+    'happy':      X(4, 3, 0.0, 'open', 'smile'),
+    'surprised':  X(6, 9, 0.0, 'open', 'O', 1.15, 0.85),
+    'confused':   X('mix', 3, 0.0, 'open', 'wavy'),
+    'worried':    X(22, 3, 0.0, 'open', 'frown'),
+    'fear':       X(28, 8, 0.0, 'open', 'grim', 1.18, 0.7),
+    'determined': X(-24, -2, 0.15, 'open', 'flat'),
+    'smug':       X('smug', 1, 0.42, 'open', 'smirk'),
+    'thinking':   X('mix', 2, 0.1, 'open', 'side'),
+    'angry':      X(-28, -3, 0.2, 'open', 'frown'),
+    # E015 additions
+    'seasick':    X(20, 2, 0.32, 'open', 'puff', 1.0, 0.8, ('green', 'sweat'), small='worried', look=(0.0, 0.5)),
+    'pain':       X(24, 1, 0.0, 'squeeze', 'grit', extras=('sweat', 'stress'), small='fear'),
+    'terrified':  X(30, 11, 0.0, 'open', 'scream', 1.28, 0.42, ('sweat', 'lines')),
+    'awe':        X(10, 9, 0.0, 'sparkle', 'ooh', 1.16, 1.15, small='surprised', look=(0.0, -0.6)),
+    'proud':      X(6, 4, 0.0, 'arc', 'grin', small='happy'),
+    'sly':        X('smug', 0, 0.48, 'open', 'sly', 1.0, 0.95, small='smug', look=(1.0, 0.1)),
+    'exhausted':  X(14, -1, 0.5, 'open', 'pant', 1.0, 0.9, ('sweat', 'sweat2'), small='worried', look=(0.0, 0.4)),
+    'skeptical':  X('skeptic', 1, 0.28, 'open', 'side', small='smug', look=(0.8, 0.0)),
+    'disgusted':  X(-18, -2, 0.0, 'squint', 'curl', small='angry'),
+    'laughing':   X(10, 6, 0.0, 'arc', 'laugh', extras=('tears_small',)),
+    'embarrassed':X(16, 2, 0.1, 'open', 'wobble', 1.0, 0.9, ('blush', 'sweat'), small='worried', look=(0.9, 0.6)),
+    'crying':     X(28, 4, 0.0, 'squeeze', 'cry', extras=('tears',), small='worried'),
+    'bored':      X(-4, -3, 0.56, 'open', 'flat', 1.0, 0.95, small='neutral', look=(0.9, 0.2)),
+}
+SMALL_FACE_PX = 58      # head diameter on screen below which subtle expressions fall back to their bold version
+EXTRAS_PX = 80          # extras (sweat, tears, blush, lines) only when the head is at least this big
+
+# ---------------- face: facial hair ----------------
+# Styles drawn in the channel's own shapes. The mouth always keeps a patch of bare skin (locked rule: the mouth is
+# drawn on skin, never on top of the beard), so every expression still reads through any beard.
+BEARDS = ('stubble', 'short', 'full', 'long', 'goatee', 'vandyke', 'chinstrap', 'mustache', 'handlebar', 'walrus', 'mutton')
+
+def _jaw(r, a0, a1, rr=None, n=16, dy=0.0):
+    rr = rr or r
+    return [(math.cos(math.radians(a0 + (a1 - a0) * i / n)) * rr, math.sin(math.radians(a0 + (a1 - a0) * i / n)) * rr + dy) for i in range(n + 1)]
+
+def _mustache(pn, f, col, style='chevron', r=36):
+    mx, my = f * 2, 12
+    if style == 'handlebar':
+        for sd in (-1, 1):
+            pts = [(mx, my - 1), (mx + sd * 8, my - 2), (mx + sd * 16, my + 1), (mx + sd * 21, my - 3), (mx + sd * 22, my - 9), (mx + sd * 18, my - 7),
+                   (mx + sd * 17, my - 2), (mx + sd * 9, my + 3), (mx, my + 2)]
+            pn.poly(pts, fill=col, outline=INK, width=2)
+    elif style == 'walrus':
+        pn.poly([(mx - 17, my + 6), (mx - 13, my - 4), (mx, my - 5), (mx + 13, my - 4), (mx + 17, my + 6), (mx + 8, my + 3), (mx, my + 4), (mx - 8, my + 3)],
+                fill=col, outline=INK, width=2)
+    else:   # chevron
+        pn.poly([(mx - 13, my + 2), (mx - 9, my - 4), (mx + 9, my - 4), (mx + 13, my + 2), (mx, my + 1)], fill=col, outline=INK, width=2)
+
+def facial_hair(pn, f, style, col, r=36, detail=True, mouth_open=False):
+    """Draw facial hair in face local units (head radius r, face centred at 0, 0). Returns the mouth skin patch size."""
+    hl = lerpc(col, (255, 248, 230), 0.22); dk = lerpc(col, INK, 0.35)
+    patch = (12, 7) if not mouth_open else (14, 12)
+    if style == 'stubble':
+        rnd = random.Random(5)
+        pn.poly(_jaw(r - 1, 8, 172) + [(-r * 0.7, 10), (r * 0.7, 10)][::-1], fill=col + (70,))
+        if detail:
+            for _ in range(46):
+                a = math.radians(rnd.uniform(14, 166)); rr = rnd.uniform(r * 0.5, r * 0.95)
+                pn.circ(math.cos(a) * rr, math.sin(a) * rr + 2, 0.9, fill=dk + (150,))
+        return None
+    if style == 'chinstrap':
+        pn.line(_jaw(r - 3, 4, 176), col, 7, caps=True)
+        pn.line(_jaw(r - 3, 4, 176), dk, 1.6, caps=False)
+        return None
+    if style in ('mustache', 'handlebar', 'walrus'):
+        _mustache(pn, f, col, {'mustache': 'chevron'}.get(style, style), r)
+        return None
+    if style == 'goatee' or style == 'vandyke':
+        pts = [(f * 2 - 12, 20), (f * 2 + 12, 20), (f * 2 + 11, 31), (f * 2 + 1, 40 + (8 if style == 'vandyke' else 0)), (f * 2 - 9, 31)]
+        pn.poly(pts, fill=col, outline=INK, width=2.4)
+        if detail: pn.line([(f * 2 - 3, 26), (f * 2 - 1, 36)], hl, 1.6, caps=False)
+        _mustache(pn, f, col, 'chevron' if style == 'goatee' else 'handlebar', r)
+        return patch
+    if style == 'mutton':      # big sideburns joined by a moustache, bare chin
+        for sd in (-1, 1):
+            pn.poly([(sd * (r - 1), -6), (sd * (r + 1), 8), (sd * (r - 4), 22), (sd * 16, 18), (sd * 14, 10), (sd * (r - 10), 4)], fill=col, outline=INK, width=2.4)
+        _mustache(pn, f, col, 'walrus', r)
+        return None
+    # short, full, long: jaw beard with sideburns up to the ears and a moustache
+    ext = {'short': 3, 'full': 9, 'long': 22}[style]
+    jaw = _jaw(r + 1, 2, 178, n=20)
+    chin = [(p[0], p[1] + ext * max(0.0, math.sin(math.radians(2 + 176 * i / 20))) ** 2) for i, p in enumerate(jaw)]
+    if style == 'long':
+        mid = len(chin) // 2
+        chin[mid] = (chin[mid][0] + f * 2, chin[mid][1] + 8)
+    top = [(r - 2, -6), (r * 0.62, 6), (r * 0.25, 9), (-r * 0.25, 9), (-r * 0.62, 6), (-(r - 2), -6)]
+    pn.poly([(r, -8)] + chin[1:-1] + [(-r, -8)] + top[::-1], fill=col, outline=INK, width=2.6)
+    if detail:
+        for i, x in enumerate((-18, -8, 4, 14)):       # strand marks
+            pn.line([(x, 24 + ext * 0.3), (x + f * 2, 30 + ext * 0.8)], hl, 1.6, caps=False)
+            pn.line([(x + 4, 22 + ext * 0.2), (x + 5, 27 + ext * 0.6)], dk, 1.4, caps=False)
+    _mustache(pn, f, col, 'chevron', r)
+    return patch
+
+# ---------------- face ----------------
+def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False, r=36, beard=None, beard_style=None, t=0.0):
+    E = EXPR.get(expr, EXPR['neutral'])
+    head_px = 2 * r * pn.k()
+    if head_px < SMALL_FACE_PX and E['small']:
+        E = EXPR[E['small']]
+    extras_on = head_px >= EXTRAS_PX
+    detail = head_px >= 110
+    if E['look'] is not None: look = E['look']
+    bt, br, lid, es, ps = E['brow'], E['raise_'], E['lid'], E['es'], E['ps']
+    eyes, mouth, ext = E['eyes'], E['mouth'], E['extras'] if extras_on else ()
+    if 'green' in ext:      # queasy tint under the eyes and on the cheeks
+        for side in (-1, 1): pn.ell(hx + f * 2 + side * 15, hy + 9, 9, 6, fill=(126, 176, 96, 80))
+        pn.ell(hx + f * 2, hy + 4, 22, 3, fill=(126, 176, 96, 60))
     ex0 = hx + f * 2
-    for i, side in enumerate((-1, 1)):
+    for side in (-1, 1):
         ex = ex0 + side * 12.5; ey = hy - 3
         rx, ry = 7.6 * es, 9.6 * es
-        pn.ell(ex, ey, rx, ry, fill=WHITE, outline=INK, width=2.6)
-        lidv = max(lid, blink)
-        px = ex + clamp(look[0] * f, -1, 1) * 3.4; py = ey + look[1] * 3.4 + 1
-        pn.circ(px, py, 4.4 * ps, fill=INK)
-        if lidv > 0.02:
-            yl = ey - ry + 2 * ry * lidv
-            pts = [(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)]
-            pn.poly(pts, fill=SKIN)
-            pn.line([(ex - rx, yl), (ex + rx, yl)], INK, 2.4)
+        if eyes in ('open', 'sparkle'):
+            pn.ell(ex, ey, rx, ry, fill=WHITE, outline=INK, width=2.6)
+            px = ex + clamp(look[0] * f, -1, 1) * 3.4; py = ey + look[1] * 3.4 + 1
+            pn.circ(px, py, 4.4 * ps, fill=INK)
+            if eyes == 'sparkle':
+                pn.circ(px - 1.6, py - 1.8, 1.7, fill=WHITE); pn.circ(px + 1.4, py + 1.2, 0.9, fill=WHITE)
+            lidv = max(lid, blink)
+            if lidv > 0.02:
+                yl = ey - ry + 2 * ry * lidv
+                pn.poly([(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)], fill=SKIN)
+                pn.line([(ex - rx, yl), (ex + rx, yl)], INK, 2.4)
+        elif eyes == 'arc':        # closed happy eyes
+            pn.arc(ex, ey + 4, 7, 200, 340, INK, 3.2)
+        elif eyes == 'squeeze':    # squeezed shut: > <
+            d_ = -side
+            pn.line([(ex - d_ * 6, ey - 5), (ex + d_ * 5, ey), (ex - d_ * 6, ey + 5)], INK, 3.0)
+        elif eyes == 'squint':
+            pn.ell(ex, ey + 1, rx, ry * 0.42, fill=WHITE, outline=INK, width=2.6)
+            pn.circ(ex + clamp(look[0] * f, -1, 1) * 2.5, ey + 1, 3.2, fill=INK)
         # brows
         if bt == 'mix': tilt = 14 if side == 1 else -10; raise_ = br + (5 if side == 1 else 0)
         elif bt == 'smug': tilt = -12 if side == -1 else 4; raise_ = br + (5 if side == 1 else -1)
+        elif bt == 'skeptic': tilt = (-14 if side == -1 else 8); raise_ = br + (9 if side == f else -2)
         else: tilt = bt; raise_ = br
         by = ey - ry - 5 - raise_
-        inner = -side  # inner edge is toward nose
+        inner = -side
         a = math.radians(tilt)
-        dx, dy = 8 * math.cos(a), 8 * math.sin(a)
-        p0 = (ex - 8, by + (dy if inner == -1 else -dy) * 0.5)
-        p1 = (ex + 8, by + (-dy if inner == -1 else dy) * 0.5)
-        pn.line([p0, p1], INK, 4.2)
+        dy = 8 * math.sin(a)
+        # positive tilt lifts the inner end (toward the nose): worried, sad; negative drops it: angry, determined
+        pn.line([(ex - 8, by + (-dy if inner == -1 else dy) * 0.5), (ex + 8, by + (dy if inner == -1 else -dy) * 0.5)], INK, 4.2)
     if glasses:
         for side in (-1, 1):
             pn.circ(ex0 + side * 12.5, hy - 3, 12, outline=INK, width=2.6)
         pn.line([(ex0 - 1.5, hy - 5), (ex0 + 1.5, hy - 5)], INK, 2.6, caps=False)
         pn.line([(ex0 - f * 24, hy - 5), (hx - f * r * 0.92, hy - 9)], INK, 2.4)
-    if beard:
-        bx = hx + f * 1
-        pn.poly([(bx - 20, hy + 26), (bx + 20, hy + 26), (bx + 17, hy + r + 4), (bx + f * 2, hy + r + 16), (bx - 17, hy + r + 4)],
-                fill=beard, outline=INK, width=2.4)
+    if 'blush' in ext:
+        for side in (-1, 1): pn.ell(ex0 + side * 17, hy + 9, 7, 3.6, fill=(236, 120, 110, 140))
     mx, my = hx + f * 2, hy + 17
+    big_mouth = mouth in ('scream', 'laugh', 'cry', 'pant', 'ooh')
+    if beard:
+        style = beard_style or 'short'
+        pn.push(hx, hy, 1.0)
+        patch = facial_hair(pn, f, style, beard, r, detail, big_mouth)
+        pn.pop()
+        if patch:      # bare skin around the mouth so the expression still reads
+            pn.ell(mx, my + (2 if big_mouth else 0), patch[0], patch[1], fill=SKIN)
     if mouth == 'flat': pn.line([(mx - 7, my), (mx + 7, my)], INK, 3.2)
     elif mouth == 'smile': pn.arc(mx, my - 6, 9, 20, 160, INK, 3.2)
     elif mouth == 'frown': pn.arc(mx, my + 7, 8, 200, 340, INK, 3.2)
@@ -134,6 +253,57 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
     elif mouth == 'smirk': pn.line([(mx - 7, my + 1), (mx + 3, my + 1), (mx + 8, my - 3)], INK, 3.2)
     elif mouth == 'wavy': pn.line([(mx - 8, my), (mx - 3, my - 2), (mx + 2, my + 2), (mx + 7, my)], INK, 3)
     elif mouth == 'side': pn.line([(mx - 1, my + 1), (mx + 8, my - 1)], INK, 3.2)
+    elif mouth == 'puff':      # cheeks puffed, lips pressed, about to be sick
+        for side in (-1, 1): pn.circ(mx + side * 10, my - 1, 5.5, fill=lerpc(SKIN, (150, 190, 110), 0.35), outline=INK, width=1.6)
+        pn.line([(mx - 5, my), (mx - 2, my - 1.5), (mx + 2, my + 1.5), (mx + 5, my)], INK, 3)
+    elif mouth == 'grit':
+        pn.rect(mx - 10, my - 4, mx + 10, my + 4, fill=WHITE, outline=INK, width=2.4, r=2)
+        for xx in (-5, 0, 5): pn.line([(mx + xx, my - 4), (mx + xx, my + 4)], INK, 1.6, caps=False)
+        pn.line([(mx - 10, my), (mx + 10, my)], INK, 1.6, caps=False)
+    elif mouth == 'scream':
+        pn.ell(mx, my + 4, 8, 11, fill=INK)
+        pn.rect(mx - 6, my - 6, mx + 6, my - 3, fill=WHITE, r=1)
+        pn.ell(mx, my + 10, 4.5, 3.2, fill=(200, 80, 80))
+    elif mouth == 'ooh': pn.ell(mx, my + 2, 6, 7.5, fill=INK); pn.ell(mx, my + 5, 3.5, 2.4, fill=(200, 80, 80))
+    elif mouth == 'grin':
+        pn.poly([(mx - 11, my - 3), (mx + 11, my - 3), (mx + 7, my + 5), (mx - 7, my + 5)], fill=WHITE, outline=INK, width=2.6)
+        pn.line([(mx - 9, my + 0.5), (mx + 9, my + 0.5)], INK, 1.4, caps=False)
+    elif mouth == 'sly': pn.line([(mx - 9, my + 2), (mx + 2, my + 1), (mx + 9, my - 4)], INK, 3.2); pn.line([(mx + 9, my - 4), (mx + 11, my - 6)], INK, 2)
+    elif mouth == 'pant':
+        pn.ell(mx, my + 2, 6, 5, fill=INK); pn.ell(mx, my + 4.5, 3.4, 2, fill=(200, 80, 80))
+    elif mouth == 'curl':      # one side of the upper lip pulled up
+        pn.line([(mx - 9, my + 2), (mx - 2, my + 1), (mx + 4, my - 3), (mx + 9, my - 1)], INK, 3.2)
+        pn.line([(mx + 3, my - 3), (mx + 5, my - 7)], INK, 1.8)
+    elif mouth == 'laugh':
+        pn.poly([(mx - 11, my - 3), (mx + 11, my - 3), (mx + 8, my + 6), (mx, my + 10), (mx - 8, my + 6)], fill=INK)
+        pn.rect(mx - 9, my - 3, mx + 9, my, fill=WHITE)
+        pn.ell(mx, my + 6, 5, 3, fill=(200, 80, 80))
+    elif mouth == 'wobble': pn.line([(mx - 8, my + 1), (mx - 4, my - 1), (mx, my + 1), (mx + 4, my - 1), (mx + 8, my + 1)], INK, 2.8)
+    elif mouth == 'cry':
+        pn.poly([(mx - 9, my + 5), (mx - 5, my - 2), (mx + 5, my - 2), (mx + 9, my + 5)], fill=INK)
+        pn.ell(mx, my + 4, 4, 2, fill=(200, 80, 80))
+    # extras
+    if 'sweat' in ext: _drop(pn, hx - f * (r - 4), hy - 14)
+    if 'sweat2' in ext: _drop(pn, hx + f * (r - 2), hy - 20, 0.8)
+    if 'tears' in ext:
+        for side in (-1, 1):
+            x_ = ex0 + side * 13
+            pn.line([(x_, hy + 2), (x_ + side * 1.5, hy + 22)], (150, 200, 240, 220), 4.5)
+            _drop(pn, x_ + side * 2, hy + 26 + 3 * math.sin(t * 6 + side), 0.6, (150, 200, 240))
+    if 'tears_small' in ext:
+        for side in (-1, 1): _drop(pn, ex0 + side * 21, hy - 4, 0.55, (150, 200, 240))
+    if 'stress' in ext:      # three short marks beside the head
+        bx_, by_ = hx + f * (r + 6), hy - r * 0.7
+        for i in range(3):
+            a = math.radians(-60 + i * 30) if f > 0 else math.radians(240 - i * 30)
+            pn.line([(bx_ + math.cos(a) * 4, by_ + math.sin(a) * 4), (bx_ + math.cos(a) * 12, by_ + math.sin(a) * 12)], INK, 2.6)
+    if 'lines' in ext:       # shock lines above the head
+        for i, dx in enumerate((-16, 0, 16)):
+            pn.line([(hx + dx * 1.2, hy - r - 12 - abs(dx) * 0.2), (hx + dx * 1.5, hy - r - 24 - abs(dx) * 0.3)], INK, 2.8)
+
+def _drop(pn, x, y, s=1.0, col=(170, 214, 240)):
+    pn.poly([(x, y - 9 * s), (x + 4.5 * s, y), (x + 3 * s, y + 4 * s), (x, y + 5 * s), (x - 3 * s, y + 4 * s), (x - 4.5 * s, y)], fill=col, outline=INK, width=1.6)
+    pn.circ(x - 1.4 * s, y + 0.5 * s, 1.1 * s, fill=WHITE)
 
 # ---------------- wardrobe ----------------
 OUT = {
@@ -147,10 +317,10 @@ OUT = {
     # E015 Roman Republic and Carthage, 260 BC
     'legion':  dict(tunic=(150, 58, 44), sleeve=(150, 58, 44), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(196, 146, 66), plume=(40, 30, 24), pect=True, glasses=True, scutum=(150, 58, 44)),
     'legion2': dict(tunic=(150, 58, 44), sleeve=(150, 58, 44), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(190, 140, 62), plume=(40, 30, 24), pect=True, scutum=(150, 58, 44)),
-    'legion3': dict(tunic=(214, 200, 168), sleeve=(214, 200, 168), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(184, 136, 60), plume=(120, 40, 34), pect=True, scutum=(140, 56, 42)),
-    'rower':   dict(tunic=(206, 192, 158), sleeve=(206, 192, 158), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(70, 52, 38)),
-    'punic':   dict(tunic=(232, 224, 206), sleeve=(232, 224, 206), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(40, 30, 24), beard=(44, 34, 26), clavi=(104, 46, 92)),
-    'punic2':  dict(tunic=(104, 46, 92), sleeve=(104, 46, 92), hose=(240, 232, 214), boot=(110, 80, 50), hat='cone', cap=(206, 192, 160), beard=(60, 44, 32)),
+    'legion3': dict(tunic=(214, 200, 168), sleeve=(214, 200, 168), hose=(240, 232, 214), boot=(96, 66, 40), hat='montefortino', cap=(184, 136, 60), plume=(120, 40, 34), pect=True, scutum=(140, 56, 42), beard=(70, 52, 38), beard_style='stubble'),
+    'rower':   dict(tunic=(206, 192, 158), sleeve=(206, 192, 158), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(70, 52, 38), beard=(70, 52, 38), beard_style='short'),
+    'punic':   dict(tunic=(232, 224, 206), sleeve=(232, 224, 206), hose=(240, 232, 214), boot=(110, 80, 50), hat=None, hair=(40, 30, 24), beard=(44, 34, 26), beard_style='full', clavi=(104, 46, 92)),
+    'punic2':  dict(tunic=(104, 46, 92), sleeve=(104, 46, 92), hose=(240, 232, 214), boot=(110, 80, 50), hat='cone', cap=(206, 192, 160), beard=(60, 44, 32), beard_style='long'),
     'bulgar2': dict(tunic=(70, 86, 72), sleeve=(70, 86, 72), hose=(84, 74, 60), boot=(60, 44, 30), hat='fur', cap=(40, 70, 110), fur=(120, 92, 60), trim=(196, 160, 96), beard=(80, 60, 40)),
 }
 EPISODE_OUTFIT = 'keeper'
@@ -337,7 +507,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                      (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=O['hair'])
     fk = r / 36
     pn.push(hx, hy + (3 if hat in ('crown', 'hood') else 0), fk)
-    face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'))
+    face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'), O.get('beard_style'))
     pn.pop()
     if hat == 'crown':
         cy = hy - r - 2

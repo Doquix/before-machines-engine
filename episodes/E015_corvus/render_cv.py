@@ -167,7 +167,7 @@ def sc_sea(base, pn, t):
     G = galley(pn, SEA1['x'], y, SEA1['k'], t, 1, oar_rate=0.8)
     bx, by = G['bow']
     sway = 10 * math.sin(t * 2.6 + 0.6)
-    ex = 'neutral' if t < T['had1'] else ('worried' if t < T['exp1'] else 'fear')
+    ex = 'neutral' if t < T['had1'] else ('worried' if t < T['exp1'] else 'seasick')
     p = pose('idle', torso=sway * 0.6, head=-sway * 0.4) if t < T['exp1'] - 0.1 else pose('cower', torso=6 + sway * 0.4)
     figure(pn, bx - 200, by, 0.9, 1, p, KEEPER, ex, look=(0.9, 0.4) if t < T['no1'] else (0.0, -0.2), blink=blink_at(t, 1.1),
            shield=t < T['exp1'] - 0.1)
@@ -708,7 +708,7 @@ def sc_punch(base, pn, t):
     # a Carthaginian sailor recoils
     rec = P(t, T['hit'], 0.25)
     figure(pn, 860 + 60 * eo3(rec), dy_ + 34, 1.15, -1, mix('idle', 'cower', eoback(rec)) if rec > 0 else 'idle', 'punic2',
-           'surprised' if t < T['hit'] else 'fear', look=(-1, -0.6) if t < T['hit'] else (-0.6, 0.6), blink=0)
+           'surprised' if t < T['hit'] else 'terrified', look=(-1, -0.6) if t < T['hit'] else (-0.6, 0.6), blink=0)
 
 def sc_locked(base, pn, t):
     sync = eio(P(t, T['locked'] - 0.15, 0.5))
@@ -756,7 +756,7 @@ def sc_board(base, pn, t):
     cb = C['bow']
     for i, dx in enumerate((230, 360)):
         back = 40 * eio(P(t, T['across'] - 0.2, 0.8))
-        figure(pn, cb[0] + dx + back, cb[1], 0.6, -1, 'cower', 'punic' if i == 0 else 'punic2', 'fear', look=(-0.8, 0), blink=0)
+        figure(pn, cb[0] + dx + back, cb[1], 0.6, -1, 'cower', 'punic' if i == 0 else 'punic2', 'terrified', look=(-0.8, 0), blink=0)
     # three legionaries march across
     u = t - T['board']
     for i, (o, d0) in enumerate((('legion2', 0.0), ('legion3', 0.35), (KEEPER, 0.7))):
