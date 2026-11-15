@@ -299,3 +299,38 @@ class WallBlocks:
                 a = i / 8 * 6.28 + rnd.uniform(-.2, .2); L_ = 60 + 200 * crack * rnd.uniform(.6, 1)
                 mid = (hx + math.cos(a + .2) * L_ * .5, hy + math.sin(a + .2) * L_ * .5)
                 pn.line([(hx, hy), mid, (hx + math.cos(a) * L_, hy + math.sin(a) * L_)], INK, 5)
+
+def swoosh_arrow(pn, p0, p1, bend=0.3, w_tail=5, w_body=44, head=2.6, col=(222, 32, 36), shadow=True, outline=True):
+    """Curved, tapered thumbnail arrow: thin tail swelling into a thick body and a notched triangular head.
+    bend: sideways bulge as a fraction of the length (sign picks the side)."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]; Ln = math.hypot(dx, dy) or 1
+    nx, ny = -dy / Ln, dx / Ln
+    c = ((p0[0] + p1[0]) / 2 + nx * Ln * bend, (p0[1] + p1[1]) / 2 + ny * Ln * bend)
+    hl = w_body * head * 0.95                    # head length
+    def B(u): return ((1 - u) ** 2 * p0[0] + 2 * (1 - u) * u * c[0] + u * u * p1[0], (1 - u) ** 2 * p0[1] + 2 * (1 - u) * u * c[1] + u * u * p1[1])
+    # stop the body where the head starts
+    N = 60; pts = [B(i / N) for i in range(N + 1)]
+    acc = [0.0]
+    for a, b in zip(pts[:-1], pts[1:]): acc.append(acc[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    total = acc[-1]; stop = total - hl * 0.72
+    left, right = [], []
+    for i, (p, s) in enumerate(zip(pts, acc)):
+        if s > stop: break
+        q = pts[min(i + 1, N)] if i < N else p; r = pts[max(i - 1, 0)]
+        tx, ty = q[0] - r[0], q[1] - r[1]; tl = math.hypot(tx, ty) or 1
+        mx, my = -ty / tl, tx / tl
+        w = lerp(w_tail, w_body, (s / stop) ** 0.7) / 2
+        left.append((p[0] + mx * w, p[1] + my * w)); right.append((p[0] - mx * w, p[1] - my * w))
+    body = left + right[::-1]
+    # head: direction of the curve at its end
+    e0 = pts[-6]; ex, ey = p1[0] - e0[0], p1[1] - e0[1]; el = math.hypot(ex, ey) or 1; ux, uy = ex / el, ey / el; vx, vy = -uy, ux
+    hw = w_body * head / 2
+    base = (p1[0] - ux * hl, p1[1] - uy * hl)
+    notch = (p1[0] - ux * hl * 0.72, p1[1] - uy * hl * 0.72)
+    head_pts = [p1, (base[0] + vx * hw, base[1] + vy * hw), notch, (base[0] - vx * hw, base[1] - vy * hw)]
+    if shadow:
+        sh = lambda P_: [(x + 10, y + 12) for x, y in P_]
+        pn.poly(sh(body), fill=(0, 0, 0, 90)); pn.poly(sh(head_pts), fill=(0, 0, 0, 90))
+    if outline:
+        pn.poly(body, fill=INK, outline=INK, width=9); pn.poly(head_pts, fill=INK, outline=INK, width=9)
+    pn.poly(body, fill=col); pn.poly(head_pts, fill=col)

@@ -48,11 +48,12 @@ txt(620, 'SO IT BUILT THIS', 150, AMBER, 16)
 lay2 = new_layer(); p2 = Pen(lay2, cam=False)
 import props
 mid = cvp['mid']
-a0 = (880, 715); tgt = (mid[0] + 30, mid[1] - 40)
-dl = math.hypot(tgt[0] - a0[0], tgt[1] - a0[1]); gap = 130      # clear space between the arrowhead and the bridge
+tgt = (mid[0] + 30, mid[1] - 40)
+a0 = (930, 720)
+gap = 130      # clear space between the arrowhead and the bridge
+dl = math.hypot(tgt[0] - a0[0], tgt[1] - a0[1])
 a1 = (tgt[0] - (tgt[0] - a0[0]) / dl * gap, tgt[1] - (tgt[1] - a0[1]) / dl * gap)
-props.arrow(p2, a0, a1, INK, 40, 110)
-props.arrow(p2, a0, a1, (214, 36, 28), 26, 88)
+props.swoosh_arrow(p2, a0, a1, bend=-0.28, w_tail=6, w_body=46, head=2.5)
 imr = im.convert('RGBA'); flatten(imr, lay2); im = imr.convert('RGB')
 im.save('/home/claude/out/BM_E015_corvus_thumbnail.png')
 im.resize((360, 640)).save('thumb_small.png')
