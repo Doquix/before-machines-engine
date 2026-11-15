@@ -177,7 +177,17 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     pn.push(x, y, k)
     if shadow:
         pn.ell(f * 6, 3, 46, 9, fill=(20, 14, 10, 70))
-    J = joints(p, f, legs * (1.18 if out == 'edward' else 1.0), hands)
+    lk = legs * (1.18 if out == 'edward' else 1.0)
+    carry = bool(O.get('scutum') and shield)
+    if carry and not (hands and hands.get('B') is not None):
+        # the shield hand holds the horizontal grip behind the boss: place it by IK, rest beside the hip,
+        # following the pose's own back hand a little so the shield still moves with the action
+        J0 = joints(p, f, lk); pe = J0['pelvis']
+        Ji = joints(dict(p, uaB=POSES['idle']['uaB'], faB=POSES['idle']['faB']), f, lk)
+        gx = pe[0] - f * 58 + 0.45 * (J0['haB'][0] - Ji['haB'][0])
+        gy = pe[1] - 23 + 0.45 * (J0['haB'][1] - Ji['haB'][1])
+        hands = dict(hands or {}); hands['B'] = (gx, gy)
+    J = joints(p, f, lk, hands)
     if back: back(pn, J)
     if O.get('cloak'):
         nk_, pl_ = J['neck'], J['pelvis']
@@ -193,8 +203,10 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     # arms behind clothing
     def arm(s):
         limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
+    if not arms_front or carry:
+        arm('B')
     if not arms_front:
-        arm('B'); arm('F')
+        arm('F')
     # body garment
     t = math.radians(p['torso'])
     ux, uy = f * math.sin(t), -math.cos(t)          # up along torso
@@ -252,20 +264,24 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.circ(c_[0], c_[1], 4, fill=(150, 104, 44))
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
         pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
-    if O.get('scutum') and shield:
-        # oval Republican scutum carried on the back arm, at the side so the body still reads
-        hb = J['haB']; sx_ = hb[0] - f * 14; sy_ = hb[1] - 30
-        pn.ell(sx_ + f * 4, sy_ + 6, 34, 64, fill=(20, 14, 10, 60))
-        pn.ell(sx_, sy_, 34, 64, fill=O['scutum'], outline=INK, width=3.4)
-        pn.ell(sx_, sy_, 28, 58, outline=lerpc(O['scutum'], WHITE, .25), width=2)
-        pn.line([(sx_, sy_ - 56), (sx_, sy_ + 56)], lerpc(O['scutum'], INK, .3), 4, caps=False)
-        pn.ell(sx_, sy_, 11, 15, fill=(196, 146, 66), outline=INK, width=2.6)
+    if carry:
+        # Republican scutum on its grip: the fist is behind the boss, the forearm behind the board, the sleeve cap
+        # and upper arm show above the rim, the rim clears the shoulder at the top and the knees at the bottom
+        sh_, el_ = J['shB'], J['elB']
+        limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
+        sx_, sy_ = J['haB']; rx_, ry_ = 30, 58
+        pn.ell(sx_ + f * 5, sy_ + 6, rx_, ry_, fill=(20, 14, 10, 60))
+        pn.ell(sx_, sy_, rx_, ry_, fill=O['scutum'], outline=INK, width=3.4)
+        pn.ell(sx_, sy_, rx_ - 6, ry_ - 6, outline=lerpc(O['scutum'], WHITE, .25), width=2)
+        pn.line([(sx_, sy_ - ry_ + 8), (sx_, sy_ + ry_ - 8)], lerpc(O['scutum'], INK, .3), 4, caps=False)
+        pn.ell(sx_, sy_, 10, 14, fill=(196, 146, 66), outline=INK, width=2.6)
     if arms_front:
         if held: held(pn, J)          # the prop sits under the hands
         if grip: grip(pn, J)
-        arm('B'); arm('F')
+        if not carry: arm('B')
+        arm('F')
     # sleeves on upper arm bones (and full mail sleeves)
-    for s in ('B', 'F'):
+    for s in (('F',) if carry else ('B', 'F')):
         if O['sleeve'] == 'mail':
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
         else:
