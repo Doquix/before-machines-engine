@@ -48,8 +48,8 @@ txt(620, 'SO IT BUILT THIS', 150, AMBER, 16)
 lay2 = new_layer(); p2 = Pen(lay2, cam=False)
 import props
 mid = cvp['mid']
-props.arrow(p2, (860, 720), (mid[0] + 30, mid[1] - 60), INK, 22, 60)
-props.arrow(p2, (860, 720), (mid[0] + 30, mid[1] - 60), AMBER, 12, 46)
+props.arrow(p2, (880, 715), (mid[0] + 30, mid[1] - 70), INK, 40, 110)
+props.arrow(p2, (880, 715), (mid[0] + 30, mid[1] - 70), (214, 36, 28), 26, 88)
 imr = im.convert('RGBA'); flatten(imr, lay2); im = imr.convert('RGB')
 im.save('/home/claude/out/BM_E015_corvus_thumbnail.png')
 im.resize((360, 640)).save('thumb_small.png')
