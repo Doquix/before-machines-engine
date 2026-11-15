@@ -8,6 +8,7 @@ Code rendered motion graphics for the Before Machines YouTube Shorts channel (an
 
 | File | What it does |
 |---|---|
+| `detail.py` | Material helpers for detailed props: `lod()` by on screen size, `wood_plank` (grain, bevel, nails), `rivet`, `rope` (twist), `scratches`, light and shade tones |
 | `lib.py` | Easing, camera (punch, shake, drift factor), the camera aware 2x vector `Pen`, radial mask |
 | `rig.py` | Skeleton rig (forward kinematics plus two bone IK hands), poses, expressions, wardrobe, contact shadow |
 | `props.py` | Sticker tags, stamp, callouts, arrows, trebuchet, castle, wall blocks |

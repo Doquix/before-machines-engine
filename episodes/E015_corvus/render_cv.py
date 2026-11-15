@@ -83,12 +83,7 @@ def camfocus(z, fx, fy, tx, ty, ox, oy):
     return z, (tx - CX) - (fx - CX) * z + ox * .3, (ty - CY) - (fy - CY) * z + oy * .3
 
 def sword_held(pn_, J, side='F'):
-    e, h = J['el' + side], J['ha' + side]
-    dx, dy = h[0] - e[0], h[1] - e[1]; Ln = math.hypot(dx, dy) or 1; ux, uy = dx / Ln, dy / Ln
-    b0 = (h[0] + ux * 6, h[1] + uy * 6); b1 = (h[0] + ux * 58, h[1] + uy * 58)
-    plank_rect(pn_, b0, b1, 9, (200, 204, 210), width=2.6)
-    pn_.line([(h[0] - uy * 9, h[1] + ux * 9), (h[0] + uy * 9, h[1] - ux * 9)], cv.BRZ, 5)
-    pn_.circ(h[0] - ux * 8, h[1] - uy * 8, 4.5, fill=cv.BRZ, outline=INK, width=2)
+    cv.short_sword(pn_, J['ha' + side], J['el' + side])
 
 def ring(pn, x, y, r, col, u, width=8):
     if 0 < u < 1: pn.circ(x, y, r, outline=col + (int(255 * (1 - u)),), width=width)

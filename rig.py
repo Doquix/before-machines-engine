@@ -1,6 +1,7 @@
 """Skeleton rig, poses, expressions and the medieval wardrobe (E013 Warwolf, 1304)."""
 import math
 from lib import *
+from detail import lod, shade, light, rivet, scratches
 
 L = dict(head=46, neck=0, torso=100, ua=38.5, fa=37, th=37, sh=35.5)
 SHO = 28; SHO_Y = 21; HIP = 10   # E012 frontal rig: shoulders at the torso edges, hips apart
@@ -168,6 +169,38 @@ def lion(pn, x, y, s):
     for dx in (-6, -2, 4, 7): pn.line([(x + dx * s, y + 2 * s), (x + dx * s, y + 7 * s)], g, 1.8 * s)
     pn.line([(x - 9 * s, y - 1 * s), (x - 13 * s, y - 7 * s), (x - 10 * s, y - 10 * s)], g, 1.8 * s)
 
+def _ell_pts(cx, cy, rx, ry, a0, a1, n=18):
+    return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3):
+    """Mid Republican scutum after Polybius 6.23: curved oval board covered in hide, wooden spine, iron rim at the
+    top and bottom edges, iron boss. Light from the upper left; the right side turns away into shade."""
+    L = lod(pn, 2 * ry)
+    pn.ell(sx + f * 5, sy + 6, rx, ry, fill=(20, 14, 10, 60))
+    pn.ell(sx, sy, rx, ry, fill=col, outline=INK, width=3.4)
+    # curvature: shaded crescent on the right, lit band on the left
+    pn.poly(_ell_pts(sx, sy, rx - 2, ry - 2, -80, 80) + _ell_pts(sx + rx * 0.28, sy, rx * 0.55, ry * 0.86, 80, -80), fill=shade(col, 0.3))
+    pn.poly(_ell_pts(sx, sy, rx - 3, ry - 3, 115, 245) + _ell_pts(sx - rx * 0.42, sy, rx * 0.4, ry * 0.8, 245, 115), fill=light(col, 0.18))
+    if L >= 1:
+        # iron edging along the top and bottom rims
+        for a0, a1 in ((200, 340), (20, 160)):
+            pn.line(_ell_pts(sx, sy, rx - 1, ry - 1, a0, a1, 14), IRON, 4.2, caps=False)
+            pn.line(_ell_pts(sx, sy, rx - 3.5, ry - 3.5, a0 + 8, a1 - 8, 12), lerpc(IRON, WHITE, .35), 1.4, caps=False)
+        pn.ell(sx, sy, rx - 6, ry - 6, outline=lerpc(col, WHITE, .22), width=1.6)
+    # wooden spine with a lit left face
+    pn.line([(sx, sy - ry + 7), (sx, sy + ry - 7)], shade(col, 0.4), 5, caps=False)
+    pn.line([(sx - 1.6, sy - ry + 8), (sx - 1.6, sy + ry - 8)], light(col, 0.25), 1.6, caps=False)
+    # iron boss with rivets
+    pn.ell(sx, sy, 11, 15, fill=IRON, outline=INK, width=2.6)
+    pn.ell(sx + 2.5, sy + 2, 7, 10, fill=shade(IRON, 0.25))
+    pn.ell(sx - 3, sy - 4, 3.2, 5, fill=light(IRON, 0.6))
+    if L >= 1:
+        for a in (45, 135, 225, 315):
+            rivet(pn, sx + math.cos(math.radians(a)) * 9, sy + math.sin(math.radians(a)) * 13, 1.5, IRON)
+    if L >= 2:
+        scratches(pn, sx - 10, sy - 26, ry, seed)
+        scratches(pn, sx + 8, sy + 28, ry, seed + 4, n=2)
+
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
            hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True):
     if isinstance(p, str): p = POSES[p]
@@ -269,12 +302,8 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         # and upper arm show above the rim, the rim clears the shoulder at the top and the knees at the bottom
         sh_, el_ = J['shB'], J['elB']
         limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
-        sx_, sy_ = J['haB']; rx_, ry_ = 30, 58
-        pn.ell(sx_ + f * 5, sy_ + 6, rx_, ry_, fill=(20, 14, 10, 60))
-        pn.ell(sx_, sy_, rx_, ry_, fill=O['scutum'], outline=INK, width=3.4)
-        pn.ell(sx_, sy_, rx_ - 6, ry_ - 6, outline=lerpc(O['scutum'], WHITE, .25), width=2)
-        pn.line([(sx_, sy_ - ry_ + 8), (sx_, sy_ + ry_ - 8)], lerpc(O['scutum'], INK, .3), 4, caps=False)
-        pn.ell(sx_, sy_, 10, 14, fill=(196, 146, 66), outline=INK, width=2.6)
+        sx_, sy_ = J['haB']
+        scutum(pn, sx_, sy_, O['scutum'], f)
     if arms_front:
         if held: held(pn, J)          # the prop sits under the hands
         if grip: grip(pn, J)
@@ -338,18 +367,31 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.arc(hx, hy - r * .8 - 30 + i * 9, r + 2, 60, 120, cd, 2.6)
         pn.ell(hx - f * 2, hy - r * 1.08, r * .62, r * .34, fill=c, outline=INK, width=3)
     elif hat == 'montefortino':
-        c = O['cap']; cd = lerpc(c, INK, .3); by = hy - 27
-        pn.poly([(hx - r - 3, by), (hx - r * .9, by - 20), (hx - r * .55, by - 36), (hx, by - 44),
-                 (hx + r * .55, by - 36), (hx + r * .9, by - 20), (hx + r + 3, by)], fill=c, outline=INK, width=3)
+        c = O['cap']; cd = lerpc(c, INK, .3); by = hy - 27; HL = lod(pn, 2 * r)
+        dome = [(hx - r - 3, by), (hx - r * .9, by - 20), (hx - r * .55, by - 36), (hx, by - 44),
+                (hx + r * .55, by - 36), (hx + r * .9, by - 20), (hx + r + 3, by)]
+        pn.poly(dome, fill=c, outline=INK, width=3)
+        pn.poly([(hx + r * .2, by - 42), (hx + r * .55, by - 36), (hx + r * .9, by - 20), (hx + r + 2, by - 1), (hx + r * .45, by - 1)], fill=shade(c, 0.25))
+        pn.poly([(hx - r * .7, by - 22), (hx - r * .42, by - 36), (hx - r * .22, by - 38), (hx - r * .5, by - 18)], fill=light(c, 0.55))
         pn.line([(hx - r - 8, by), (hx + r + 8, by)], cd, 6)
+        if HL >= 1:   # cast cable pattern on the rim
+            for i in range(13):
+                xx = hx - r - 4 + i * (2 * r + 8) / 12
+                pn.circ(xx, by - 0.5, 1.7, fill=light(c, 0.35))
         for sd in (-1, 1):   # cheek guards hinge at the brim and sit outside the eyes
-            pn.poly([(hx + sd * (r - 9), by + 2), (hx + sd * (r + 3), by + 2), (hx + sd * (r + 1), hy + 20), (hx + sd * (r - 7), hy + 16)],
-                    fill=c, outline=INK, width=2.6)
+            cg = [(hx + sd * (r - 9), by + 2), (hx + sd * (r + 3), by + 2), (hx + sd * (r + 1), hy + 20), (hx + sd * (r - 7), hy + 16)]
+            pn.poly(cg, fill=c if sd < 0 else shade(c, 0.15), outline=INK, width=2.6)
+            if HL >= 1:   # three embossed discs, the usual Italic cheek piece
+                cx_ = hx + sd * (r - 3)
+                for dy in (-6, 4, 14):
+                    pn.circ(cx_, hy + dy - 8, 2.4, fill=light(c, 0.3), outline=cd, width=1)
         pn.circ(hx, by - 46, 7, fill=c, outline=INK, width=2.6)        # crest knob
+        pn.circ(hx - 2, by - 48, 2.4, fill=light(c, 0.6))
         if O.get('plume'):
             for a_ in (-14, 0, 14):
                 aa = math.radians(a_)
                 pn.line([(hx, by - 50), (hx + math.sin(aa) * 30, by - 50 - math.cos(aa) * 34)], O['plume'], 5)
+                if HL >= 1: pn.line([(hx + math.sin(aa) * 6, by - 56), (hx + math.sin(aa) * 26, by - 50 - math.cos(aa) * 30)], light(O['plume'], 0.3), 1.6)
     elif hat == 'cone':
         pn.poly([(hx - r - 2, hy - 10), (hx - r * .5, hy - r * .9), (hx + f * 4, hy - r - 26), (hx + r * .5, hy - r * .9), (hx + r + 2, hy - 10)],
                 fill=O['cap'], outline=INK, width=3)

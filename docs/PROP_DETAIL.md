@@ -35,3 +35,7 @@ The audience watches on phones and many are 55 and over, so detail must read at 
 
 * Build each new prop as a reusable function with a `detail` level (or derive it from its scale), so it can be drawn as a small map token and as a full screen close up.
 * Before using a new or upgraded prop, render it at three sizes (small, medium, full screen) on parchment and look at it, alongside the held object pose sheet from `docs/HELD_OBJECTS.md`. Save the sheet in `docs/reference/`.
+
+## Reference
+
+`detail.py` holds the shared material helpers. E015 is the first episode built to this standard: see `docs/reference/e015_detail_*.png` for the three size sheets (galley, figure kit with scutum, helmet and sword, corvus with spike and pestle) and `episodes/E015_corvus/propsheet_cv.py` for the sheet script.
