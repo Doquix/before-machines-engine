@@ -323,7 +323,23 @@ OUT = {
     'punic2':  dict(tunic=(104, 46, 92), sleeve=(104, 46, 92), hose=(240, 232, 214), boot=(110, 80, 50), hat='cone', cap=(206, 192, 160), beard=(60, 44, 32), beard_style='long'),
     'bulgar2': dict(tunic=(70, 86, 72), sleeve=(70, 86, 72), hose=(84, 74, 60), boot=(60, 44, 30), hat='fur', cap=(40, 70, 110), fur=(120, 92, 60), trim=(196, 160, 96), beard=(80, 60, 40)),
 }
-EPISODE_OUTFIT = 'keeper'
+# E016 Agincourt, 1415
+OUT.update({
+    'archer':  dict(tunic=(222, 214, 192), sleeve=(222, 214, 192), hose=(118, 96, 70), boot=(70, 48, 30), hat='kettle', glasses=True, cross=(190, 40, 36)),
+    'archer2': dict(tunic=(146, 112, 74), sleeve=(146, 112, 74), hose=(84, 92, 70), boot=(70, 48, 30), hat='hood', hood=(108, 118, 84), cross=(190, 40, 36),
+                    beard=(90, 64, 40), beard_style='stubble'),
+    'archer3': dict(tunic=(196, 184, 156), sleeve=(196, 184, 156), hose=(126, 72, 54), boot=(70, 48, 30), hat=None, hair=(150, 104, 56), cross=(190, 40, 36),
+                    beard=(150, 104, 56), beard_style='short'),
+    'boy':     dict(tunic=(172, 146, 104), sleeve=(172, 146, 104), hose=(120, 100, 74), boot=(70, 48, 30), hat=None, hair=(160, 112, 60)),
+    'bowyer':  dict(tunic=(132, 104, 76), sleeve=(132, 104, 76), hose=(98, 86, 66), boot=(70, 48, 30), hat=None, hair=(96, 74, 52), apron=(170, 140, 100),
+                    beard=(96, 74, 52), beard_style='full'),
+    'villager':dict(tunic=(120, 128, 150), sleeve=(120, 128, 150), hose=(110, 90, 66), boot=(70, 48, 30), hat=None, hair=(70, 52, 38), beard=(70, 52, 38), beard_style='short'),
+    'engma':   dict(tunic=(232, 226, 210), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(176, 180, 188), mail=True, cross=(190, 40, 36)),
+    'french1': dict(tunic=(52, 74, 140), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(176, 180, 188), mail=True),
+    'french2': dict(tunic=(150, 40, 40), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(170, 174, 182), mail=True),
+    'french3': dict(tunic=(226, 218, 196), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(176, 180, 188), mail=True),
+})
+EPISODE_OUTFIT = 'archer'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
@@ -430,6 +446,10 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             for i in range(3):
                 c = (lerp(nk[0], pl[0], 0.22 + i * 0.27), lerp(nk[1], pl[1], 0.22 + i * 0.27))
                 lion(pn, c[0], c[1], 0.9)
+        if O.get('cross'):
+            cc = O['cross']; c_ = (lerp(nk[0], pl[0], 0.42), lerp(nk[1], pl[1], 0.42))
+            pn.line([(nk[0] - ux * 10, nk[1] - uy * 10), (lerp(nk[0], pl[0], 0.8), lerp(nk[1], pl[1], 0.8))], cc, 8, caps=False)
+            pn.line([(c_[0] - nx_ * 17, c_[1] - ny_ * 17), (c_[0] + nx_ * 17, c_[1] + ny_ * 17)], cc, 8, caps=False)
         belt = (lerp(nk[0], pl[0], 0.9), lerp(nk[1], pl[1], 0.9))
         pn.line([(belt[0] - nx_ * 22, belt[1] - ny_ * 22), (belt[0] + nx_ * 22, belt[1] + ny_ * 22)], (70, 46, 30), 5)
     else:
@@ -465,6 +485,10 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                 pn.line([(nk[0] + nx_ * sd * 20, nk[1] + ny_ * sd * 20), (c_[0] + nx_ * sd * 13 + ux * 13, c_[1] + ny_ * sd * 13 + uy * 13)], (90, 60, 36), 3.4)
             pn.poly(sq, fill=(196, 146, 66), outline=INK, width=2.8)
             pn.circ(c_[0], c_[1], 4, fill=(150, 104, 44))
+        if O.get('cross'):     # red cross of St George, worn by the English army in France (ordinance of 1385)
+            cc = O['cross']; c_ = (lerp(nk[0], pl[0], 0.42), lerp(nk[1], pl[1], 0.42))
+            pn.line([(nk[0] - ux * 8, nk[1] - uy * 8), (lerp(nk[0], pl[0], 0.8), lerp(nk[1], pl[1], 0.8))], cc, 8, caps=False)
+            pn.line([(c_[0] - nx_ * 19, c_[1] - ny_ * 19), (c_[0] + nx_ * 19, c_[1] + ny_ * 19)], cc, 8, caps=False)
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
         pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
     if carry:
@@ -562,6 +586,23 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                 aa = math.radians(a_)
                 pn.line([(hx, by - 50), (hx + math.sin(aa) * 30, by - 50 - math.cos(aa) * 34)], O['plume'], 5)
                 if HL >= 1: pn.line([(hx + math.sin(aa) * 6, by - 56), (hx + math.sin(aa) * 26, by - 50 - math.cos(aa) * 30)], light(O['plume'], 0.3), 1.6)
+    elif hat == 'bascinet':
+        c = O.get('cap', (170, 174, 182)); HL = lod(pn, 2 * r)
+        top = (hx - f * 4, hy - r - 30)
+        dome = [(hx - r - 6, hy - 2), (hx - r - 4, hy - r * .55), (hx - r * .55, hy - r - 8), top, (hx + r * .55, hy - r - 8),
+                (hx + r + 4, hy - r * .55), (hx + r + 6, hy - 2)]
+        inner = [(hx + r * .78, hy - 4), (hx + r * .62, hy - r * .55), (hx, hy - r * .78), (hx - r * .62, hy - r * .55), (hx - r * .78, hy - 4)]
+        pn.poly(dome + inner, fill=c, outline=INK, width=3)
+        pn.poly([(hx + r * .2, hy - r - 14), top, (hx + r * .55, hy - r - 8), (hx + r + 4, hy - r * .55), (hx + r + 6, hy - 2), (hx + r * .78, hy - 4),
+                 (hx + r * .62, hy - r * .55)], fill=shade(c, 0.22))
+        pn.poly([(hx - r * .5, hy - r - 6), (hx - r * .15, hy - r - 18), (hx - r * .05, hy - r - 12), (hx - r * .4, hy - r + 2)], fill=light(c, 0.6))
+        # raised houndskull visor: pivots at the temples, snout pointing up and forward
+        vz = [(hx - r * .7, hy - r * .62), (hx - r * .5, hy - r - 16), (hx + f * r * .1, hy - r - 34), (hx + f * r * .55, hy - r - 26),
+              (hx + r * .6, hy - r - 10), (hx + r * .7, hy - r * .62)]
+        pn.poly(vz, fill=light(c, 0.12), outline=INK, width=2.8)
+        if HL >= 1:
+            pn.line([(hx - r * .3, hy - r - 18), (hx + f * r * .25, hy - r - 24)], INK, 2.2)
+            for sd in (-1, 1): rivet(pn, hx + sd * r * .74, hy - r * .6, 3.2, c)
     elif hat == 'cone':
         pn.poly([(hx - r - 2, hy - 10), (hx - r * .5, hy - r * .9), (hx + f * 4, hy - r - 26), (hx + r * .5, hy - r * .9), (hx + r + 2, hy - 10)],
                 fill=O['cap'], outline=INK, width=3)

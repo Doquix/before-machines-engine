@@ -16,8 +16,9 @@ Code rendered motion graphics for the Before Machines YouTube Shorts channel (an
 | `env.py` | Painted environments, cached, blurred and graded so figures read clearly |
 | `make_map.py` | Real coastline maps from `global-land-mask` (set `LEVELS` per episode) |
 | `timeline.py` | Pause tightening, chapter pauses (padded with silence), word onsets to `timing.json` |
-| `episodes/E015_corvus/` | Latest episode: `cv.py` (galley with ram, corvus, pestle, field, beach and sea environments, map levels), `render_cv.py`, `audio_cv.py`, `timeline_cv.py` (word onsets from real timestamps), `asr_words.py` |
-| `episodes/E014_greek_fire/` | Previous episode: `gf.py` (props and environments), `render_gf.py` (beat table, scenes, captions, cue sheet), `audio_gf.py` (SFX, modal music bed, ducking, mix) |
+| `episodes/E016_longbow/` | Latest episode: `lb.py` (longbow with sapwood and heartwood, arrows with IK archer hands, log end grain, butts, skeleton, French banner, furrows, rain, mud, green, workshop, lab and Agincourt environments, map levels), `render_lb.py`, `audio_lb.py` (adds twang, whiz, thunk, rain, volley and clatter), `timeline_lb.py` |
+| `episodes/E015_corvus/` | Previous episode: `cv.py` (galley with ram, corvus, pestle, field, beach and sea environments, map levels), `render_cv.py`, `audio_cv.py`, `timeline_cv.py` (word onsets from real timestamps), `asr_words.py` |
+| `episodes/E014_greek_fire/` | Older episode: `gf.py` (props and environments), `render_gf.py` (beat table, scenes, captions, cue sheet), `audio_gf.py` (SFX, modal music bed, ducking, mix) |
 
 Only the beat table `T`, `SCENES`, the `sc_*` scene functions, `EPISODE_OUTFIT` and map settings are episode specific. Everything else is the engine.
 
