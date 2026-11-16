@@ -7,12 +7,12 @@ import lb, env
 CAM.drift = 0; CAM.set(0)
 
 def bow_figure(pn, x, y, k, f, draw, out='archer', expr='determined', arrow_on=True, pz='idle'):
-    p = pose(pz)
+    p = pose(pz, torso=-2 * draw, head=draw)
     J0 = joints(p, f, 1.0)
     hands = lb.archer_hands(f, draw, J0['neck'])
     def held(pn_, J):
         g = J['haF']; s = J['haB']
-        B = lb.longbow(pn_, g[0], g[1], f, draw, string_to=s)
+        B = lb.longbow(pn_, g[0], g[1], f, lb.string_bend(f, g, s), string_to=s)
         if arrow_on:
             ang = math.atan2(g[1] - s[1], g[0] - s[0])
             lb.arrow(pn_, s, ang)

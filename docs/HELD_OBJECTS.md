@@ -30,3 +30,9 @@ This applies to every object a figure holds, carries, wields, pulls, throws or w
 * Outfits with `scutum` are handled automatically: the back hand goes to the grip by IK, the shield is drawn over the forearm, and it follows the pose.
 * `render_cv.sword_held(pn, J)` is the pattern for a one handed weapon: blade from the hand along the forearm direction, guard across the fist.
 * New objects should get the same treatment: a function that takes the joint dict `J` and draws from `J['haF']` / `J['haB']` and the elbow to hand direction, never from fixed coordinates.
+
+## Physically real actions (set by the channel owner after E016)
+
+Expressions can be exaggerated; actions cannot. Every action must use the real technique and the real body mechanics, checked against a reference of a real person doing it before it goes into an episode.
+
+**Drawing a bow** (`lb.archer_hands`, `render_lb.archer`): bow arm locked straight, level with the arrow; arrow level just under the chin; string hand drawn back along the arrow line to an anchor under the chin on the draw side; draw elbow raised behind the hand on the same line (the upper arm points back into depth, so it is drawn foreshortened with an explicit elbow, `hands={'elB': ...}` in `rig.joints`). The bow bends from the real distance the string is pulled. Shooting high (volleys) tilts the whole draw about the bow shoulder (`aim`) and the bow stays perpendicular to the arrow. Reference: `docs/reference/e016_bow_grip_sheet.png`.

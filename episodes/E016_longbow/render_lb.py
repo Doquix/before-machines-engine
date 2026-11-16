@@ -91,31 +91,32 @@ def walk_pose(t, rate=9.0, amp=22, base='walk', **over):
 
 # ---------------- the archer (held object: hands on the grip and the string by IK) ----------------
 def archer(pn, x, y, k, f, draw, t, out=KEEPER, expr='determined', look=(0.9, 0.0), arrow_on=True, rel=None, tremble=0.0,
-           blink=None, alpha_arrow=1.0, p=None):
-    """Front-on archer: bow hand straight out on the f side at shoulder height, string hand drawing to the jaw.
-    rel: seconds since release (string hand flicks back, bow string vibrates, no arrow on the string).
+           blink=None, alpha_arrow=1.0, p=None, aim=0.0):
+    """Front-on archer with correct form: bow arm straight and level, arrow level under the chin, string hand drawn to
+    the jaw, draw elbow raised back on the arrow line. rel: seconds since release (follow through, string vibrates).
     Returns world positions: grip, string hand, nock and arrow angle."""
-    p = p or pose('idle', torso=-3 * draw, head=2 * draw)
+    p = p or pose('idle', torso=-2 * draw, head=1 * draw)
     J0 = joints(p, f, 1.0)
-    hands = archer_hands(f, draw if rel is None else 1.0, J0['neck'])
+    fol = 0.0 if rel is None else eo3(clamp(rel / 0.12))
+    hands = archer_hands(f, draw if rel is None else 1.0, J0['neck'], fol, aim)
     if tremble > 0:
-        hands['B'] = (hands['B'][0] + tremble * 1.6 * math.sin(t * 47), hands['B'][1] + tremble * 1.2 * math.cos(t * 41))
-        hands['F'] = (hands['F'][0] + tremble * 1.0 * math.sin(t * 37 + 1), hands['F'][1])
-    if rel is not None:
-        q = clamp(rel / 0.1)
-        hands['B'] = (hands['B'][0] - f * 16 * eo3(q), hands['B'][1] - 4 * eo3(q))
+        dxy = (tremble * 1.4 * math.sin(t * 47), tremble * 1.0 * math.cos(t * 41))
+        hands['B'] = (hands['B'][0] + dxy[0], hands['B'][1] + dxy[1])
+        hands['elB'] = (hands['elB'][0] + dxy[0] * 1.5, hands['elB'][1] + dxy[1])
+        hands['F'] = (hands['F'][0], hands['F'][1] + tremble * 0.8 * math.sin(t * 37 + 1))
     info = {}
     def held(pn_, J):
         g = J['haF']; s = J['haB']
         if rel is None:
-            longbow(pn_, g[0], g[1], f, draw, string_to=s if draw > 0.02 or arrow_on else None)
+            bend = lb.string_bend(f, g, s)
             ang = math.atan2(g[1] - s[1], g[0] - s[0])
+            longbow(pn_, g[0], g[1], f, bend, string_to=s, tilt=ang if f > 0 else ang + math.pi)
             if arrow_on and alpha_arrow > 0:
                 arrow(pn_, s, ang)
             info.update(nock=s, ang=ang)
         else:
             vib = max(0.0, 1 - rel / 0.45)
-            longbow(pn_, g[0], g[1], f, 0.0, vib=vib * 0.9 + 1e-3 if vib > 0 else 0.0)
+            longbow(pn_, g[0], g[1], f, 0.0, vib=vib * 0.9 + 1e-3 if vib > 0 else 0.0, tilt=-f * aim)
             info.update(nock=s, ang=0.0)
         info['grip'] = g
     J = figure(pn, x, y, k, f, p, out, expr, look=look, blink=blink_at(t, x * 0.01) if blink is None else blink, hands=hands, held=held)
@@ -125,7 +126,7 @@ def archer(pn, x, y, k, f, draw, t, out=KEEPER, expr='determined', look=(0.9, 0.
 
 def archer_geom(x, y, k, f, draw, p=None):
     """Arrow tip and nock in world space for an archer at this draw, without drawing (pure, for flights)."""
-    p = p or pose('idle', torso=-3 * draw, head=2 * draw)
+    p = p or pose('idle', torso=-2 * draw, head=1 * draw)
     J0 = joints(p, f, 1.0)
     J = joints(p, f, 1.0, archer_hands(f, draw, J0['neck']))
     g, s_ = J['haF'], J['haB']
@@ -751,7 +752,7 @@ def sc_volley(base, pn, t):
         rel = t - last if 0 <= t - last < 0.25 else None
         d = clamp(1 - (nxt - t) / 0.35) if rel is None else 1.0
         archer(pn, x, y, 0.5, 1, d, t, out=('archer', 'archer2', 'archer3')[i % 3], expr='determined', look=(1, -0.5), rel=rel, blink=0,
-               p=pose('idle', torso=-8, head=-6))
+               p=pose('idle', torso=-6, head=-8), aim=0.62)
     hit = P(t, VOLLEYS[0] + FLIGHT, 0.3)
     for i in range(6):
         x = 640 + i * 75; y = 1230 + (i % 2) * 50

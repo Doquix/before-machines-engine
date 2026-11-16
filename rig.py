@@ -73,6 +73,11 @@ def joints(p, f=1, legs=1.0, hands=None):
                 if abs(e1[1] - e2[1]) > 10:
                     e1, h1 = (e1, h1) if e1[1] > e2[1] else (e2, h2)
                 J['el' + side], J['ha' + side] = e1, h1
+        # explicit elbow (figure local units): for limbs that point into depth, drawn foreshortened, e.g. the raised
+        # draw elbow of an archer at full draw, level with the arrow
+        for side in ('F', 'B'):
+            if hands.get('el' + side) is not None:
+                J['el' + side] = hands['el' + side]
     return J
 
 # ---------------- face: expressions ----------------

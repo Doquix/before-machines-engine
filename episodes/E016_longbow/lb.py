@@ -113,15 +113,41 @@ def arrow(pn, nock, ang, L=ARROW_L, head='bodkin', hl=0.0, fl=True, w=3.4):
         pn.poly([q(L - 13, -3), q(L - 6, -9), q(L + 8, 0), q(L - 6, 9), q(L - 13, 3)], fill=IRON, outline=INK, width=2)
     return q(L + 6, 0)
 
-def archer_hands(f, draw, neck):
-    """IK targets (figure local units) for a front-on archer: bow hand straight out at shoulder height on the f side,
-    string hand from beside the bow to the jaw anchor."""
+DRAW_START = 40       # string hand, units ahead of the neck, when the draw begins
+DRAW_ANCHOR = -12     # string hand under the chin on the draw side at full draw (about a 29 inch draw)
+ARROW_Y = 6           # arrow line, units below the neck (just under the chin)
+
+def archer_hands(f, draw, neck, rel=0.0, aim=0.0):
+    """IK targets (figure local units) for a front-on archer drawing correctly: bow arm locked straight and level with
+    the arrow, string hand drawn back along the arrow line to the jaw, draw elbow raised behind it on the same line
+    (the upper arm points back into depth, so it is drawn foreshortened). rel 0..1 is the follow through after the
+    release: the string hand slides back past the jaw."""
     nx, ny = neck
-    bow = (nx + f * 82, ny + 16)
-    start = (nx + f * 52, ny + 18)
-    anchor = (nx + f * 10, ny - 14)
-    s = (lerp(start[0], anchor[0], draw), lerp(start[1], anchor[1], draw))
-    return {'F': bow, 'B': s}
+    sh_f = (nx + f * 28, ny + 21)
+    y = ny + ARROW_Y
+    reach = 74.5
+    dy = y - sh_f[1]
+    bow = (sh_f[0] + f * math.sqrt(max(1.0, reach * reach - dy * dy)), y)
+    hx = lerp(DRAW_START, DRAW_ANCHOR, clamp(draw)) - 18 * rel
+    hand = (nx + f * hx, y - 2 * rel)
+    J = {'F': bow, 'B': hand}
+    # draw elbow: level with the arrow, a forearm length behind the hand, once the draw is under way
+    sh_b = (nx - f * 28, ny + 21)
+    el_full = (hand[0] - f * 37, y - 1)
+    el_low = (lerp(sh_b[0], hand[0], 0.35), sh_b[1] + 26)
+    u = clamp(draw * 1.25)
+    J['elB'] = (lerp(el_low[0], el_full[0], u), lerp(el_low[1], el_full[1], u))
+    if aim:     # shooting high (volleys): the whole draw tilts up about the bow shoulder, form unchanged
+        a = -f * aim; ca, sa = math.cos(a), math.sin(a)
+        for k_ in ('F', 'B', 'elB'):
+            px, py = J[k_][0] - sh_f[0], J[k_][1] - sh_f[1]
+            J[k_] = (sh_f[0] + px * ca - py * sa, sh_f[1] + px * sa + py * ca)
+    return J
+
+def string_bend(f, grip, hand):
+    """Bow bend from the real distance the string is pulled behind the grip (braced 24 units, full draw about 113)."""
+    d = math.hypot(grip[0] - hand[0], grip[1] - hand[1])
+    return clamp((d - 24) / (113 - 24))
 
 def stuck_arrow(pn, x, y, ang, L=ARROW_L * 0.7, s=1.0):
     """Arrow standing in the ground, shot from the left: nock and fletching up, head buried."""
