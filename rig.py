@@ -344,7 +344,21 @@ OUT.update({
     'french2': dict(tunic=(150, 40, 40), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(170, 174, 182), mail=True),
     'french3': dict(tunic=(226, 218, 196), sleeve='mail', hose='mail', boot=(110, 114, 122), hat='bascinet', cap=(176, 180, 188), mail=True),
 })
-EPISODE_OUTFIT = 'archer'
+# E017 Macedon and the Greek city states, 4th century BC
+_BRZ = (196, 150, 72); _LIN = (234, 226, 204)
+OUT.update({
+    'phalanx':  dict(tunic=_LIN, sleeve=(150, 54, 42), hose=(240, 232, 214), boot=(110, 80, 50), hat='phrygian', cap=_BRZ,
+                     greaves=_BRZ, ptery=(238, 230, 210), skirt=(150, 54, 42), glasses=True),
+    'phalanx2': dict(tunic=_LIN, sleeve=(150, 54, 42), hose=(240, 232, 214), boot=(110, 80, 50), hat='phrygian', cap=(188, 142, 66),
+                     greaves=_BRZ, ptery=(238, 230, 210), skirt=(150, 54, 42)),
+    'phalanx3': dict(tunic=(220, 210, 186), sleeve=(132, 48, 40), hose=(240, 232, 214), boot=(110, 80, 50), hat='phrygian', cap=(200, 156, 80),
+                     greaves=_BRZ, ptery=(226, 216, 192), skirt=(132, 48, 40), beard=(80, 60, 42), beard_style='stubble'),
+    'hoplite':  dict(tunic=(226, 218, 196), sleeve=(70, 92, 128), hose=(240, 232, 214), boot=(110, 80, 50), hat='pilosb', cap=(186, 144, 70),
+                     greaves=_BRZ, ptery=(230, 222, 200), skirt=(70, 92, 128), beard=(62, 46, 34), beard_style='full'),
+    'hoplite2': dict(tunic=(214, 204, 178), sleeve=(112, 74, 52), hose=(240, 232, 214), boot=(110, 80, 50), hat='pilosb', cap=(176, 136, 66),
+                     greaves=_BRZ, ptery=(220, 210, 186), skirt=(112, 74, 52), beard=(90, 66, 44), beard_style='short', plume=(150, 40, 36)),
+})
+EPISODE_OUTFIT = 'phalanx'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
@@ -393,7 +407,10 @@ def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3):
         scratches(pn, sx + 8, sy + 28, ry, seed + 4, n=2)
 
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
-           hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True):
+           hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True,
+           mid=None, b_behind=False, b_hide=False):
+    """mid(pn, J): drawn over the clothing and under the front arm (a shield worn on the back arm, a pelta on its strap).
+    b_behind: the back arm stays behind the clothing and mid layer (its hand is still drawn on top unless b_hide)."""
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
     # holding something: arms and hands go in front of the clothing so the grip reads
@@ -424,11 +441,20 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         limb(pn, [hp_, J['knee' + s], J['foot' + s]], hose, 6.5)
         fx, fy = J['foot' + s]
         pn.ell(fx + f * 6, fy - 3, 11, 6, fill=O['boot'], outline=INK, width=2.6)
+        if O.get('greaves'):   # bronze greaves sprung over the shin, knee to ankle
+            kx, ky = J['knee' + s]; g_ = O['greaves']
+            ax_, ay_ = lerp(kx, fx, 0.9), lerp(ky, fy, 0.9)
+            pn.line([(kx, ky + 1), (ax_, ay_)], INK, 15)
+            pn.line([(kx, ky + 1), (ax_, ay_)], g_, 10)
+            pn.line([(kx - 2.2, ky + 4), (lerp(kx, ax_, .8) - 2.2, lerp(ky, ay_, .8))], light(g_, 0.5), 2.4, caps=False)
     # arms behind clothing
     def arm(s):
         limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
-    if not arms_front or carry:
+    if not arms_front or carry or b_behind:
         arm('B')
+        if b_behind and not carry:
+            sh_, el_ = J['shB'], J['elB']
+            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
     if not arms_front:
         arm('F')
     # body garment
@@ -494,6 +520,22 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             cc = O['cross']; c_ = (lerp(nk[0], pl[0], 0.42), lerp(nk[1], pl[1], 0.42))
             pn.line([(nk[0] - ux * 8, nk[1] - uy * 8), (lerp(nk[0], pl[0], 0.8), lerp(nk[1], pl[1], 0.8))], cc, 8, caps=False)
             pn.line([(c_[0] - nx_ * 19, c_[1] - ny_ * 19), (c_[0] + nx_ * 19, c_[1] + ny_ * 19)], cc, 8, caps=False)
+        if O.get('ptery'):     # linothorax: layered linen corselet, shoulder yoke tied down on the chest, pteruges at the hem
+            pc = O['ptery']; sk = O.get('skirt', (150, 54, 42))
+            pn.poly([(hem[0] - nx_ * (hw + 2), hem[1] - ny_ * (hw + 2)), (hem[0] + nx_ * (hw + 2), hem[1] + ny_ * (hw + 2)),
+                     (hem[0] + nx_ * (hw + 4) - ux * 26, hem[1] + ny_ * (hw + 4) - uy * 26), (hem[0] - nx_ * (hw + 4) - ux * 26, hem[1] - ny_ * (hw + 4) - uy * 26)],
+                    fill=sk, outline=INK, width=2.6)
+            for i in range(7):
+                c0 = -hw + 2 + i * (2 * hw - 4) / 6
+                a_ = (hem[0] + nx_ * c0 + ux * 4, hem[1] + ny_ * c0 + uy * 4)
+                b_ = (hem[0] + nx_ * c0 - ux * 18, hem[1] + ny_ * c0 - uy * 18)
+                pn.line([a_, b_], INK, 10, caps=False); pn.line([a_, b_], pc, 6.4, caps=False)
+            for sd in (-1, 1):
+                a_ = (nk[0] + nx_ * sd * 22 - ux * 3, nk[1] + ny_ * sd * 22 - uy * 3)
+                b_ = (lerp(nk[0], pl[0], 0.3) + nx_ * sd * 8, lerp(nk[1], pl[1], 0.3) + ny_ * sd * 8)
+                pn.line([a_, b_], INK, 9); pn.line([a_, b_], shade(O['tunic'], 0.1), 5.5)
+            pn.line([(lerp(nk[0], pl[0], 0.3) - nx_ * 8, lerp(nk[1], pl[1], 0.3) - ny_ * 8),
+                     (lerp(nk[0], pl[0], 0.3) + nx_ * 8, lerp(nk[1], pl[1], 0.3) + ny_ * 8)], (150, 54, 42), 3)
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
         pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
     if carry:
@@ -503,13 +545,18 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
         sx_, sy_ = J['haB']
         scutum(pn, sx_, sy_, O['scutum'], f)
+    if mid: mid(pn, J)
     if arms_front:
         if held: held(pn, J)          # the prop sits under the hands
         if grip: grip(pn, J)
-        if not carry: arm('B')
+        if not carry and not b_behind: arm('B')
         arm('F')
     # sleeves on upper arm bones (and full mail sleeves)
     for s in (('F',) if carry else ('B', 'F')):
+        if s == 'B' and b_behind:
+            if not b_hide:
+                hx_, hy_ = J['haB']; pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+            continue
         if O['sleeve'] == 'mail':
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
         else:
@@ -608,6 +655,41 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         if HL >= 1:
             pn.line([(hx - r * .3, hy - r - 18), (hx + f * r * .25, hy - r - 24)], INK, 2.2)
             for sd in (-1, 1): rivet(pn, hx + sd * r * .74, hy - r * .6, 3.2, c)
+    elif hat == 'phrygian':
+        # Phrygian (Thracian) helmet, bronze: skull raised from one sheet, tall apex curling forward, short brim peak,
+        # neck guard and long cheek pieces (Alexander sarcophagus; Macedonian infantry, late 4th century BC)
+        c = O['cap']; cd = lerpc(c, INK, .3); HL = lod(pn, 2 * r); by = hy - 24
+        rel = [(-r - 4, 4), (-r - 2, -22), (-r * .6, -46), (-2, -60), (r * .45, -74), (r * .95, -70), (r * 1.02, -56), (r * .8, -50),
+               (r * .9, -30), (r + 4, 4)]
+        skull = [(hx + f * dx, by + dy) for dx, dy in rel]
+        pn.poly(skull, fill=c, outline=INK, width=3)
+        pn.poly([(hx + f * r * .1, by - 58), (hx + f * r * .45, by - 72), (hx + f * r * .9, by - 68), (hx + f * r * .75, by - 52),
+                 (hx + f * r * .85, by - 28), (hx + f * (r + 3), by + 2), (hx + f * r * .3, by + 2)], fill=shade(c, 0.22))
+        pn.poly([(hx - f * r * .6, by - 30), (hx - f * r * .35, by - 48), (hx - f * r * .1, by - 52), (hx - f * r * .35, by - 26)], fill=light(c, 0.55))
+        pn.line([(hx - r - 6, by + 3), (hx + r + 6, by + 3)], cd, 6)
+        pn.poly([(hx + f * r * .3, by + 1), (hx + f * (r + 16), by + 6), (hx + f * r * .3, by + 9)], fill=c, outline=INK, width=2.4)   # brim peak
+        if HL >= 1:
+            pn.line([(hx - f * r * .5, by - 6), (hx + f * r * .6, by - 6)], light(c, 0.35), 1.6, caps=False)
+        for sd in (-1, 1):   # cheek pieces outside the eyes
+            cg = [(hx + sd * (r - 8), by + 6), (hx + sd * (r + 3), by + 6), (hx + sd * (r + 2), hy + 24), (hx + sd * (r - 5), hy + 20)]
+            pn.poly(cg, fill=c if sd * f < 0 else shade(c, 0.15), outline=INK, width=2.6)
+            if HL >= 1: pn.line([(hx + sd * (r - 2), by + 12), (hx + sd * (r - 2), hy + 14)], light(c, 0.3), 1.4, caps=False)
+        if O.get('plume'):
+            for a_ in (-10, 6):
+                aa = math.radians(a_)
+                pn.line([(hx - f * 4, by - 60), (hx - f * 4 + math.sin(aa) * 26, by - 60 - math.cos(aa) * 24)], O['plume'], 5)
+    elif hat == 'pilosb':
+        # bronze pilos helmet: conical skull set off from a narrow brim by a rib (hoplites, later 5th and 4th century BC)
+        c = O['cap']; cd = lerpc(c, INK, .3); by = hy - 26; HL = lod(pn, 2 * r)
+        cone = [(hx - r - 4, by), (hx - r * .8, by - 28), (hx - r * .25, by - 66), (hx + r * .25, by - 66), (hx + r * .8, by - 28), (hx + r + 4, by)]
+        pn.poly(cone, fill=c, outline=INK, width=3)
+        pn.poly([(hx + r * .12, by - 64), (hx + r * .25, by - 66), (hx + r * .8, by - 28), (hx + r + 3, by - 1), (hx + r * .35, by - 1)], fill=shade(c, 0.25))
+        pn.poly([(hx - r * .62, by - 26), (hx - r * .25, by - 58), (hx - r * .1, by - 58), (hx - r * .4, by - 22)], fill=light(c, 0.55))
+        pn.line([(hx - r - 9, by + 1), (hx + r + 9, by + 1)], cd, 7)
+        if HL >= 1: pn.line([(hx - r - 4, by - 5), (hx + r + 4, by - 5)], light(c, 0.3), 1.8, caps=False)
+        pn.circ(hx, by - 67, 5, fill=c, outline=INK, width=2.2)
+        if O.get('plume'):
+            pn.poly([(hx - 4, by - 70), (hx + 4, by - 70), (hx - f * 34, by - 96), (hx - f * 44, by - 88)], fill=O['plume'], outline=INK, width=2.4)
     elif hat == 'cone':
         pn.poly([(hx - r - 2, hy - 10), (hx - r * .5, hy - r * .9), (hx + f * 4, hy - r - 26), (hx + r * .5, hy - r * .9), (hx + r + 2, hy - 10)],
                 fill=O['cap'], outline=INK, width=3)

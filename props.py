@@ -1,6 +1,7 @@
 """Props: counterweight trebuchet, castle pieces, flags, sticker tags, stamp, small engines."""
 import math, random
 from lib import *
+from detail import lod, shade, light, rivet, scratches
 
 PIV_H, LA, LS, SL = 420, 560, 112, 300
 TH_COCK, TH_REL, TH_END = 137.0, 292.0, 318.0
@@ -334,3 +335,102 @@ def swoosh_arrow(pn, p0, p1, bend=0.3, w_tail=5, w_body=44, head=2.6, col=(222, 
     if outline:
         pn.poly(body, fill=INK, outline=INK, width=9); pn.poly(head_pts, fill=INK, outline=INK, width=9)
     pn.poly(body, fill=col); pn.poly(head_pts, fill=col)
+
+
+# ================= E017 Macedon, 4th to 2nd century BC (period library BM-P001 to BM-P006) =================
+# figure units: the rig is about 264 units tall for a man of about 1.72 m, so 1 unit is about 0.66 cm
+UNIT_CM = 0.66
+SARISSA_L = 830       # about 5.5 m: 12 cubits (Theophrastus); Polybius gives 14 for the 2nd century BC
+DORY_L = 370          # about 2.4 m (hoplite spear, 7 to 8 ft)
+ASH = (176, 140, 92); ASH_D = (132, 100, 62)
+BRZ = (196, 150, 72); BRZ_D = (150, 104, 44)
+
+def _seg(pn, a, b, w, col, outline=3.0):
+    pn.line([a, b], INK, w + outline * 2, caps=False); pn.line([a, b], col, w, caps=False)
+
+def sarissa(pn, hx, hy, ang, back=240, L=SARISSA_L, w=7.0, butt=True, head=True, flex=0.0):
+    """Sarissa from a grip point: shaft of ash or cornel, iron leaf head, butt spike (attested on some, debated).
+    hx, hy: the rear hand on the shaft; ang: direction of the point (radians); back: shaft length behind the hand.
+    flex: slight droop of the long shaft (units at the tip)."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    x0, y0 = hx - ca * back, hy - sa * back
+    x1, y1 = x0 + ca * L, y0 + sa * L
+    n = 10; pts = []
+    for i in range(n + 1):
+        u = i / n; d_ = flex * u * u
+        pts.append((x0 + ca * L * u - sa * d_ * 0, y0 + sa * L * u + d_))
+    tip = pts[-1]
+    pn.line(pts, INK, w + 6, caps=False); pn.line(pts, ASH, w, caps=False)
+    if lod(pn, L) >= 1:
+        pn.line([(p[0] - sa * w * .25, p[1] - ca * w * .25 - w * .2) for p in pts], light(ASH, 0.35), max(1.2, w * .28), caps=False)
+    # iron head: socket, then a long leaf blade with a midrib
+    if head:
+        hl, hw = 46, 9.5
+        ex, ey = tip[0] + ca * hl, tip[1] + sa * hl
+        nx, ny = -sa, ca
+        sock = [(tip[0] + nx * 5 - ca * 12, tip[1] + ny * 5 - sa * 12), (tip[0] - nx * 5 - ca * 12, tip[1] - ny * 5 - sa * 12),
+                (tip[0] - nx * 4.2 + ca * 8, tip[1] - ny * 4.2 + sa * 8), (tip[0] + nx * 4.2 + ca * 8, tip[1] + ny * 4.2 + sa * 8)]
+        pn.poly(sock, fill=IRON, outline=INK, width=2.4)
+        leaf = [(tip[0] + ca * 6, tip[1] + sa * 6), (tip[0] + ca * 18 + nx * hw, tip[1] + sa * 18 + ny * hw), (ex, ey),
+                (tip[0] + ca * 18 - nx * hw, tip[1] + sa * 18 - ny * hw)]
+        pn.poly(leaf, fill=IRON, outline=INK, width=2.6)
+        pn.poly([(tip[0] + ca * 6, tip[1] + sa * 6), (tip[0] + ca * 18 - nx * hw, tip[1] + sa * 18 - ny * hw), (ex, ey)], fill=shade(IRON, 0.25))
+        pn.line([(tip[0] + ca * 10, tip[1] + sa * 10), (ex - ca * 4, ey - sa * 4)], light(IRON, 0.6), 1.8, caps=False)
+    else:
+        ex, ey = tip
+    if butt:   # bronze butt spike (sauroter type), also a counterweight
+        bl = 30; nx, ny = -sa, ca
+        bx, by_ = x0 - ca * bl, y0 - sa * bl
+        pn.poly([(x0 + nx * 5, y0 + ny * 5), (x0 - nx * 5, y0 - ny * 5), (x0 - ca * 10 - nx * 4, y0 - sa * 10 - ny * 4), (bx, by_),
+                 (x0 - ca * 10 + nx * 4, y0 - sa * 10 + ny * 4)], fill=BRZ, outline=INK, width=2.4)
+        pn.line([(x0 - ca * 4 + nx * 2, y0 - sa * 4 + ny * 2), (bx + ca * 6, by_ + sa * 6)], light(BRZ, 0.5), 1.4, caps=False)
+    return dict(tip=(ex, ey), butt=(x0 - ca * 30, y0 - sa * 30))
+
+def dory(pn, hx, hy, ang, back=110, L=DORY_L, w=6.5):
+    """Hoplite spear: ash shaft, iron leaf head, bronze sauroter at the butt. hx, hy: grip (near the balance point)."""
+    return sarissa(pn, hx, hy, ang, back=back, L=L, w=w)
+
+def pelta(pn, cx, cy, r=42, f=1, strap_to=None, deco=True):
+    """Macedonian phalanx shield (pelta): bronze faced, about 60 to 74 cm, shallow and rimless, hung from the neck by a
+    strap (telamon) with the forearm through a single armband. Decoration simplified: a ring of semicircles with a central
+    star, as on Macedonian shield types (painted or embossed patterns varied)."""
+    L_ = lod(pn, 2 * r)
+    if strap_to:
+        for sd in (-1, 1):
+            pn.line([(strap_to[0] + sd * 16, strap_to[1]), (cx + sd * r * .55, cy - r * .78)], (96, 64, 38), 4.2)
+    pn.circ(cx + 4, cy + 5, r, fill=(20, 14, 10, 60))
+    pn.circ(cx, cy, r, fill=BRZ, outline=INK, width=3.2)
+    pn.poly(_ell_pts_(cx, cy, r - 2, r - 2, -70, 90) + _ell_pts_(cx + r * .25, cy + r * .1, r * .62, r * .78, 90, -70), fill=shade(BRZ, 0.22))
+    pn.poly(_ell_pts_(cx, cy, r - 3, r - 3, 150, 250) + _ell_pts_(cx - r * .3, cy - r * .2, r * .48, r * .55, 250, 150), fill=light(BRZ, 0.3))
+    if deco and L_ >= 1:
+        k_ = 7
+        for i in range(k_):
+            a = math.radians(i * 360 / k_ - 90)
+            px, py = cx + math.cos(a) * r * .7, cy + math.sin(a) * r * .7
+            pn.arc(px, py, r * .2, math.degrees(a) + 90, math.degrees(a) + 270, BRZ_D, 2.6)
+        pn.circ(cx, cy, r * .42, outline=BRZ_D, width=2.4)
+        for i in range(8):     # eight rayed star
+            a = math.radians(i * 45)
+            pn.line([(cx, cy), (cx + math.cos(a) * r * .34, cy + math.sin(a) * r * .34)], BRZ_D, 2.6)
+        pn.circ(cx, cy, r * .09, fill=light(BRZ, 0.5), outline=BRZ_D, width=1.6)
+    if L_ >= 2: scratches(pn, cx - r * .3, cy + r * .2, r, 5, n=2)
+
+def aspis(pn, cx, cy, r=56, f=1, col=BRZ, device=None):
+    """Hoplite aspis: deep, dished wooden shield faced with bronze, flat offset rim (antyx), about 80 to 90 cm. Carried on
+    the forearm (porpax) with the hand on a cord grip at the rim (antilabe), so the hand is hidden behind it."""
+    L_ = lod(pn, 2 * r)
+    pn.circ(cx + 5, cy + 6, r + 3, fill=(20, 14, 10, 70))
+    pn.circ(cx, cy, r, fill=shade(col, 0.1), outline=INK, width=3.4)          # rim
+    pn.circ(cx, cy, r * .84, fill=col, outline=INK, width=2.4)               # bowl
+    pn.poly(_ell_pts_(cx, cy, r * .84 - 2, r * .84 - 2, -70, 90) + _ell_pts_(cx + r * .2, cy + r * .08, r * .54, r * .66, 90, -70), fill=shade(col, 0.24))
+    pn.poly(_ell_pts_(cx, cy, r * .84 - 3, r * .84 - 3, 150, 250) + _ell_pts_(cx - r * .26, cy - r * .18, r * .42, r * .48, 250, 150), fill=light(col, 0.32))
+    if L_ >= 1:
+        pn.circ(cx, cy, r * .92, outline=light(col, 0.3), width=1.6)
+        for i in range(16):
+            a = math.radians(i * 22.5)
+            rivet(pn, cx + math.cos(a) * r * .92, cy + math.sin(a) * r * .92, 1.6, col)
+    if device: device(pn, cx, cy, r * .84)
+    if L_ >= 2: scratches(pn, cx + r * .2, cy - r * .3, r, 7, n=3)
+
+def _ell_pts_(cx, cy, rx, ry, a0, a1, n=18):
+    return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
