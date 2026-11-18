@@ -29,6 +29,32 @@ def eoback(x, s=1.9):
 def spring(dt, f=1.9, z=6.5):
     if dt <= 0: return 0.0
     return 1 - math.exp(-z * dt) * math.cos(2 * math.pi * f * dt)
+def lin(x): return x
+
+def keys(t, ks):
+    """Keyed motion curve (pose to pose with easing). ks = [(time, value, ease_into_this_key), ...].
+    Holds the first value before the first key and the last value after the last key. Example thrust:
+    keys(t, [(t0, 0, lin), (t0 + .28, -.35, eio), (hit, 1, ei2), (hit + .24, 1, lin), (hit + .74, 0, eio)])
+    = anticipation, drive accelerating into the hit, hold, recover."""
+    if t <= ks[0][0]: return ks[0][1]
+    for (t0, v0, _), (t1, v1, e) in zip(ks, ks[1:]):
+        if t < t1: return lerp(v0, v1, e(P(t, t0, t1 - t0)))
+    return ks[-1][1]
+
+FOLLOW_HZ = 240
+def follow(sig, f=3.0, z=0.45, hz=FOLLOW_HZ):
+    """Follow through and overlapping action in one helper: a damped spring that chases a signal sampled at hz.
+    Returns an array of the same length that lags, overshoots and settles. Lower f = heavier and later;
+    lower z = more overshoot. Precompute once per shot on a time grid, then sample with np.interp(t, ts, out).
+    Chain it: arms drive body (f 3.2, z .55), body drives head (2.6, .5), shoulder drives a strap hung shield
+    (2.2, .32), hand drives a long wooden shaft's tip (5.5, .22). Never use it to bend metal."""
+    sig = np.asarray(sig, dtype=float)
+    w = 2 * math.pi * f; dt = 1 / hz
+    out = np.empty_like(sig); x = sig[0]; v = 0.0
+    for i, s in enumerate(sig):
+        v += (w * w * (s - x) - 2 * z * w * v) * dt; x += v * dt; out[i] = x
+    return out
+
 def pop(t, t0, d=0.32): return eoback(P(t, t0, d)) if t >= t0 else 0.0
 def win(t, a, b, fi=0.15, fo=0.15):
     if t < a or t > b: return 0.0
