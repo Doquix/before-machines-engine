@@ -11,40 +11,43 @@ from detail import shade, light
 
 # ---------------- grips (figure local units; feet at y 0, pelvis about -72, neck about -172) ----------------
 def pike_hands(f, ang=0.0, lift=0.0):
-    """Two handed sarissa hold: rear (back) hand near the butt end, front hand a forearm ahead, both on one shaft line.
+    """Two handed sarissa hold: right (back) hand near the butt end, left (front) hand a forearm ahead, both on one shaft line.
     ang: shaft angle from level (positive raises the point), lift: raises the whole grip."""
     a = -ang
-    bx, by = -f * 12, -104 - lift
+    bx, by = -f * 12, -92 - lift
     fx_, fy = bx + f * 52 * math.cos(a), by + 52 * math.sin(a)
     return {'B': (bx, by), 'F': (fx_, fy)}
 
 def phalangite(pn, x, y, k, f=1, ang=0.0, t=0.0, out='phalanx', expr='determined', look=(0.8, 0.0), p=None, lift=0.0,
                pike=True, shield=True, back=240, L=SARISSA_L, flex=0.0, blink=None, pike_alpha=1.0, upright=False):
-    """Phalangite: pelta hung from the neck over the chest (forearm through the armband behind it), sarissa in both hands
-    in front of the shield. Returns world tip and butt of the sarissa."""
+    """Phalangite. CARRY (BM-P002): the pelta hangs from a neck strap on the LEFT side, over the left shoulder and upper arm;
+    the left (front, F) forearm goes through the armband behind it and only the left hand comes out past the rim onto
+    the shaft. The right (back, B) arm stays free and in front, gripping near the butt. The shaft passes in front of the
+    shield's lower edge. Returns world tip and butt of the sarissa."""
     p = p or pose('idle', torso=2)
+    p = dict(p); p['torso'] = p.get('torso', 0) + 1.2 * math.sin(t * 2.3 + x * 0.011)   # breathing (secondary action)
     info = {}
-    if upright:        # marching carry: shaft vertical in the front hand, butt near the front foot
-        hands = {'F': (f * 40, -118), 'B': (f * 6, -96)}
+    if upright:        # marching carry: shaft vertical in the right (back) hand; left hand rests behind the pelta
+        hands = {'B': (-f * 50, -118), 'F': (f * 16, -104)}
         ang_r = -math.pi / 2
     else:
         hands = pike_hands(f, ang, lift)
         ang_r = math.atan2(hands['F'][1] - hands['B'][1], hands['F'][0] - hands['B'][0])
     def mid(pn_, J):
         if shield:
-            nk = J['neck']
-            pelta(pn_, nk[0] - f * 4, nk[1] + 44, 42, f, strap_to=(nk[0], nk[1] + 2))
+            nk, sh = J['neck'], J['shF']
+            pelta(pn_, sh[0] + f * 4, sh[1] + 22, 40, f, strap_to=(nk[0], nk[1] + 2))
     def held(pn_, J):
         if not pike: return
         if upright:
-            g = J['haF']
-            R = sarissa(pn_, g[0], g[1], ang_r, back=118, L=L * 0.62)
+            g = J['haB']
+            R = sarissa(pn_, g[0], g[1], ang_r, back=88, L=L)
         else:
             g = J['haB']
             R = sarissa(pn_, g[0], g[1], ang_r, back=back, L=L, flex=flex)
         info.update(R)
     J = figure(pn, x, y, k, f, p, out, expr, look=look, blink=blink_at(t, x * 0.013) if blink is None else blink,
-               hands=hands, held=held, mid=mid, b_behind=True)
+               hands=hands, held=held, mid=mid, f_behind=shield, b_hide=upright)
     W_ = lambda pt: (x + pt[0] * k, y + pt[1] * k)
     res = dict(J=J)
     if 'tip' in info: res.update(tip=W_(info['tip']), butt=W_(info['butt']))
@@ -55,6 +58,7 @@ def hoplite(pn, x, y, k, f=1, t=0.0, out='hoplite', expr='determined', look=(0.8
     """Hoplite: aspis on the back forearm (hand hidden on the antilabe), dory overhand in the front hand.
     thrust 0..1 pushes the spear hand forward along the shaft line."""
     p = p or pose('idle', torso=3)
+    p = dict(p); p['torso'] = p.get('torso', 0) + 1.2 * math.sin(t * 2.3 + x * 0.011)   # breathing (secondary action)
     a = ang
     hx = f * (26 + 34 * thrust); hy = -168 + 6 * thrust
     hands = {'F': (hx, hy), 'B': (-f * 8, -120)}

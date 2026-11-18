@@ -79,6 +79,23 @@ def walk_pose(t, rate=9.0, amp=22, base='walk', **over):
              uaF=-18 * s, faF=-10 * s + 6, uaB=18 * s, faB=10 * s + 6)
     p.update(over); return p
 
+def antic(t, t0, d=0.35, back=0.18, ad=0.35):
+    """Anticipation then action with overshoot and settle (12 principles: anticipation, ease, follow through).
+    0 before t0; dips to -back over the first ad of d; then drives to 1 with an overshoot that settles."""
+    u = (t - t0) / d
+    if u <= 0: return 0.0
+    if u < ad: return -back * eio(u / ad)
+    v = clamp((u - ad) / (1 - ad))
+    return lerp(-back, 1.0, eoback(v, 1.6))
+
+def strike(t, t_hit, wind=0.16, hold=0.18, back=0.4):
+    """A thrust: draw back, drive forward to full extension at t_hit, hold, recover (anticipation, timing)."""
+    if t < t_hit - wind - 0.12: return 0.0
+    if t < t_hit - 0.12: return -back * eio(P(t, t_hit - wind - 0.12, wind))
+    if t < t_hit: return lerp(-back, 1.0, ei2(P(t, t_hit - 0.12, 0.12)))
+    if t < t_hit + hold: return 1.0
+    return lerp(1.0, 0.25, eio(P(t, t_hit + hold, 0.4)))
+
 def step_pose(t, rate=8.0, amp=16, **over):
     """Walk for figures whose arms are on a held object (legs only)."""
     s = math.sin(t * rate)
@@ -144,7 +161,8 @@ def hook_frame(base, pn, t, settle=False):
             moving = t < tc
             p = step_pose(t + row * 0.3 + (side > 0) * 0.5, 11, 18, torso=8) if moving else pose('brace', uaF=60, faF=96)
             ex = 'angry' if t < tc else ('determined' if row else 'pain')
-            hoplite(pn, x, yy, kk, -side, t, out, ex, look=(-side * 0.9, 0), p=p, ang=0.12, thrust=0.0)
+            bob = -abs(math.sin((t + row * 0.3 + (side > 0) * 0.5) * 11)) * 9 * kk if moving else 0
+            hoplite(pn, x, yy + bob, kk, -side, t, out, ex, look=(-side * 0.9, 0), p=p, ang=0.12, thrust=0.0)
             if moving and row == 0:
                 speed_lines(pn, x - side * 90, yy - 160, -side, 0, t, length=240, n=5, spread=110, seed=3 + side)
     if t >= tc:
@@ -178,7 +196,7 @@ def sc_ranks(base, pn, t):
         x = HR['x0'] - r * HR['dx']
         th = 0.0
         tr = T['first1'] + 0.06 * r
-        if t > tr: th = math.sin(clamp((t - tr) / 0.5) * math.pi) * (0.9 if r < 2 else 1.0)
+        th = strike(t, tr + 0.28)
         R = hoplite(pn, x, HR['y'], k, 1, t, 'hoplite' if r % 2 == 0 else 'hoplite2', 'determined' if r < 2 else 'worried',
                     look=(0.9, 0), ang=0.2, thrust=th)
         tips.append((r, R['tip']))
@@ -250,7 +268,7 @@ def sc_length(base, pn, t):
     dry_ground(pn, GROUND - 40, t)
     g = eo3(P(t, T['length'] - 0.15, 0.55))
     L = lerp(300, SARISSA_L, g)
-    lv = eio(P(t, T['fixed'] - 0.25, 0.45))
+    lv = antic(t, T['fixed'] - 0.3, 0.55, 0.12)
     R = phalangite(pn, LN['x'], LN['y'], LN['k'], 1, lerp(0.9, 0.04, lv), t, KEEPER, 'determined' if t < T['length'] else 'smug',
                    look=(1.0, -0.1), back=lerp(110, 240, g), L=L, shield=True)
     if 0 < g < 1:
@@ -314,7 +332,7 @@ GR = dict(x=420, y=GROUND + 260, k=2.5)
 def sc_grip(base, pn, t):
     bgp(base, 'plain', 0.35)
     dry_ground(pn, GROUND - 40, t)
-    lv = eio(P(t, T['gripped'] - 0.1, 0.5))
+    lv = antic(t, T['gripped'] - 0.2, 0.5, 0.1)
     R = phalangite(pn, GR['x'], GR['y'], GR['k'], 1, lerp(1.2, 0.02, lv), t, KEEPER, 'determined', look=(0.9, 0.2), back=240)
     J = R['J']
     for i, s in enumerate(('B', 'F')):
@@ -338,10 +356,10 @@ def sc_compare(base, pn, t):
     a = eo3(P(t, T['s6'] - 0.1, T['facing'] - T['s6'] + 0.1))
     hx = CP['hx'] + 300 * (1 - a)
     th = 0.0
-    if t > T['eight'] - 0.25: th = eoback(P(t, T['eight'] - 0.25, 0.3))
+    th = strike(t, T['eight'] + 0.05)
     Rk = phalangite(pn, CP['kx'], CP['y'], k, 1, 0.0, t, KEEPER, 'determined', look=(1.0, 0), back=240)
     Rh = hoplite(pn, hx, CP['y'], k, -1, t, 'hoplite', 'worried' if t > T['closer'] else 'angry', look=(-0.9, 0), ang=0.1,
-                 thrust=th, p=pose('brace', uaF=60, faF=96) if th > 0 else None)
+                 thrust=th, p=pose('brace', uaF=60, faF=96, torso=6 * th) if th != 0 else None)
     if a >= 1 and t < T['facing'] + 0.4:
         particles(pn, 'sparks', Rk['tip'][0], Rk['tip'][1], t, T['facing'], 0.6, seed=6)
     # lengths
@@ -385,7 +403,7 @@ def sc_pack(base, pn, t):
     def lowered(r):
         if r >= 5: return 1.25
         tl = T['first8'] + r * 0.14
-        return lerp(1.25, 0.0, eio(P(t, tl, 0.3)))
+        return lerp(1.25, 0.0, antic(t, tl - 0.06, 0.42, 0.12))
     R = dict(file_ranks(pn, t, 8, lowered, appear=appear))
     dx = PK['dx']
     # three feet apart
@@ -473,7 +491,7 @@ def sc_roof(base, pn, t):
     tl = T['tilted']
     def lowered(r):
         if r < 5: return 0.0
-        return lerp(1.57, 0.8, eio(P(t, tl - 0.1 + (r - 5) * 0.06, 0.45)))
+        return lerp(1.57, 0.8, antic(t, tl - 0.16 + (r - 5) * 0.06, 0.55, 0.15))
     Rs = dict(file_ranks(pn, t, 11, lowered, x0=RF['x0'], y=RF['y'], k=k, keeper_front=False))
     TIPS[:] = [Rs[r]['tip'] for r in range(10, 4, -1) if r in Rs]
     # the roof: a line along the raised points
@@ -485,7 +503,7 @@ def sc_roof(base, pn, t):
         pn.text(mx, my - 70, 'ROOF OF SHAFTS', 40, AMBER + (int(255 * ra),), 'Black', 'mm', True)
     # arrows arc in from the upper right and are knocked down by the shafts
     rnd = random.Random(21)
-    for i in range(16):
+    for i in range(10):
         t0 = T['volley'] + rnd.uniform(-0.25, 0.25)
         u = (t - t0) / FLIGHT
         if u < 0: continue
@@ -563,14 +581,21 @@ def sc_neck(base, pn, t):
                    shield=False)
     J = R['J']
     nk = (NK['x'] + J['neck'][0] * k, NK['y'] + J['neck'][1] * k)
+    shF = (NK['x'] + J['shF'][0] * k, NK['y'] + J['shF'][1] * k)
     if show:
+        # falls (accelerating), catches on the strap, then swings on an arc around the neck and settles
         u = t - (th - 0.25)
-        yo = (1 - spring(u, 1.6, 6.5)) * -420
-        cx, cy = nk[0] - 4 * k, nk[1] + 44 * k + yo
+        rx, ry = shF[0] + 4 * k - nk[0], shF[1] + 22 * k - nk[1]
+        if u < 0.25:
+            yo = -420 * (1 - ei2(u / 0.25)); ang_ = 0.0
+        else:
+            yo = 0.0; v = u - 0.25; ang_ = 0.5 * math.exp(-v * 4.5) * math.sin(v * 13)
+        ca_, sa_ = math.cos(ang_), math.sin(ang_)
+        cx, cy = nk[0] + rx * ca_ - ry * sa_, nk[1] + rx * sa_ + ry * ca_ + yo
         # strap
         for sd in (-1, 1):
-            pn.line([(nk[0] + sd * 16 * k, nk[1] + 2 * k), (cx + sd * 42 * k * .55, cy - 42 * k * .78)], (96, 64, 38), 4.2 * k)
-        pelta(pn, cx, cy, 42 * k)
+            pn.line([(nk[0] + sd * 16 * k, nk[1] + 2 * k), (cx + sd * 40 * k * .55, cy - 40 * k * .78)], (96, 64, 38), 4.2 * k)
+        pelta(pn, cx, cy, 40 * k)
         # redraw the shaft and hands over the shield (the grip is in front of it)
         hb = J['haB']; hf = J['haF']
         HB = (NK['x'] + hb[0] * k, NK['y'] + hb[1] * k); HF = (NK['x'] + hf[0] * k, NK['y'] + hf[1] * k)
@@ -583,13 +608,13 @@ def sc_neck(base, pn, t):
         sa = win(t, T['neck'] - 0.05, T['s15'], 0.15, 0.2)
         if sa > 0:
             for sd in (-1, 1):
-                pn.line([(nk[0] + sd * 16 * k, nk[1] + 2 * k), (cx + sd * 42 * k * .55, cy - 42 * k * .78)], AMBER + (int(230 * sa),), 6 * k)
+                pn.line([(nk[0] + sd * 16 * k, nk[1] + 2 * k), (cx + sd * 40 * k * .55, cy - 40 * k * .78)], AMBER + (int(230 * sa),), 6 * k)
         dp = P(t, T['two14'] - 0.05, 0.4)
         if dp > 0:
-            yl = cy - 42 * k - 22; e = eo3(dp)
-            pn.line([(cx - 42 * k, yl), (lerp(cx - 42 * k, cx + 42 * k, e), yl)], INK, 4)
-            for xv in (cx - 42 * k, cx + 42 * k * (1 if e > .98 else -1)): pn.line([(xv, yl - 14), (xv, yl + 14)], INK, 4)
-            callout(pn, cx + 42 * k + 6, yl, 900, yl - 150, 'ABOUT 2 FT', clamp((dp - 0.3) / 0.7), sz=40)
+            yl = cy + 40 * k + 26; e = eo3(dp)
+            pn.line([(cx - 40 * k, yl), (lerp(cx - 40 * k, cx + 40 * k, e), yl)], INK, 4)
+            for xv in (cx - 40 * k, cx + 40 * k * (1 if e > .98 else -1)): pn.line([(xv, yl - 14), (xv, yl + 14)], INK, 4)
+            callout(pn, cx + 40 * k, yl, 900, yl - 330, 'ABOUT 2 FT', clamp((dp - 0.3) / 0.7), sz=40)
     for i, s in enumerate(('B', 'F')):
         hx, hy = J['ha' + s]
         ring(pn, NK['x'] + hx * k, NK['y'] + hy * k, t, T['both13'] + 0.1 * i, AMBER, 16, 80)
@@ -611,11 +636,11 @@ def sc_front(base, pn, t):
     # the enemy hoplite comes in, thrusts, and stops short of the shields
     a = eo3(P(t, T['s15'], 0.6))
     hx = 980 + 300 * (1 - a)
-    th = eoback(P(t, T['spears16'] - 0.2, 0.3)) if t > T['spears16'] - 0.2 else 0.0
+    th = strike(t, T['spears16'] + 0.05)
     stop = tip0[0] + 30
     hx = max(hx, stop + 40)
     Rh = hoplite(pn, hx, FN['y'] + 10, 0.9, -1, t, 'hoplite', 'fear' if t > T['rarely'] else 'angry', look=(-0.9, 0), ang=0.12,
-                 thrust=th, p=pose('brace', uaF=60, faF=96) if th > 0 else None)
+                 thrust=th, p=pose('brace', uaF=60, faF=96, torso=6 * th) if th != 0 else None)
     if t > T['spears16'] + 0.05:
         particles(pn, 'sparks', tip0[0], tip0[1], t, T['spears16'] + 0.05, 0.6, seed=17)
     if 'tip' in Rh and t > T['close'] - 0.1:

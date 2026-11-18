@@ -408,9 +408,10 @@ def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3):
 
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
            hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True,
-           mid=None, b_behind=False, b_hide=False):
+           mid=None, b_behind=False, b_hide=False, f_behind=False):
     """mid(pn, J): drawn over the clothing and under the front arm (a shield worn on the back arm, a pelta on its strap).
-    b_behind: the back arm stays behind the clothing and mid layer (its hand is still drawn on top unless b_hide)."""
+    b_behind: the back arm stays behind the clothing and mid layer (its hand is still drawn on top unless b_hide).
+    f_behind: the same for the front arm (a shield worn on the front arm, with the hand reaching out past its rim)."""
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
     # holding something: arms and hands go in front of the clothing so the grip reads
@@ -455,8 +456,11 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         if b_behind and not carry:
             sh_, el_ = J['shB'], J['elB']
             limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
-    if not arms_front:
+    if not arms_front or f_behind:
         arm('F')
+        if f_behind:
+            sh_, el_ = J['shF'], J['elF']
+            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
     # body garment
     t = math.radians(p['torso'])
     ux, uy = f * math.sin(t), -math.cos(t)          # up along torso
@@ -550,12 +554,12 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         if held: held(pn, J)          # the prop sits under the hands
         if grip: grip(pn, J)
         if not carry and not b_behind: arm('B')
-        arm('F')
+        if not f_behind: arm('F')
     # sleeves on upper arm bones (and full mail sleeves)
     for s in (('F',) if carry else ('B', 'F')):
-        if s == 'B' and b_behind:
+        if (s == 'B' and b_behind) or (s == 'F' and f_behind):
             if not b_hide:
-                hx_, hy_ = J['haB']; pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+                hx_, hy_ = J['ha' + s]; pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
             continue
         if O['sleeve'] == 'mail':
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
