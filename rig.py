@@ -707,6 +707,26 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     pn.pop()
     return J
 
+def plant_legs(base, dx=0.0, drop=0.0, spread=0.0):
+    """Planted feet: two bone IK on both legs so the feet stay fixed on the ground while the pelvis shifts dx forward
+    and drops by drop (figure units). base: pose name or dict giving the stance; spread widens it on each foot.
+    Returns thF, shF, thB, shB to merge into the pose; valid for either facing, since angles are facing independent.
+    Use for any weight shift (lunge, thrust, brace, push) instead of rotating the legs by hand, which slides the feet."""
+    bp = POSES[base] if isinstance(base, str) else base
+    J0 = joints(bp, 1)
+    feet = {'F': (J0['footF'][0] + spread, J0['footF'][1]), 'B': (J0['footB'][0] - spread, J0['footB'][1])}
+    px, py = J0['pelvis'][0] + dx, J0['pelvis'][1] + drop
+    out = {}
+    for s in ('F', 'B'):
+        hx = px + (HIP if s == 'F' else -HIP)
+        fx_, fy = feet[s]
+        c1 = ik(hx, py, fx_, fy, L['th'], L['sh'], 1, 1)
+        c2 = ik(hx, py, fx_, fy, L['th'], L['sh'], 1, -1)
+        kn, ft = c1 if c1[0][0] > c2[0][0] else c2      # knees bend forward
+        out['th' + s] = math.degrees(math.atan2(kn[0] - hx, kn[1] - py))
+        out['sh' + s] = math.degrees(math.atan2(ft[0] - kn[0], ft[1] - kn[1]))
+    return out
+
 def blink_at(t, seed=0.0):
     ph = (t + seed * 1.37) % 3.3
     return 1.0 if ph < 0.06 else (0.6 if ph < 0.11 else 0.0)
