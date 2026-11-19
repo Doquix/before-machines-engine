@@ -434,3 +434,479 @@ def aspis(pn, cx, cy, r=56, f=1, col=BRZ, device=None):
 
 def _ell_pts_(cx, cy, rx, ry, a0, a1, n=18):
     return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+
+# ================= Mongol Empire, early 13th century (period library BM-P007 to BM-P014) =================
+# Scale: a 5 ft 8 in figure is about 265 rig units tall, so 1 cm is about 1.53 units and 1 inch about 3.9 units.
+CM = 1.53
+BIRCH = (234, 226, 206); BIRCH_D = (92, 80, 66)      # birch bark wrap with dark lenticels
+MHORN = (164, 146, 116); MHORN_D = (120, 104, 80)     # horn on the belly (greyish amber)
+SINEW = (226, 212, 176)                               # sinew on the back, under the bark
+MCORE = (206, 176, 118)                               # wooden (or bamboo) core
+SIYAH = (150, 108, 64)                                # stiff wooden ears
+MLEATH = (110, 66, 42); MLEATH_D = (76, 44, 28)       # grip wrap, bridges, cases
+MSTRING = (232, 222, 196)
+MSHAFT = (206, 182, 136)                              # birch or willow arrow shaft
+MFLETCH = (112, 92, 70); MFLETCH_L = (182, 162, 130)  # brown raptor feathers with bars
+
+# Bow states: st -1 unstrung (reflexed into a C toward the target), 0 braced, 1 full draw.
+# (working limb turn in degrees, positive bends toward the archer; siyah kink, negative turns the ear toward the target)
+_MB_STATES = {-1.0: (-128.0, -26.0), 0.0: (44.0, -66.0), 1.0: (80.0, -46.0)}
+MB_GRIP = 8.0; MB_LIMB = 66.0; MB_SIYAH = 27.0     # about 136 cm along the curve (Ikh Bayan bow; EXARC tomb bow 141 cm)
+MARROW_L = 31 * 3.9                                 # arrow about 80 cm (VERIFY: lengths varied)
+
+def _mb_params(st):
+    st = clamp(st, -1.0, 1.0)
+    if st <= 0:
+        a, b = _MB_STATES[-1.0], _MB_STATES[0.0]; u = st + 1
+    else:
+        a, b = _MB_STATES[0.0], _MB_STATES[1.0]; u = st
+    return lerp(a[0], b[0], u), lerp(a[1], b[1], u)
+
+def mbow_local(st, n_limb=14, n_siyah=4):
+    """Top limb centreline in the bow frame from the grip outward: (u forward toward the target, v down), tangent angle phi
+    (0 = straight up, positive leans toward the archer), and the index of the kink (string bridge)."""
+    turn, kink = _mb_params(st)
+    pts = [(0.0, 0.0, 0.0), (0.0, -MB_GRIP, 0.0)]
+    u, v, phi = 0.0, -MB_GRIP, 0.0
+    ds = MB_LIMB / n_limb; dk = math.radians(turn) / n_limb
+    for i in range(n_limb):
+        phi += dk / 2; u -= math.sin(phi) * ds; v -= math.cos(phi) * ds; phi += dk / 2
+        pts.append((u, v, phi))
+    ki = len(pts) - 1
+    phi += math.radians(kink)
+    ds = MB_SIYAH / n_siyah
+    for i in range(n_siyah):
+        u -= math.sin(phi) * ds; v -= math.cos(phi) * ds
+        pts.append((u, v, phi))
+    return pts, ki
+
+def mbow_shape(gx, gy, f, st, tilt=0.0):
+    """World centreline of the whole bow top tip to bottom tip, with widths and part codes ('g' grip, 'l' limb, 's' siyah),
+    plus the world positions of the tips and the string bridges."""
+    top, ki = mbow_local(st)
+    ca, sa = math.cos(tilt), math.sin(tilt)
+    def W_(u, v):
+        x, y = f * u, v
+        return (gx + x * ca - y * sa, gy + x * sa + y * ca)
+    nT = len(top)
+    seq = []
+    for i in range(nT - 1, 0, -1): seq.append((top[i], i))
+    seq.append((top[0], 0))
+    for i in range(1, nT): seq.append(((top[i][0], -top[i][1], -top[i][2]), i))
+    pts, wid, part = [], [], []
+    for (u, v, phi), i in seq:
+        pts.append(W_(u, v))
+        if i <= 1: wid.append(12.5); part.append('g')
+        elif i <= ki:
+            s_ = (i - 1) / (ki - 1); wid.append(lerp(10.5, 7.0, s_)); part.append('l')
+        else:
+            s_ = (i - ki) / (nT - 1 - ki); wid.append(lerp(7.4, 4.6, s_)); part.append('s')
+    kT = W_(top[ki][0], top[ki][1]); kB = W_(top[ki][0], -top[ki][1])
+    return dict(pts=pts, w=wid, part=part, top=pts[0], bot=pts[-1], kT=kT, kB=kB, ki=ki, n=len(pts))
+
+def mbow_string_bend(grip, hand):
+    """Bow state from the real distance the string is pulled behind the grip (braced about 24 units, full draw about 109)."""
+    d = math.hypot(grip[0] - hand[0], grip[1] - hand[1])
+    return clamp((d - 24) / (109 - 24))
+
+def mongol_bow(pn, gx, gy, f=1, st=0.0, string_to=None, tilt=0.0, hl_horn=0.0, hl_back=0.0, hl_core=0.0, strung=None,
+               vib=0.0, cut=False):
+    """13th century Mongol composite bow (BM-P007): short, strongly reflexed, recurved with small stiff siyahs and small
+    leather string bridges; wooden core, horn on the belly (archer side), sinew on the back (target side) under a thin
+    birch bark wrap; leather wrapped grip. st: -1 unstrung, 0 braced, 1 full draw. cut: show the three layers (diagram)."""
+    S = mbow_shape(gx, gy, f, st, tilt)
+    pts, wid, part, n = S['pts'], S['w'], S['part'], S['n']
+    if strung is None: strung = st > -0.5
+    L_ = lod(pn, 200)
+    # normals: the back side (toward the target when braced) is +f along the bow frame's u axis at the grip
+    nrm = []
+    for i in range(n):
+        a = pts[max(0, i - 1)]; b = pts[min(n - 1, i + 1)]
+        tx, ty = b[0] - a[0], b[1] - a[1]; Ln = math.hypot(tx, ty) or 1
+        nrm.append((ty / Ln, -tx / Ln))
+    mid_i = n // 2
+    gx_n, gy_n = nrm[mid_i]
+    ca, sa = math.cos(tilt), math.sin(tilt)
+    want = (f * ca, f * sa)
+    if gx_n * want[0] + gy_n * want[1] < 0: nrm = [(-x, -y) for x, y in nrm]
+    back, belly, b1, b2 = [], [], [], []
+    for (x, y), w, (nx, ny) in zip(pts, wid, nrm):
+        back.append((x + nx * w / 2, y + ny * w / 2)); belly.append((x - nx * w / 2, y - ny * w / 2))
+        b1.append((x + nx * w * 0.12, y + ny * w * 0.12))     # sinew / core boundary
+        b2.append((x - nx * w * 0.2, y - ny * w * 0.2))       # core / horn boundary
+    # string under the bow so the tips cover its loops
+    sp = None
+    if strung:
+        top, bot, kT, kB = S['top'], S['bot'], S['kT'], S['kB']
+        # where the string leaves the limb: it rests on the bridge until the draw lifts it off
+        kbT = (kT[0] - nrm[S['ki']][0] * 5, kT[1] - nrm[S['ki']][1] * 5)
+        kbB = (kB[0] - nrm[n - 1 - S['ki']][0] * 5, kB[1] - nrm[n - 1 - S['ki']][1] * 5)
+        if string_to is not None: mid_s = string_to
+        else:
+            mid_s = ((kbT[0] + kbB[0]) / 2, (kbT[1] + kbB[1]) / 2)
+            if vib > 0: mid_s = (mid_s[0] - f * vib * 12 * math.sin(vib * 60), mid_s[1])
+        wrapT = st < 0.35; wrapB = wrapT
+        line_ = [top] + ([kbT] if wrapT else []) + [mid_s] + ([kbB] if wrapB else []) + [bot]
+        pn.line(line_, MSTRING, 2.6, caps=False)
+        pn.line(line_, INK + (140,), 1.0, caps=False)
+        sp = mid_s
+    # body
+    bc = lerpc(BIRCH, AMBER, hl_back) if hl_back else BIRCH
+    hc = lerpc(MHORN, AMBER, hl_horn) if hl_horn else MHORN
+    for i in range(n - 1):
+        pi_ = part[i] if part[i] == part[i + 1] else ('s' if 's' in (part[i], part[i + 1]) else part[i])
+        if pi_ == 's':
+            pn.poly([back[i], back[i + 1], belly[i + 1], belly[i]], fill=SIYAH)
+        elif cut:
+            pn.poly([back[i], back[i + 1], b1[i + 1], b1[i]], fill=lerpc(SINEW, AMBER, hl_back))
+            pn.poly([b1[i], b1[i + 1], b2[i + 1], b2[i]], fill=lerpc(MCORE, AMBER, hl_core))
+            pn.poly([b2[i], b2[i + 1], belly[i + 1], belly[i]], fill=hc)
+        else:
+            pn.poly([back[i], back[i + 1], b2[i + 1], b2[i]], fill=bc)
+            pn.poly([b2[i], b2[i + 1], belly[i + 1], belly[i]], fill=hc)
+    if L_ >= 1 and not cut:
+        rnd = random.Random(7)
+        for i in range(2, n - 2):
+            if part[i] == 'l' and rnd.random() < 0.8:      # birch bark lenticels: short dark dashes across the limb
+                x, y = pts[i]; nx, ny = nrm[i]; w = wid[i]
+                o = (rnd.random() - 0.2) * w * 0.3
+                a_ = (x + nx * (o + w * 0.1), y + ny * (o + w * 0.1)); b_ = (x + nx * (o + w * 0.4), y + ny * (o + w * 0.4))
+                pn.line([a_, b_], BIRCH_D, 1.3, caps=False)
+        pn.line([b for b, p_ in zip(belly, part) if p_ == 'l'][:S['ki']], shade(hc, 0.25), 1.4, caps=False)
+    if cut and L_ >= 1:
+        for i in range(2, n - 2, 2):
+            if part[i] == 'l':
+                pn.line([back[i], b1[i]], shade(SINEW, 0.2), 1.0, caps=False)
+    pn.poly(back + belly[::-1], outline=INK, width=2.8)
+    # siyah joints and nocks
+    for i in (S['ki'], n - 1 - S['ki']):
+        pn.line([back[i], belly[i]], INK, 2.2, caps=False)
+    for i0 in (0, n - 1):
+        x, y = pts[i0]; a = pts[1 if i0 == 0 else n - 2]
+        dx, dy = x - a[0], y - a[1]; Ln = math.hypot(dx, dy) or 1; ux, uy = dx / Ln, dy / Ln
+        pn.poly([(x - uy * 3.4, y + ux * 3.4), (x + uy * 3.4, y - ux * 3.4), (x + ux * 6 + uy * 2, y + uy * 6 - ux * 2)], fill=shade(SIYAH, 0.2), outline=INK, width=1.8)
+    # small leather string bridges on the belly at the kinks
+    if L_ >= 1:
+        for i in (S['ki'], n - 1 - S['ki']):
+            x, y = belly[i]; nx, ny = nrm[i]
+            pn.circ(x - nx * 1.5, y - ny * 1.5, 3.4, fill=MLEATH, outline=INK, width=1.6)
+    # leather wrapped grip with binding
+    gi = [i for i, p_ in enumerate(part) if p_ == 'g']
+    if gi:
+        a, b = gi[0], gi[-1]
+        pn.poly([back[a], back[b], belly[b], belly[a]], fill=MLEATH, outline=INK, width=2.4)
+        if L_ >= 1:
+            for t_ in (0.25, 0.5, 0.75):
+                p0 = (lerp(back[a][0], back[b][0], t_), lerp(back[a][1], back[b][1], t_))
+                p1 = (lerp(belly[a][0], belly[b][0], t_), lerp(belly[a][1], belly[b][1], t_))
+                pn.line([p0, p1], MLEATH_D, 1.4, caps=False)
+    return dict(top=S['top'], bot=S['bot'], string=sp, grip=(gx, gy), kT=S['kT'], kB=S['kB'], shape=S)
+
+def mongol_arrow(pn, nock, ang, L=MARROW_L, head='leaf', hl=0.0, fl=True, w=3.2, whistle=False):
+    """Mongol arrow: birch or willow shaft, three long brown barred feathers, tanged iron head (light leaf point for
+    distance shooting, Marco Polo's two classes: light and heavy broad heads; 'forked' for the broad type)."""
+    ca, sa = math.cos(ang), math.sin(ang); nx, ny = -sa, ca
+    q = lambda u, v: (nock[0] + ca * u + nx * v, nock[1] + sa * u + ny * v)
+    sc = lerpc(MSHAFT, AMBER, hl) if hl else MSHAFT
+    pn.line([q(0, 0), q(L - 12, 0)], INK, w + 2.6)
+    pn.line([q(0, 0), q(L - 12, 0)], sc, w)
+    if fl:
+        for sd, col in ((-1, MFLETCH_L), (1, MFLETCH)):
+            pn.poly([q(4, 0), q(6, sd * 7), q(22, sd * 6.5), q(36, sd * 2.5), q(40, 0)], fill=col, outline=INK, width=1.6)
+            if lod(pn, 40) >= 1:
+                for u_ in (12, 20, 28):
+                    pn.line([q(u_, sd * 1.2), q(u_ + 2, sd * 5.2)], shade(col, 0.35), 1.1, caps=False)
+        pn.line([q(1, 0), q(4, 0)], (70, 52, 36), w + 1, caps=False)
+        pn.line([q(41, 0), q(44, 0)], (120, 40, 34), w + 1.2, caps=False)    # sinew binding painted red
+    if whistle:
+        pn.ell(*q(L - 22, 0), 6, 4.5, fill=(214, 196, 160), outline=INK, width=1.6)
+    pn.line([q(L - 14, 0), q(L - 10, 0)], (90, 70, 50), w + 1.4, caps=False)   # binding over the tang
+    if head == 'forked':
+        pn.poly([q(L - 10, -2), q(L + 4, -9), q(L + 10, -6), q(L + 1, 0), q(L + 10, 6), q(L + 4, 9), q(L - 10, 2)], fill=IRON, outline=INK, width=1.8)
+    else:
+        pn.poly([q(L - 10, -2.2), q(L - 2, -4.6), q(L + 9, 0), q(L - 2, 4.6), q(L - 10, 2.2)], fill=IRON, outline=INK, width=1.8)
+        if lod(pn, 30) >= 1: pn.line([q(L - 6, 0), q(L + 6, 0)], light(IRON, 0.45), 1.0, caps=False)
+    return q(L + 9, 0)
+
+def thumb_ring(pn, x, y, ang=0.0, r=3.6):
+    """Thumb ring of horn or bone on the drawing thumb (thumb draw; Mongol archers wore leather, bone or horn rings)."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    pn.ell(x + ca * 2, y + sa * 2, r + 1.2, r, fill=(226, 212, 176), outline=INK, width=1.6)
+    pn.ell(x + ca * 2, y + sa * 2, r * 0.45, r * 0.35, fill=shade((226, 212, 176), 0.35))
+
+def combat_quiver(pn, J, f, n=6, hl=0.0, col=(118, 62, 42), arrows=None):
+    """Open combat quiver (BM-P009) on the right hip: hangs from the belt at a slant, bottom forward, top rearward,
+    holding about six arrows and covering a third to half their length, fletchings up and back.
+    For a right handed archer facing f, the right hip is the back (B) side. arrows: how many still in it."""
+    pl, nk = J['pelvis'], J['neck']
+    hx, hy = pl[0] - f * 30, pl[1] - 18
+    a = math.radians(-24) * f                        # tilt: top toward the rear
+    up = (math.sin(a) * -1, -math.cos(a))
+    up = (-f * math.sin(math.radians(24)), -math.cos(math.radians(24)))
+    sd = (-up[1], up[0])
+    q = lambda u, v: (hx + up[0] * u + sd[0] * v, hy + up[1] * u + sd[1] * v)
+    m = n if arrows is None else arrows
+    # arrows: nock end up, fanned slightly
+    for i in range(m):
+        o = (i - (n - 1) / 2) * 3.2
+        aa = math.atan2(up[1], up[0]) + math.radians(o * 1.4 * f)
+        base = q(-36, o * 0.8)
+        mongol_arrow(pn, (base[0] + math.cos(aa) * 104, base[1] + math.sin(aa) * 104), aa + math.pi, L=100, head='leaf', fl=True, w=2.6)
+    # case: a stiff open pouch, narrow at the mouth, wider at the bottom, tooled border
+    cc = lerpc(col, AMBER, hl) if hl else col
+    body = [q(30, -11), q(30, 11), q(-40, 15), q(-52, 9), q(-52, -9), q(-40, -15)]
+    pn.poly(body, fill=cc, outline=INK, width=2.6)
+    if lod(pn, 80) >= 1:
+        pn.line([q(24, -8), q(-38, -11), q(-46, -6)], light(cc, 0.3), 1.6, caps=False)
+        pn.line([q(24, 8), q(-38, 11)], shade(cc, 0.3), 1.6, caps=False)
+        for u_ in (18, -8, -30):
+            pn.circ(*q(u_, 0), 2.2, fill=(214, 176, 90), outline=INK, width=1)
+    # two straps up to the belt
+    belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
+    for u_ in (26, 6):
+        pn.line([q(u_, -10), (belt[0] - f * (18 if u_ > 10 else 10), belt[1])], MLEATH_D, 2.6, caps=False)
+    return q(30, 0)
+
+def bow_case(pn, J, f, hl=0.0, col=(96, 58, 40)):
+    """Bow case (BM-P010) on the left hip (front, F side for a right handed archer facing f): leather, open mouth up and
+    forward, tapering down and back along the outer thigh; empty while the bow is in the hand. Size reduced for reading."""
+    pl, nk = J['pelvis'], J['neck']
+    hx, hy = pl[0] + f * 34, pl[1] - 4
+    cc = lerpc(col, AMBER, hl) if hl else col
+    q = lambda u, v: (hx + f * u, hy + v)
+    body = [q(14, -24), q(24, -12), q(18, 10), q(4, 34), q(-8, 46), q(-8, 24), q(-4, 0), q(2, -20)]
+    pn.poly(body, fill=cc, outline=INK, width=2.4)
+    if lod(pn, 80) >= 1:
+        pn.line([q(12, -18), q(18, -9), q(13, 8), q(1, 28)], (214, 176, 90), 1.4, caps=False)
+    belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
+    pn.line([q(12, -22), (belt[0] + f * 18, belt[1])], MLEATH_D, 2.4, caps=False)
+
+# ---------------- the steppe horse (BM-P012), side view, facing f ----------------
+HORSE = (152, 108, 68); HORSE_D = (116, 80, 50); MANE = (54, 40, 30); HOOF = (60, 48, 40)
+SADDLE = (150, 52, 40); SADDLE_D = (60, 34, 26); FELT = (196, 180, 146)
+
+def smooth(pts, closed=True, n=5):
+    """Catmull Rom resample of a control polygon, for organic outlines (horse, cloth)."""
+    P_ = list(pts); m = len(P_); out = []
+    rng = range(m) if closed else range(m - 1)
+    for i in rng:
+        p0 = P_[(i - 1) % m] if closed or i > 0 else P_[0]
+        p1 = P_[i]; p2 = P_[(i + 1) % m]
+        p3 = P_[(i + 2) % m] if closed or i + 2 < m else P_[-1]
+        for j in range(n):
+            t = j / n; t2 = t * t; t3 = t2 * t
+            out.append(tuple(0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2
+                                    + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3) for k in (0, 1)))
+    if not closed: out.append(P_[-1])
+    return out
+
+def _taper(pn, pts, w0, w1, col, outline=2.6):
+    """Tapered limb through a polyline: width w0 at the start to w1 at the end, rounded joints."""
+    L_ = len(pts)
+    left, right = [], []
+    for i, (x, y) in enumerate(pts):
+        a = pts[max(0, i - 1)]; b = pts[min(L_ - 1, i + 1)]
+        tx, ty = b[0] - a[0], b[1] - a[1]; Ln = math.hypot(tx, ty) or 1
+        nx, ny = -ty / Ln, tx / Ln
+        w = lerp(w0, w1, i / (L_ - 1)) / 2
+        left.append((x + nx * w, y + ny * w)); right.append((x - nx * w, y - ny * w))
+    pn.poly(left + right[::-1], fill=col, outline=INK, width=outline)
+
+def _seg_pts(p0, angs, lens, f):
+    pts = [p0]
+    for a, l in zip(angs, lens):
+        r = math.radians(a); x, y = pts[-1]
+        pts.append((x + f * math.sin(r) * l, y + math.cos(r) * l))
+    return pts
+
+def horse(pn, x, y, k, f=1, ph=0.0, gallop=1.0, saddle=True, rider_far=None, rider_near=None, col=HORSE, hl_saddle=0.0,
+          stirrup=True, reins_to=None, head_a=0.0, stirrup_at=None):
+    """Small Mongol steppe horse (about 13 hands, about 130 cm at the withers) in a gallop (gallop 0 stands square).
+    Wooden frame saddle with a high narrow pommel and lower cantle over a felt pad, short iron stirrups, bridle with bit.
+    rider_far / rider_near(pn) draw between the layers. Returns the seat and stirrup points (world)."""
+    pn.push(x, y, k)
+    g = gallop
+    w2 = 2 * math.pi
+    bob = -9 * g * (0.5 + 0.5 * math.sin(w2 * ph - 0.4))
+    pitch = math.radians(5 * g * math.sin(w2 * ph + 0.9))
+    def R(px, py, cx=0.0, cy=-160.0):
+        dx, dy = px - cx, py - cy
+        ca, sa = math.cos(pitch), math.sin(pitch)
+        X_ = cx + dx * ca - dy * sa; Y_ = cy + dx * sa + dy * ca + bob
+        return (X_ * f, Y_)
+    cd = shade(col, 0.24)
+    def leg(kind, o, colr):
+        u = w2 * (ph + o)
+        sw = math.sin(u) * g                      # + forward reach, - pushed back
+        fold = g * max(0.0, math.cos(u)) ** 1.5   # folding while it swings forward
+        if kind == 'hind':
+            p0 = R(-78, -150)
+            angs = [24 + 26 * sw, -24 - 34 * fold + 14 * sw, 6 + 40 * fold + 10 * sw, 24 + 30 * fold]
+            pts = _seg_pts(p0, angs, (50, 50, 46, 16), f)
+            ws = (46, 24, 14, 13)
+        else:
+            p0 = R(74, -146)
+            angs = [-8 + 30 * sw, 2 + 26 * sw + 70 * fold, 2 + 26 * sw + 40 * fold, 26 + 20 * fold]
+            pts = _seg_pts(p0, angs, (34, 52, 44, 16), f)
+            ws = (40, 22, 13, 13)
+        # ground contact: lift the whole leg so the hoof never sinks below the ground
+        _taper(pn, pts[:3], ws[0], ws[1], colr)
+        _taper(pn, pts[1:4], ws[1], ws[2], colr)
+        _taper(pn, pts[3:5], ws[2], ws[3], colr, 2.2)
+        hx3, hy3 = pts[-1]; a_ = math.radians(angs[-1])
+        pn.poly([(hx3 - 7, hy3 - 3), (hx3 + 7, hy3 - 3), (hx3 + 9, hy3 + 8), (hx3 - 9, hy3 + 8)], fill=HOOF, outline=INK, width=2)
+        pn.circ(pts[3][0], pts[3][1], ws[2] * 0.62, fill=colr)     # fetlock
+        return pts[-1]
+    # far legs
+    leg('hind', 0.0, cd); leg('fore', 0.42, cd)
+    if rider_far: rider_far(pn)
+    # tail: long, flowing back in the gallop
+    sw_ = math.sin(w2 * ph) * 8 * g
+    tail = smooth([R(-112, -196), R(-150, -188 + sw_ - 20 * g), R(-186, -150 + sw_ - 30 * g), R(-200, -104 + sw_ - 30 * g),
+                   R(-176, -112 + sw_ - 20 * g), R(-150, -150), R(-120, -176)], True, 5)
+    pn.poly(tail, fill=MANE, outline=INK, width=2.6)
+    # body, neck and head in one smooth outline
+    ha = head_a + 6 * g * math.sin(w2 * ph + 2.0)
+    def Hd(px, py):   # head and upper neck nod about the neck base
+        a = math.radians(ha); cx, cy = 60, -200
+        dx, dy = px - cx, py - cy
+        return R(cx + dx * math.cos(a) - dy * math.sin(a), cy + dx * math.sin(a) + dy * math.cos(a))
+    outline_ = [R(-118, -196), R(-92, -212), R(-50, -210), R(-6, -200), R(40, -208), Hd(70, -222), Hd(98, -250), Hd(124, -282),
+                Hd(140, -290), Hd(156, -280), Hd(184, -246), Hd(204, -226), Hd(210, -208), Hd(198, -198), Hd(174, -202),
+                Hd(150, -214), Hd(134, -236), Hd(124, -222), R(112, -186), R(110, -154), R(98, -118), R(60, -102), R(0, -98),
+                R(-56, -104), R(-96, -124), R(-124, -160)]
+    body = smooth(outline_, True, 6)
+    pn.poly(body, fill=col, outline=INK, width=3)
+    # shading: belly and under the neck, lit back line
+    pn.poly(smooth([R(-96, -132), R(-56, -116), R(0, -110), R(60, -114), R(94, -126), R(60, -130), R(0, -126), R(-56, -130)], True, 4),
+            fill=shade(col, 0.16))
+    pn.line(smooth([R(-84, -204), R(-40, -204), R(0, -194), R(36, -200)], False, 5), light(col, 0.3), 2.6, caps=False)
+    pn.line(smooth([R(-70, -190), R(-96, -170), R(-104, -140)], False, 4), shade(col, 0.2), 2.2, caps=False)   # hip line
+    pn.line(smooth([R(92, -190), R(84, -160), R(88, -134)], False, 4), shade(col, 0.2), 2.2, caps=False)       # shoulder
+    # ear, eye, nostril, mouth
+    pn.poly([Hd(128, -286), Hd(128, -310), Hd(142, -290)], fill=col, outline=INK, width=2.4)
+    pn.circ(*Hd(160, -262), 4.2, fill=INK); pn.circ(*Hd(158.5, -263.5), 1.3, fill=WHITE)
+    pn.ell(*Hd(201, -220), 3.2, 2.2, fill=shade(col, 0.55))
+    pn.line([Hd(196, -205), Hd(206, -207)], INK, 2, caps=False)
+    # mane: thick, upright, dark
+    mn = []
+    for i in range(9):
+        t_ = i / 8
+        bx, by = lerp(44, 128, t_), lerp(-208, -286, t_) - 6 * math.sin(t_ * math.pi)
+        mn.append(Hd(bx - 4, by - 14 - 4 * (i % 2)))
+    pn.poly([Hd(40, -204)] + mn + [Hd(134, -284), Hd(120, -262), Hd(82, -226)], fill=MANE, outline=INK, width=2.4)
+    pn.poly([Hd(126, -288), Hd(146, -296), Hd(140, -280)], fill=MANE, outline=INK, width=2)                  # forelock
+    # bridle and bit
+    pn.line([Hd(134, -282), Hd(150, -246), Hd(196, -212)], SADDLE_D, 3.2, caps=False)
+    pn.line([Hd(150, -246), Hd(178, -240)], SADDLE_D, 3.2, caps=False)
+    pn.circ(*Hd(196, -212), 3.6, fill=IRON, outline=INK, width=1.4)
+    seat = R(8, -216)
+    if saddle:
+        sc = lerpc(SADDLE, AMBER, hl_saddle) if hl_saddle else SADDLE
+        pn.poly(smooth([R(-44, -204), R(50, -208), R(56, -170), R(-48, -166)], True, 3), fill=FELT, outline=INK, width=2.4)
+        pn.line([R(32, -172), R(38, -110)], SADDLE_D, 6, caps=False)                                           # girth
+        pn.poly([R(-30, -210), R(38, -212), R(42, -200), R(-32, -198)], fill=sc, outline=INK, width=2.4)      # side bars
+        pn.poly([R(28, -208), R(32, -242), R(44, -244), R(46, -208)], fill=sc, outline=INK, width=2.4)        # high pommel
+        pn.poly([R(-32, -206), R(-34, -228), R(-22, -230), R(-18, -208)], fill=sc, outline=INK, width=2.4)    # lower cantle
+        pn.line([R(-20, -216), R(30, -216)], shade(sc, 0.4), 4, caps=False)
+    if reins_to is not None:
+        rt = ((reins_to[0] - x) / k, (reins_to[1] - y) / k)
+        pn.line([Hd(196, -212), Hd(150, -228), rt], SADDLE_D, 2.4, caps=False)
+    # near legs over the body
+    leg('hind', 0.10, col); leg('fore', 0.55, col)
+    st_ = None
+    if saddle and stirrup:
+        st_ = R(22, -156) if stirrup_at is None else (stirrup_at[0], stirrup_at[1] + 4)
+        pn.line([R(6, -208), st_], SADDLE_D, 3.2, caps=False)
+        pn.poly([(st_[0] - 9, st_[1]), (st_[0] + 9, st_[1]), (st_[0] + 6, st_[1] + 11), (st_[0] - 6, st_[1] + 11)], outline=INK, width=3)
+        pn.line([(st_[0] - 8, st_[1] + 11), (st_[0] + 8, st_[1] + 11)], IRON, 4, caps=False)
+    if rider_near: rider_near(pn)
+    pn.pop()
+    sx, sy = seat
+    return dict(seat=(x + sx * k, y + sy * k), stirrup=(x + st_[0] * k, y + st_[1] * k) if st_ else None, bob=bob)
+
+# ---------------- the Stele of Yisungge (BM-P013) ----------------
+GRANITE = (168, 156, 148); GRANITE_D = (122, 112, 106)
+
+def stele(pn, x, y, k=1.0, carve=1.0, hl=0.0, base=True, seed=5):
+    """Granite stele, about 202 x 74 x 22 cm, five vertical lines in Uyghur Mongol script. Line 1 (Genghis Khan) set
+    highest and line 4 (Yisungge) raised less, as a sign of respect. Script SIMPLIFIED: strokes, not a transcription.
+    carve 0..1 reveals the lines top to bottom, left to right."""
+    pn.push(x, y, k)
+    w, h = 74 * CM, 202 * CM
+    rnd = random.Random(seed)
+    top = [(-w / 2, -h + 14), (-w / 2 + 14, -h + 2), (-w / 4, -h - 4), (w / 6, -h - 2), (w / 2 - 12, -h + 4), (w / 2, -h + 18)]
+    shape = top + [(w / 2 + 2, -6), (-w / 2 - 2, -6)]
+    gc = lerpc(GRANITE, AMBER, hl) if hl else GRANITE
+    pn.poly([(p[0] + 10, p[1] + 4) for p in shape], fill=shade(gc, 0.35))       # side depth
+    pn.poly(shape, fill=gc, outline=INK, width=3)
+    if lod(pn, 200) >= 1:
+        for i in range(160):
+            px = rnd.uniform(-w / 2 + 4, w / 2 - 4); py = rnd.uniform(-h + 12, -10)
+            c = rnd.choice((GRANITE_D, light(gc, 0.25), (150, 120, 112)))
+            pn.circ(px, py, rnd.uniform(0.8, 1.8), fill=c)
+        pn.line([(-w / 2 + 6, -h + 18), (-w / 2 + 6, -12)], light(gc, 0.3), 2, caps=False)
+    # five lines, read left to right, each written top to bottom
+    starts = (-h + 22, -h + 56, -h + 56, -h + 38, -h + 56)
+    ends = (-h * 0.18, -h * 0.12, -h * 0.30, -h * 0.20, -h * 0.55)
+    xs = [-w / 2 + 16 + i * (w - 32) / 4 for i in range(5)]
+    for i in range(5):
+        u = clamp(carve * 5 - i)
+        if u <= 0: break
+        y0 = starts[i]; y1 = lerp(y0, ends[i], u)
+        xx = xs[i]
+        pn.line([(xx, y0), (xx, y1)], shade(gc, 0.55), 2.2, caps=False)
+        yy = y0 + 6; r2 = random.Random(seed * 31 + i)
+        while yy < y1 - 4:
+            kind = r2.random(); sd_ = r2.choice((-1, 1))
+            if kind < 0.4: pn.line([(xx, yy), (xx + sd_ * 7, yy + 3)], shade(gc, 0.55), 2, caps=False)
+            elif kind < 0.7: pn.ell(xx + sd_ * 4, yy + 2, 3.6, 2.6, outline=shade(gc, 0.55), width=1.6)
+            else: pn.line([(xx, yy), (xx - sd_ * 5, yy + 5), (xx + sd_ * 3, yy + 8)], shade(gc, 0.55), 1.8, caps=False)
+            yy += r2.uniform(9, 15)
+    if base:
+        pn.rect(-w / 2 - 18, -6, w / 2 + 18, 18, fill=(70, 60, 54), outline=INK, width=3, r=3)
+    pn.pop()
+
+# ---------------- composite limb, diagram (BM-P007 cutaway) ----------------
+def limb_layers(pn, x, y, ln, th, bend=0.0, hl_horn=0.0, hl_sinew=0.0, hl_core=0.0, arrows=0.0, t=0.0, f=1, birch=False):
+    """Side view of a short piece of the limb, the back (sinew) on top, the belly (horn) below; bend 0..1 curls it toward
+    the belly as when drawn. arrows 0..1 shows tension (outward, on the back) and compression (inward, on the belly)."""
+    n = 24
+    R_ = 1e9 if bend <= 1e-3 else ln / (bend * 1.3)
+    ctr, nrm = [], []
+    for i in range(n + 1):
+        s = (i / n - 0.5) * ln
+        if bend <= 1e-3:
+            ctr.append((x + s, y)); nrm.append((0.0, -1.0))
+        else:
+            a = s / R_
+            ctr.append((x + R_ * math.sin(a), y + R_ * (1 - math.cos(a)))); nrm.append((-math.sin(a), -math.cos(a)))
+    def band(o0, o1, col):
+        A = [(cx + nx * o0, cy + ny * o0) for (cx, cy), (nx, ny) in zip(ctr, nrm)]
+        B = [(cx + nx * o1, cy + ny * o1) for (cx, cy), (nx, ny) in zip(ctr, nrm)]
+        pn.poly(A + B[::-1], fill=col, outline=INK, width=2.6)
+        return A, B
+    s_top, s_bot = th * 0.5, th * 0.12
+    c_bot = -th * 0.2
+    band(s_bot, s_top, lerpc(SINEW, AMBER, hl_sinew))
+    band(c_bot, s_bot, lerpc(MCORE, AMBER, hl_core))
+    band(-th * 0.5, c_bot, lerpc(MHORN, AMBER, hl_horn))
+    if birch: band(s_top, s_top + 4, BIRCH)
+    # material detail: sinew fibres along the length, wood grain, horn streaks
+    for j, (o, col, wd) in enumerate(((th * 0.32, shade(SINEW, 0.25), 1.4), (th * 0.4, shade(SINEW, 0.25), 1.4), (th * 0.24, shade(SINEW, 0.25), 1.4),
+                                      (-th * 0.04, shade(MCORE, 0.25), 1.6), (-th * 0.36, shade(MHORN, 0.25), 1.6))):
+        pts = [(cx + nx * o, cy + ny * o) for (cx, cy), (nx, ny) in zip(ctr[2:-2], nrm[2:-2])]
+        pn.line(pts, col, wd, caps=False)
+    if arrows > 0:
+        a_ = arrows
+        L2 = 0.5 * ln * (1 + 0.2 * math.sin(t * 8))
+        for i0, sg in ((3, -1), (n - 3, 1)):
+            (cx, cy), (nx, ny) = ctr[i0], nrm[i0]
+            tx, ty = ny * -1, nx    # tangent
+            tx, ty = (ctr[i0 + 1][0] - ctr[i0 - 1][0]), (ctr[i0 + 1][1] - ctr[i0 - 1][1]); Ln = math.hypot(tx, ty); tx, ty = tx / Ln, ty / Ln
+            pT = (cx + nx * (th * 0.5 + 26), cy + ny * (th * 0.5 + 26))
+            arrow(pn, pT, (pT[0] + sg * tx * 60 * a_, pT[1] + sg * ty * 60 * a_), RUST, 7, 20)       # back stretches: outward
+            pC = (cx + nx * (-th * 0.5 - 26), cy + ny * (-th * 0.5 - 26))
+            arrow(pn, (pC[0] + sg * tx * 60 * a_, pC[1] + sg * ty * 60 * a_), pC, (40, 90, 150), 7, 20)  # belly squeezes: inward
+    return ctr, nrm

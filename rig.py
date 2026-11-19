@@ -358,6 +358,20 @@ OUT.update({
     'hoplite2': dict(tunic=(214, 204, 178), sleeve=(112, 74, 52), hose=(240, 232, 214), boot=(110, 80, 50), hat='pilosb', cap=(176, 136, 66),
                      greaves=_BRZ, ptery=(220, 210, 186), skirt=(112, 74, 52), beard=(90, 66, 44), beard_style='short', plume=(150, 40, 36)),
 })
+# Mongol Empire, early 13th century (BM-P011): deel robe closing to the wearer's right, wide leather belt with plaques,
+# trousers and boots, fur trimmed felt hat, hair braided in loops behind the ears (Plano Carpini). Robe stops at the knee
+# (house rule; the real deel reached the calf).
+_MB = (214, 176, 90)
+OUT.update({
+    'mkeeper':  dict(tunic=(78, 98, 116), sleeve=(78, 98, 116), hose=(104, 82, 60), boot=(52, 40, 32), hat='mongol', cap=(122, 52, 44),
+                     fur=(128, 96, 64), trim=(196, 160, 96), glasses=True, braids=(46, 36, 28), wide_belt=(84, 54, 36), plaques=_MB),
+    'yisungge': dict(tunic=(146, 46, 42), sleeve=(146, 46, 42), hose=(70, 62, 54), boot=(46, 34, 28), hat='mongol', cap=(54, 66, 96),
+                     fur=(152, 118, 80), trim=(222, 184, 92), braids=(40, 32, 26), beard=(40, 32, 26), beard_style='mustache',
+                     wide_belt=(70, 44, 30), plaques=(236, 196, 96)),
+    'mongol3':  dict(tunic=(150, 124, 88), sleeve=(150, 124, 88), hose=(90, 74, 58), boot=(52, 40, 32), hat='mongol', cap=(92, 82, 70),
+                     fur=(112, 86, 58), trim=(112, 80, 54), braids=(48, 38, 30), beard=(52, 40, 30), beard_style='stubble',
+                     wide_belt=(84, 54, 36), plaques=_MB),
+})
 EPISODE_OUTFIT = 'phalanx'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
@@ -541,7 +555,16 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(lerp(nk[0], pl[0], 0.3) - nx_ * 8, lerp(nk[1], pl[1], 0.3) - ny_ * 8),
                      (lerp(nk[0], pl[0], 0.3) + nx_ * 8, lerp(nk[1], pl[1], 0.3) + ny_ * 8)], (150, 54, 42), 3)
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
-        pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
+        if O.get('wide_belt'):
+            bw_ = 23
+            pn.line([(belt[0] - nx_ * bw_, belt[1] - ny_ * bw_), (belt[0] + nx_ * bw_, belt[1] + ny_ * bw_)], INK, 11, caps=False)
+            pn.line([(belt[0] - nx_ * bw_, belt[1] - ny_ * bw_), (belt[0] + nx_ * bw_, belt[1] + ny_ * bw_)], O['wide_belt'], 7.5, caps=False)
+            if O.get('plaques') and lod(pn, 60) >= 1:
+                for i in range(-2, 3):
+                    pn.rect(belt[0] + nx_ * i * 9 - 2.4, belt[1] + ny_ * i * 9 - 2.6, belt[0] + nx_ * i * 9 + 2.4, belt[1] + ny_ * i * 9 + 2.6,
+                            fill=O['plaques'], outline=INK, width=0.8, r=0.8)
+        else:
+            pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
     if carry:
         # Republican scutum on its grip: the fist is behind the boss, the forearm behind the board, the sleeve cap
         # and upper arm show above the rim, the rim clears the shoulder at the top and the knees at the bottom
@@ -585,6 +608,11 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         if O.get('hair'):
             pn.poly([(hx - r * .95, hy - 6), (hx - r * .7, hy - r * .78), (hx, hy - r - 3), (hx + r * .7, hy - r * .78), (hx + r * .95, hy - 6),
                      (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=O['hair'])
+    if O.get('braids'):    # Mongol men: crown shaved, hair braided and looped behind each ear (Plano Carpini)
+        bc_ = O['braids']
+        for sd in (-1, 1):
+            pn.ell(hx + sd * (r + 3), hy + 10, 6, 11, fill=bc_, outline=INK, width=2.2)
+            pn.ell(hx + sd * (r + 3), hy + 10, 2, 5, fill=SKIN)
     fk = r / 36
     pn.push(hx, hy + (3 if hat in ('crown', 'hood') else 0), fk)
     face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'), O.get('beard_style'))
@@ -697,6 +725,20 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     elif hat == 'cone':
         pn.poly([(hx - r - 2, hy - 10), (hx - r * .5, hy - r * .9), (hx + f * 4, hy - r - 26), (hx + r * .5, hy - r * .9), (hx + r + 2, hy - 10)],
                 fill=O['cap'], outline=INK, width=3)
+    elif hat == 'mongol':
+        # felt hat, rounded crown, fur brim turned up and split at the front (13th c. steppe; simplified, VERIFY)
+        c = O['cap']; fu = O['fur']; by = hy - r * .62; HL = lod(pn, 2 * r)
+        pn.poly([(hx - r * .86, by), (hx - r * .82, by - 24), (hx - r * .5, by - 42), (hx, by - 47), (hx + r * .5, by - 42),
+                 (hx + r * .82, by - 24), (hx + r * .86, by)], fill=c, outline=INK, width=3)
+        pn.poly([(hx + r * .15, by - 45), (hx + r * .5, by - 42), (hx + r * .82, by - 24), (hx + r * .84, by - 2), (hx + r * .4, by - 2)], fill=shade(c, 0.22))
+        brim = [(hx - r - 8, by - 16), (hx - r - 2, by + 10), (hx + r + 2, by + 10), (hx + r + 8, by - 16), (hx + r * .55, by - 6),
+                (hx + 7, by - 8), (hx, by + 1), (hx - 7, by - 8), (hx - r * .55, by - 6)]
+        pn.poly(brim, fill=fu, outline=INK, width=2.8)
+        if HL >= 1:
+            for i in range(9):
+                xx = hx - r + 4 + i * (2 * r - 8) / 8
+                if abs(xx - hx) < 8: continue
+                pn.line([(xx, by - 2), (xx + 2, by + 7)], lerpc(fu, INK, .3), 1.8, caps=False)
     elif hat == 'fur':
         pn.ell(hx, hy - r * .78, r * .86, r * .82, fill=O['cap'], outline=INK, width=3)
         pn.rect(hx - r - 6, hy - r * .78, hx + r + 6, hy - r * .78 + 24, fill=O['fur'], outline=INK, width=3, r=12)
