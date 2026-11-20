@@ -87,6 +87,7 @@ def X(brow=0, raise_=0, lid=0.0, eyes='open', mouth='flat', es=1.0, ps=1.0, extr
     return dict(brow=brow, raise_=raise_, lid=lid, eyes=eyes, mouth=mouth, es=es, ps=ps, extras=tuple(extras), small=small, look=look)
 
 EXPR = {
+    'dead': X(0, 0, 0.0, 'x', 'wavy'),
     # the original ten
     'neutral':    X(0, 0, 0.0, 'open', 'flat'),
     'happy':      X(4, 3, 0.0, 'open', 'smile'),
@@ -218,6 +219,9 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
         elif eyes == 'squeeze':    # squeezed shut: > <
             d_ = -side
             pn.line([(ex - d_ * 6, ey - 5), (ex + d_ * 5, ey), (ex - d_ * 6, ey + 5)], INK, 3.0)
+        elif eyes == 'x':          # knocked out or dead: crossed eyes
+            for a_, b_ in (((-6, -6), (6, 6)), ((-6, 6), (6, -6))):
+                pn.line([(ex + a_[0], ey + a_[1]), (ex + b_[0], ey + b_[1])], INK, 3.4)
         elif eyes == 'squint':
             pn.ell(ex, ey + 1, rx, ry * 0.42, fill=WHITE, outline=INK, width=2.6)
             pn.circ(ex + clamp(look[0] * f, -1, 1) * 2.5, ey + 1, 3.2, fill=INK)

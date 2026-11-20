@@ -103,7 +103,7 @@ def cues():
     C = [(0.0, 'thud', 0.9), (0.02, 'creak', 0.6), (0.05, 'whooshlow', 0.4),
          (T['burst'] - 0.45, 'rumble', 0.4), (T['burst'] - 0.1, 'whoosh', 0.6), (T['burst'], 'roar', 1.0), (T['burst'] + 0.05, 'thud', 0.7),
          (T['burst'] + 0.55, 'thud', 0.5), (T['burst'] + 0.6, 'swish', 0.6), (T['burst'] + 0.87, 'hit', 1.0), (T['burst'] + 0.88, 'roar', 0.8),
-         (T['s1'] - 0.05, 'puff', 0.9), (T['s1'] + 0.3, 'chime', 0.3),
+         (T['s1'] - 0.05, 'puff', 0.9), (T['s1'] + 0.33, 'thud', 0.9), (T['s1'] + 0.41, 'thud', 0.8), (T['s1'] + 0.37, 'clatter', 0.4), (T['s1'] + 0.3, 'chime', 0.3),
          (T['real'], 'stamp', 1.0),
          (T['s2'] + 0.3, 'creak', 0.5), (T['s2'] + 0.8, 'rumble', 0.3), (T['machine'], 'pop', 0.5),
          (T['elevator3'] - 0.05, 'bell', 0.6), (T['elevator3'] + 0.2, 'creak', 0.6),

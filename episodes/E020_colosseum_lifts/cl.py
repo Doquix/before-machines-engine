@@ -320,6 +320,7 @@ GAITS = {
     'stand': lambda ph: ([(-12, 4), (-4, 10)], [(28, -38, 6), (20, -30, 10)]),
     'crouch': lambda ph: ([(-50, 20), (-42, 26)], [(70, -40, 40), (64, -36, 44)]),
     'sit': lambda ph: ([(-6, 2), (2, 4)], [(80, -80, 88), (78, -78, 86)]),
+    'lie': lambda ph: ([(84, 92), (78, 88)], [(-84, -90, -92), (-78, -86, -90)]),
 }
 def _gait(gait, ph):
     if gait in GAITS: return GAITS[gait](ph)
@@ -487,6 +488,11 @@ def _cat_head(pn, hx, hy, s, col, striped, mane, look, expr, t, mouth):
         pn.line([(hx + s * 40, hy + 7), (hx + s * 38, hy + 12), (hx + s * 30, hy + 14)], INK, 2, caps=False)
     # eye: almond, amber iris, round pupil, highlight, dark liner, brow
     ex, ey = hx + s * 18, hy - 10
+    if expr == 'dead':   # crossed eye, tongue out
+        for a_, b_ in (((-7, -6), (7, 6)), ((-7, 6), (7, -6))):
+            pn.line([(ex + a_[0], ey + a_[1]), (ex + b_[0], ey + b_[1])], INK, 3.6)
+        pn.ell(hx + s * 30, hy + 24, 6, 9, fill=(214, 96, 110), outline=INK, width=2)
+        return
     eye = [(ex - s * 10, ey + 1), (ex - s * 2, ey - 6), (ex + s * 9, ey - 3), (ex + s * 10, ey + 1), (ex + s * 1, ey + 5)]
     pn.poly(eye, fill=(222, 170, 60), outline=INK, width=2.6)
     px, py = ex + s * clamp(look[0], -1, 1) * 2.4, ey + look[1] * 2
@@ -712,3 +718,28 @@ def poof(pn, x, y, t, t0, R=300):
         ang = i * 2 * math.pi / 14 + rnd.uniform(-0.2, 0.2)
         d = R * (0.5 + 0.9 * e)
         pn.circ(x + math.cos(ang) * d, y + math.sin(ang) * d * 0.8, 46 * (1 - 0.5 * u), fill=CLOUD_M + (a,))
+
+
+def claw_marks(pn, x, y, s=1.0, ang=-0.6, n=3, L=46, col=(168, 34, 34)):
+    """Cartoon claw slashes (scars): parallel red strokes with an ink edge, no blood pools."""
+    ux, uy = math.cos(ang), math.sin(ang); nx, ny = -uy, ux
+    for i in range(n):
+        o = (i - (n - 1) / 2) * 12 * s
+        a = (x + nx * o - ux * L * s / 2, y + ny * o - uy * L * s / 2); b = (x + nx * o + ux * L * s / 2, y + ny * o + uy * L * s / 2)
+        pn.line([a, b], INK, 9 * s); pn.line([a, b], col, 5.5 * s)
+        pn.line([(lerp(a[0], b[0], .2), lerp(a[1], b[1], .2)), (lerp(a[0], b[0], .7), lerp(a[1], b[1], .7))], (236, 120, 110), 1.6 * s, caps=False)
+
+LIE = dict(torso=-90, head=8, uaF=-100, faF=-120, uaB=100, faB=80, thF=92, shF=96, thB=84, shB=88)
+def dead_venator(pn, x, y, k, f=1, t=0.0):
+    """Venator lying on his back after the fight: X eyes, claw scars on chest and arm, torn hem."""
+    J = figure(pn, x, y, k, f, dict(LIE), 'venator', 'dead', look=(0, 0), blink=0.0)
+    leg_wraps(pn, x, y, k, J)
+    Wp = lambda p_, u=0.0, v=0.0: (x + (p_[0] + u) * k, y + (p_[1] + v) * k)
+    nk, pl = J['neck'], J['pelvis']
+    mid = ((nk[0] + pl[0]) / 2, (nk[1] + pl[1]) / 2)
+    claw_marks(pn, *Wp(mid, 0, -6), s=k * 0.9, ang=0.9)
+    claw_marks(pn, *Wp(J['elF']), s=k * 0.6, ang=-0.4, n=3, L=34)
+    # torn tunic edge
+    hx, hy = Wp(pl, -f * 4, 18)
+    pn.line([(hx - 14 * k, hy), (hx - 7 * k, hy + 6 * k), (hx, hy), (hx + 7 * k, hy + 6 * k), (hx + 14 * k, hy)], INK, 3 * k)
+    return J

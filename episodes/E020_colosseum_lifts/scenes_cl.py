@@ -6,7 +6,7 @@ from lib import *
 from rig import *
 from props import tag, stamp, arrow as arrow_line
 import cl
-from cl import (lion, tiger, venator, capstan, lift_shaft, lift_cage, trapdoor, arena_floor, torch, pulley, pusher, crowd,
+from cl import (venabulum, lion, tiger, venator, capstan, lift_shaft, lift_cage, trapdoor, arena_floor, torch, pulley, pusher, crowd,
                 SAND, SAND_D, OAK, OAK_L, TUFA, BRICK)
 import env
 from fx import smear, speed_lines, focus_lines, impact, particles
@@ -201,13 +201,34 @@ def hook(base, pn, t, after=False):
     p = hole_and_door(pn, op)
     land, c0, c1 = fight_times()
     if after:
-        # aftermath: the cloud bursts apart, the hunter dizzy on the left, the tiger growling on the right
+        # aftermath (12 principles): the cloud bursts; both bodies are thrown out on arcs, accelerate into the ground,
+        # bounce once and settle (follow through), then hold still so the moment reads
         cl.poof(pn, 470, 1120, t, c1)
-        tiger(pn, 860, 1330, 1.25, -1, gait='crouch', expr='angry', t=t, look=(-0.8, 0))
-        venator(pn, 175, 1400, 1.75, 1, t, ang=0.5, expr='confused', look=(math.sin(t * 6), math.cos(t * 6) * 0.6))
-        for i in range(3):   # dizzy stars round the head
-            a = t * 5 + i * 2.1
-            cl._star(pn, 175 + 6 + math.cos(a) * 70, 1400 - 1.75 * 236 + math.sin(a) * 18, 14, t * 4 + i)
+        def throw(t0, p0, p1, h, dur, bounce):
+            u = (t - t0) / dur
+            if u <= 0: return p0, False, 0.0
+            if u < 1:
+                e = ei2(u)
+                return (lerp(p0[0], p1[0], u), lerp(p0[1], p1[1], e) - h * math.sin(u * math.pi) * (1 - u * 0.3)), False, 0.0
+            v = t - t0 - dur
+            return (p1[0], p1[1] - bounce * abs(math.sin(v * 14)) * math.exp(-v * 9)), True, v
+        vp, v_land, v_age = throw(c1, (470, 1150), (380, 1365), 110, 0.38, 26)
+        tp, t_land, t_age = throw(c1 + 0.04, (500, 1180), (830, 1360), 80, 0.42, 18)
+        venabulum(pn, 560, 1380, 0.05 + 0.6 * math.exp(-max(0, t - c1 - 0.3) * 8) * math.sin(max(0, t - c1 - 0.3) * 30), back=150, L=300)
+        if t_land:
+            particles(pn, 'dust', tp[0], 1370, t, c1 + 0.46, 1.0, seed=12, ground=1374)
+        cl.tiger(pn, tp[0], tp[1], 1.25, -1, gait='lie', expr='dead' if t_age > 0.12 else 'roar', t=0.0)
+        if t_land:
+            cl.claw_marks(pn, tp[0] + 20, tp[1] - 62, s=1.2, ang=1.1)
+            cl.claw_marks(pn, tp[0] + 90, tp[1] - 50, s=0.9, ang=0.7, n=2, L=40)
+            cl.claw_marks(pn, tp[0] - 128, tp[1] - 128, s=0.7, ang=-0.3, n=2, L=30)
+        if v_land:
+            particles(pn, 'dust', vp[0] + 60, 1375, t, c1 + 0.38, 1.0, seed=13, ground=1379)
+        if v_age > 0.12 or not v_land and False:
+            cl.dead_venator(pn, vp[0], vp[1], 1.6, 1, t)
+        else:
+            J = figure(pn, vp[0], vp[1], 1.6, 1, dict(cl.LIE), 'venator', 'pain', look=(0, -0.5), blink=0.0)
+            cl.leg_wraps(pn, vp[0], vp[1], 1.6, J)
         return
     if t < 0.4: particles(pn, 'dust', 560, HOLE['y0'], t, 0.05, 1.1, seed=3, ground=HOLE['y1'])
     x, y, g, ph, f, e_, tl = tiger_path(t)
@@ -215,11 +236,16 @@ def hook(base, pn, t, after=False):
     if 0.45 < t < T['burst'] - 0.42:
         particles(pn, 'dust', 560, HOLE['y0'], t, 0.5 + int((t - 0.5) / 0.35) * 0.35, 0.4, seed=int(t * 3), ground=HOLE['y1'])
     if t < c0:
-        if t > land:   # the tiger turns and charges the hunter
-            u = P(t, land, c0 - land)
-            x = lerp(820, 420, ei2(u)); y = 1330; g, ph, f, e_, tl = 'run', u * 1.5 % 1.0, -1, 'roar', 0.0
-            speed_lines(pn, x + 220, 1200, 1, 0, t, length=220, n=5, spread=120, seed=6)
-        draw = lambda p2: tiger(p2, x, y, 1.45, f, gait=g, ph=ph, expr=e_, t=t, look=(-0.7 if f < 0 else 0.6, 0), body_tilt=tl)
+        if t > land:   # anticipation: the tiger turns and sinks back on its haunches, then lunges on an arc
+            ad = 0.14
+            if t < land + ad:
+                u = eio(P(t, land, ad)); x = 820 + 18 * u; y = 1330; g, ph, f, e_, tl = 'crouch', 0.0, -1, 'angry', 0.0
+            else:
+                u = ei2(P(t, land + ad, c0 - land - ad))
+                x = lerp(838, 470, u); y = 1330 - 90 * math.sin(u * math.pi); g, ph, f, e_, tl = 'leap', 0.3 + 0.6 * u, -1, 'roar', 0.15 * math.sin(u * math.pi)
+                speed_lines(pn, x + 220, y - 130, 1, 0, t, length=220, n=5, spread=120, seed=6)
+        crouch_ = 0.0 if not (land < t < land + 0.14) else eio(P(t, land, 0.14))
+        draw = lambda p2: tiger(p2, x, y, 1.45, f, gait=g, ph=ph, expr=e_, t=t, look=(-0.7 if f < 0 else 0.6, 0), body_tilt=tl, crouch=crouch_)
         if t < T['burst'] + 0.25: clipped(pn, HOLE['y1'] - 4, draw)
         else: draw(pn)
         ex = 'determined' if t < T['burst'] else ('fear' if t < land else 'terrified')
@@ -242,8 +268,8 @@ def sc_real(base, pn, t):
     if t < T['s1'] + 0.3: cl.fight_cloud(pn, 470, 1120, t, fight_times()[1], R=210, seed=3, burst=fight_times()[2])
     stamp(pn, 540, 860, 'REAL', t - T['real'], sz=130)
 def cam_real(t, sc, ox, oy):
-    z = 1.0 + 0.16 * eio(P(t, T['s1'], 1.2))
-    return camfocus(z, 560, 1260, 560, 1180, ox, oy)
+    z = 1.0 + 0.08 * eio(P(t, T['s1'], 1.2))
+    return camfocus(z, 560, 1330, 560, 1300, ox, oy)
 
 # ---------------- 2. under the Colosseum: down the shaft ----------------
 SEC_TOP = 470
