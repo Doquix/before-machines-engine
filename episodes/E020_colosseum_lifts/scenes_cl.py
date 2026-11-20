@@ -48,7 +48,7 @@ T = dict(
 )
 CAM.drift = 0.5
 CAM.punch = [(T['burst'], 0.07), (T['real'], 0.06), (T['eight'], 0.05), (T['swung'] + 0.25, 0.05), (T['light15'], 0.07), (T['roman'], 0.06)]
-CAM.shake = [(T['burst'] + 0.05, 9, 0.3), (T['swung'] + 0.3, 7, 0.25)]
+CAM.shake = [(T['burst'] + 0.05, 9, 0.3), (T['burst'] + 0.87, 12, 1.5), (T['swung'] + 0.3, 7, 0.25)]
 FLASH = [(T['light15'], 0.14, (255, 244, 214), 100)]
 
 FLOOR = 1250       # arena floor line in arena scenes
@@ -189,30 +189,57 @@ def eyes_in_hole(pn, t, t0, t1, cx=560, y=1268):
         pn.ell(cx + sd * 22, y, 10, 6 * bl, fill=(250, 196, 70, int(255 * a)))
         pn.circ(cx + sd * 22, y, 2.6 * bl, fill=INK + (int(255 * a),))
 
-def hook(base, pn, t, still=False):
+FIGHT0 = None
+def fight_times():
+    t2 = T['burst'] + 0.55            # tiger lands
+    return t2, t2 + 0.32, T['s1'] - 0.05   # lands, cloud starts, cloud bursts
+
+def hook(base, pn, t, after=False):
     bgp(base, 'arena', 0.35)
     sand_grain(pn, 1080)
-    op = 1.0 if still else clamp(eoback(P(t, 0.0, 0.34), 1.3))
+    op = 1.0 if after else clamp(eoback(P(t, 0.0, 0.34), 1.3))
     p = hole_and_door(pn, op)
+    land, c0, c1 = fight_times()
+    if after:
+        # aftermath: the cloud bursts apart, the hunter dizzy on the left, the tiger growling on the right
+        cl.poof(pn, 470, 1120, t, c1)
+        tiger(pn, 860, 1330, 1.25, -1, gait='crouch', expr='angry', t=t, look=(-0.8, 0))
+        venator(pn, 175, 1400, 1.75, 1, t, ang=0.5, expr='confused', look=(math.sin(t * 6), math.cos(t * 6) * 0.6))
+        for i in range(3):   # dizzy stars round the head
+            a = t * 5 + i * 2.1
+            cl._star(pn, 175 + 6 + math.cos(a) * 70, 1400 - 1.75 * 236 + math.sin(a) * 18, 14, t * 4 + i)
+        return
     if t < 0.4: particles(pn, 'dust', 560, HOLE['y0'], t, 0.05, 1.1, seed=3, ground=HOLE['y1'])
     x, y, g, ph, f, e_, tl = tiger_path(t)
     eyes_in_hole(pn, t, 0.45, T['burst'] - 0.42)
     if 0.45 < t < T['burst'] - 0.42:
         particles(pn, 'dust', 560, HOLE['y0'], t, 0.5 + int((t - 0.5) / 0.35) * 0.35, 0.4, seed=int(t * 3), ground=HOLE['y1'])
-    draw = lambda p2: tiger(p2, x, y, 1.45, f, gait=g, ph=ph, expr=e_, t=t, look=(-0.7 if f < 0 else 0.6, 0), body_tilt=tl)
-    if t < T['burst'] + 0.25: clipped(pn, HOLE['y1'] - 4, draw)
-    else: draw(pn)
-    ex = 'determined' if t < T['burst'] else ('fear' if t < T['burst'] + 1.2 else 'determined')
-    venator(pn, 175, 1400, 1.75, 1, t, ang=0.18, expr=ex, look=(0.9, 0.2) if t < T['burst'] else (0.9, -0.3))
-    if t >= T['burst']:
-        particles(pn, 'dust', 560, HOLE['y1'], t, T['burst'], 1.6, seed=5, ground=HOLE['y1'] + 40)
-        if t < T['burst'] + 0.4: speed_lines(pn, 700, 1150, 1, -0.6, t, length=260, n=5, spread=140, seed=2)
-        impact(pn, 600, 1180, t, T['burst'], 1.2, seed=4)
+    if t < c0:
+        if t > land:   # the tiger turns and charges the hunter
+            u = P(t, land, c0 - land)
+            x = lerp(820, 420, ei2(u)); y = 1330; g, ph, f, e_, tl = 'run', u * 1.5 % 1.0, -1, 'roar', 0.0
+            speed_lines(pn, x + 220, 1200, 1, 0, t, length=220, n=5, spread=120, seed=6)
+        draw = lambda p2: tiger(p2, x, y, 1.45, f, gait=g, ph=ph, expr=e_, t=t, look=(-0.7 if f < 0 else 0.6, 0), body_tilt=tl)
+        if t < T['burst'] + 0.25: clipped(pn, HOLE['y1'] - 4, draw)
+        else: draw(pn)
+        ex = 'determined' if t < T['burst'] else ('fear' if t < land else 'terrified')
+        lean = antic(t, land, c0 - land + 0.05, 0.25)
+        venator(pn, 175 + 60 * max(0, lean), 1400, 1.75, 1, t, ang=0.18, expr=ex, look=(0.9, 0.2) if t < T['burst'] else (0.9, -0.3))
+        if t >= T['burst']:
+            particles(pn, 'dust', 560, HOLE['y1'], t, T['burst'], 1.6, seed=5, ground=HOLE['y1'] + 40)
+            if t < T['burst'] + 0.4: speed_lines(pn, 700, 1150, 1, -0.6, t, length=260, n=5, spread=140, seed=2)
+            impact(pn, 600, 1180, t, T['burst'], 1.2, seed=4)
+    else:
+        impact(pn, 430, 1120, t, c0, 1.3, seed=7)
+        particles(pn, 'dust', 430, 1360, t, c0, 1.6, seed=8, ground=1364)
+        cl.fight_cloud(pn, 470, 1120, t, c0, R=210, seed=3, burst=c1)
+        pn.ell(430, 1380, 300, 26, fill=(20, 14, 10, 50))
 
 def sc_hook(base, pn, t): hook(base, pn, t)
 
 def sc_real(base, pn, t):
-    hook(base, pn, max(t, T['burst'] + 1.0))
+    hook(base, pn, t, after=True)
+    if t < T['s1'] + 0.3: cl.fight_cloud(pn, 470, 1120, t, fight_times()[1], R=210, seed=3, burst=fight_times()[2])
     stamp(pn, 540, 860, 'REAL', t - T['real'], sz=130)
 def cam_real(t, sc, ox, oy):
     z = 1.0 + 0.16 * eio(P(t, T['s1'], 1.2))

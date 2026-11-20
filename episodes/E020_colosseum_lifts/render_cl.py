@@ -102,7 +102,8 @@ def frame(t):
 def cues():
     C = [(0.0, 'thud', 0.9), (0.02, 'creak', 0.6), (0.05, 'whooshlow', 0.4),
          (T['burst'] - 0.45, 'rumble', 0.4), (T['burst'] - 0.1, 'whoosh', 0.6), (T['burst'], 'roar', 1.0), (T['burst'] + 0.05, 'thud', 0.7),
-         (T['burst'] + 0.6, 'thud', 0.5), (T['burst'] + 1.6, 'roar', 0.6),
+         (T['burst'] + 0.55, 'thud', 0.5), (T['burst'] + 0.6, 'swish', 0.6), (T['burst'] + 0.87, 'hit', 1.0), (T['burst'] + 0.88, 'roar', 0.8),
+         (T['s1'] - 0.05, 'puff', 0.9), (T['s1'] + 0.3, 'chime', 0.3),
          (T['real'], 'stamp', 1.0),
          (T['s2'] + 0.3, 'creak', 0.5), (T['s2'] + 0.8, 'rumble', 0.3), (T['machine'], 'pop', 0.5),
          (T['elevator3'] - 0.05, 'bell', 0.6), (T['elevator3'] + 0.2, 'creak', 0.6),
@@ -122,6 +123,9 @@ def cues():
          (T['dozens'] - 0.1, 'tick', 0.5), (T['hidden'], 'scrape', 0.4), (T['lifts'], 'pop', 0.5),
          (T['never'], 'creak', 0.4), (T['next18'], 'creak', 0.7), (T['rise'] - 0.2, 'roar', 0.4),
          (T['opens'] - 0.1, 'thud', 0.9), (T['opens'] - 0.08, 'creak', 0.6), (T['watching'] - 0.2, 'ratchetrun', 0.6), (T['roman'], 'pop', 0.5)]
+    for i in range(14):    # brawl: hits, clatter and growls while the cloud churns
+        tb = T['burst'] + 0.95 + i * 0.13
+        if tb < T['s1'] - 0.1: C.append((tb, ('hit', 'clank', 'thud', 'swish', 'clatter', 'roar')[i % 6], 0.55 if i % 6 != 5 else 0.4))
     for i in range(28): C.append((T['dozens'] - 0.1 + i * 0.035, 'tick', 0.25))
     for i in range(4): C += [(T['four'] + i * 0.12, 'pop', 0.4), (T['level'] - 0.1 + i * 0.12, 'pop', 0.4)]
     for b in np.arange(T['pushed'], T['s14'] - 0.3, 0.8): C.append((b, 'creak', 0.35))

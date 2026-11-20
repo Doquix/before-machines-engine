@@ -582,3 +582,133 @@ def crowd(pn, x0, y0, cols, rows, dx=30, dy=40, t=0.0, wave=None, seed=1):
             if u > 0.4:
                 pn.line([(x - 8, y - 20 - 12 * u), (x - 14, y - 44 - 14 * u)], INK, 3)
                 pn.line([(x + 8, y - 20 - 12 * u), (x + 14, y - 44 - 14 * u)], INK, 3)
+
+
+# ---------------- cartoon brawl cloud (E020 hook, by user request) ----------------
+CLOUD_O = (176, 156, 134); CLOUD_M = (214, 200, 182); CLOUD_L = (246, 240, 230)
+def _puffs(cx, cy, R, n, t, seed, wob=0.06):
+    rnd = random.Random(seed); out = []
+    for i in range(n):
+        a = 2 * math.pi * i / n + rnd.uniform(-0.15, 0.15)
+        rr = R * rnd.uniform(0.78, 0.98)
+        r_ = R * rnd.uniform(0.32, 0.46) * (1 + wob * math.sin(t * 13 + i * 2.1))
+        out.append((cx + math.cos(a) * rr * 1.12, cy + math.sin(a) * rr * 0.86, r_))
+    return out
+
+def _paw(pn, base, ang, L, striped=True):
+    tip = (base[0] + math.cos(ang) * L, base[1] + math.sin(ang) * L)
+    pn.line([base, tip], INK, 30); pn.line([base, tip], TIGER, 23)
+    if striped:
+        for u in (0.35, 0.6, 0.82):
+            c = (lerp(base[0], tip[0], u), lerp(base[1], tip[1], u)); nx, ny = -math.sin(ang), math.cos(ang)
+            pn.line([(c[0] - nx * 10, c[1] - ny * 10), (c[0] + nx * 6, c[1] + ny * 6)], INK, 4)
+    pn.circ(tip[0], tip[1], 19, fill=TIGER, outline=INK, width=3)
+    for k in (-1, 0, 1):
+        a = ang + k * 0.5
+        c = (tip[0] + math.cos(a) * 17, tip[1] + math.sin(a) * 17)
+        pn.poly([c, (c[0] + math.cos(a) * 12 - math.sin(a) * 3, c[1] + math.sin(a) * 12 + math.cos(a) * 3), (c[0] + math.sin(a) * 4, c[1] - math.cos(a) * 4)],
+                fill=(246, 240, 226), outline=INK, width=1.6)
+
+def _arm(pn, base, ang, L, skin=(232, 200, 160)):
+    tip = (base[0] + math.cos(ang) * L, base[1] + math.sin(ang) * L)
+    pn.line([base, tip], INK, 22); pn.line([base, tip], skin, 15)
+    pn.circ(tip[0], tip[1], 17, fill=skin, outline=INK, width=3)          # fist
+    for k in (-1, 0, 1):
+        pn.line([(tip[0] - math.sin(ang) * k * 8 + math.cos(ang) * 4, tip[1] + math.cos(ang) * k * 8 + math.sin(ang) * 4),
+                 (tip[0] - math.sin(ang) * k * 8 + math.cos(ang) * 12, tip[1] + math.cos(ang) * k * 8 + math.sin(ang) * 12)], INK, 2, caps=False)
+
+def _leg(pn, base, ang, L):
+    tip = (base[0] + math.cos(ang) * L, base[1] + math.sin(ang) * L)
+    pn.line([base, tip], INK, 22); pn.line([base, tip], (240, 232, 214), 15)
+    for u in (0.4, 0.6, 0.8):
+        c = (lerp(base[0], tip[0], u), lerp(base[1], tip[1], u)); nx, ny = -math.sin(ang), math.cos(ang)
+        pn.line([(c[0] - nx * 9, c[1] - ny * 9), (c[0] + nx * 9, c[1] + ny * 9)], INK, 7); pn.line([(c[0] - nx * 8, c[1] - ny * 8), (c[0] + nx * 8, c[1] + ny * 8)], WRAP, 4)
+    pn.ell(tip[0] + math.cos(ang) * 8, tip[1] + math.sin(ang) * 8, 22, 13, fill=(96, 66, 40), outline=INK, width=3)
+
+def _star(pn, x, y, r, a, col=(250, 214, 60)):
+    pts = []
+    for i in range(10):
+        rr = r if i % 2 == 0 else r * 0.45
+        pts.append((x + math.cos(a + i * math.pi / 5) * rr, y + math.sin(a + i * math.pi / 5) * rr))
+    pn.poly(pts, fill=col, outline=INK, width=3)
+
+def fight_cloud(pn, x, y, t, t0, R=210, seed=3, burst=None):
+    """Cartoon brawl: a churning dust ball with limbs, paws, the spear, tail, stars, swirls and impact spikes.
+    Limbs swap every 0.12 s (held on fours, like a classic cartoon). burst: time it bursts apart (poof)."""
+    if t < t0: return
+    g = eoback(clamp((t - t0) / 0.18), 1.6)
+    out = 0.0
+    if burst is not None and t >= burst: out = clamp((t - burst) / 0.3)
+    if out >= 1: return
+    Rr = R * g * (1 + 0.5 * out); alpha = int(255 * (1 - out))
+    jx = 10 * math.sin(t * 31) ; jy = 8 * math.cos(t * 27)
+    cx, cy = x + jx, y + jy
+    step = int((t - t0) / 0.12)
+    rnd = random.Random(seed * 100 + step)
+    # impact spikes behind the cloud
+    if out == 0:
+        for i in range(7):
+            a = rnd.uniform(0, 2 * math.pi); L = Rr * rnd.uniform(1.75, 2.05)
+            b = (cx + math.cos(a) * Rr * 0.8, cy + math.sin(a) * Rr * 0.7)
+            pn.poly([(b[0] - math.sin(a) * 18, b[1] + math.cos(a) * 18), (cx + math.cos(a) * L, cy + math.sin(a) * L * 0.85), (b[0] + math.sin(a) * 18, b[1] - math.cos(a) * 18)],
+                    fill=(250, 214, 60), outline=INK, width=3)
+    # the cloud: ink rim, outer tone, mid tone, lit core
+    P_ = _puffs(cx, cy, Rr, 13, t, seed)
+    for px, py, r in P_: pn.circ(px, py, r + 6, fill=INK + (alpha,))
+    pn.ell(cx, cy, Rr * 1.02 + 6, Rr * 0.8 + 6, fill=INK + (alpha,))
+    for px, py, r in P_: pn.circ(px, py, r, fill=CLOUD_O + (alpha,))
+    pn.ell(cx, cy, Rr * 1.02, Rr * 0.8, fill=CLOUD_O + (alpha,))
+    for px, py, r in _puffs(cx, cy, Rr * 0.66, 10, t + 0.3, seed + 1): pn.circ(px, py, r, fill=CLOUD_M + (alpha,))
+    for px, py, r in _puffs(cx, cy, Rr * 0.36, 8, t + 0.6, seed + 2): pn.circ(px, py, r, fill=CLOUD_L + (alpha,))
+    if out > 0: return
+    # limbs poking out of the cloud edge (drawn over it so they read)
+    slots = [(-2.6, 'arm'), (-1.6, 'paw'), (-0.4, 'spear'), (0.5, 'arm2'), (1.4, 'leg'), (2.3, 'paw2'), (3.0, 'tail')]
+    rnd.shuffle(slots)
+    for k, (a0, kind) in enumerate(slots[:5]):
+        a = a0 + rnd.uniform(-0.35, 0.35)
+        base = (cx + math.cos(a) * Rr * 0.98, cy + math.sin(a) * Rr * 0.78)
+        L = Rr * rnd.uniform(0.5, 0.68)
+        if kind == 'arm': _arm(pn, base, a, L)
+        elif kind == 'arm2': _arm(pn, base, a, L * 0.9)
+        elif kind in ('paw', 'paw2'): _paw(pn, base, a, L)
+        elif kind == 'leg': _leg(pn, base, a, L)
+        elif kind == 'spear':
+            venabulum(pn, base[0], base[1], a, back=0, L=Rr * 0.9)
+        elif kind == 'tail':
+            tip = (base[0] + math.cos(a) * L, base[1] + math.sin(a) * L)
+            mid_ = ((base[0] + tip[0]) / 2 - math.sin(a) * 30, (base[1] + tip[1]) / 2 + math.cos(a) * 30)
+            pts = [base, mid_, tip]
+            pn.line(pts, INK, 20); pn.line(pts, TIGER, 13)
+            for u in (0.3, 0.6, 0.85):
+                c = (lerp(base[0], tip[0], u), lerp(base[1], tip[1], u)); pn.circ(c[0], c[1], 6, fill=INK)
+            pn.ell(tip[0], tip[1], 10, 8, fill=INK)
+    # inner puff outlines (churning), centre burst ticks
+    for px, py, r in _puffs(cx, cy, Rr * 0.6, 6, t * 1.7, seed + step % 3):
+        pn.arc(px, py, r, 200, 330, INK, 4)
+    for i in range(10):
+        a = i * math.pi / 5 + t * 3
+        pn.line([(cx + math.cos(a) * 22, cy + math.sin(a) * 22), (cx + math.cos(a) * 40, cy + math.sin(a) * 40)], (170, 60, 40) if i % 2 else INK, 4)
+    # stars and swirls around the outside
+    for i in range(4):
+        a = t * 2.4 + i * math.pi / 2
+        _star(pn, cx + math.cos(a) * Rr * 1.15, cy + math.sin(a) * Rr * 0.9, 22 + 6 * (i % 2), t * 5 + i)
+    for i in range(3):
+        a = -t * 1.8 + i * 2.1
+        ox, oy = cx + math.cos(a) * Rr * 1.05, cy + math.sin(a) * Rr * 0.85
+        pts = [(ox + math.cos(u * 9) * 14 * (1 - u) + u * 60 * math.cos(a), oy + math.sin(u * 9) * 14 * (1 - u) + u * 60 * math.sin(a)) for u in np.linspace(0, 1, 18)]
+        pn.line(pts, (176, 60, 120), 5)
+    for i in range(4):   # speed ticks
+        a = rnd.uniform(0, 2 * math.pi)
+        p0 = (cx + math.cos(a) * Rr * 1.25, cy + math.sin(a) * Rr * 1.0)
+        pn.line([p0, (p0[0] + math.cos(a) * 34, p0[1] + math.sin(a) * 34)], INK, 4)
+
+def poof(pn, x, y, t, t0, R=300):
+    """Cloud bursting apart: expanding puffs that thin out."""
+    u = (t - t0) / 0.45
+    if u < 0 or u > 1: return
+    e = eo3(u); a = int(200 * (1 - u))
+    rnd = random.Random(9)
+    for i in range(14):
+        ang = i * 2 * math.pi / 14 + rnd.uniform(-0.2, 0.2)
+        d = R * (0.5 + 0.9 * e)
+        pn.circ(x + math.cos(ang) * d, y + math.sin(ang) * d * 0.8, 46 * (1 - 0.5 * u), fill=CLOUD_M + (a,))
