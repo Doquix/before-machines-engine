@@ -211,7 +211,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
             lidv = max(lid, blink)
             if lidv > 0.02:
                 yl = ey - ry + 2 * ry * lidv
-                pn.poly([(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)], fill=SKIN)
+                pn.poly([(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)], fill=CUR['skin'])
                 pn.line([(ex - rx, yl), (ex + rx, yl)], INK, 2.4)
         elif eyes == 'arc':        # closed happy eyes
             pn.arc(ex, ey + 4, 7, 200, 340, INK, 3.2)
@@ -247,7 +247,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
         patch = facial_hair(pn, f, style, beard, r, detail, big_mouth)
         pn.pop()
         if patch:      # bare skin around the mouth so the expression still reads
-            pn.ell(mx, my + (2 if big_mouth else 0), patch[0], patch[1], fill=SKIN)
+            pn.ell(mx, my + (2 if big_mouth else 0), patch[0], patch[1], fill=CUR['skin'])
     if mouth == 'flat': pn.line([(mx - 7, my), (mx + 7, my)], INK, 3.2)
     elif mouth == 'smile': pn.arc(mx, my - 6, 9, 20, 160, INK, 3.2)
     elif mouth == 'frown': pn.arc(mx, my + 7, 8, 200, 340, INK, 3.2)
@@ -362,8 +362,9 @@ EPISODE_OUTFIT = 'phalanx'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
+CUR = {'skin': SKIN, 'bone': BONE}   # per figure skin tone (OUT key 'skin'); limbs follow it
 def limb(pn, pts, col, w=6):
-    col = BONE if (col is None or col == INK) else col
+    col = CUR['bone'] if (col is None or col == INK or col == BONE) else col
     pn.line(pts, INK, w + 5.5); pn.line(pts, col, w)
 
 def lion(pn, x, y, s):
@@ -414,6 +415,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     f_behind: the same for the front arm (a shield worn on the front arm, with the hand reaching out past its rim)."""
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
+    CUR['skin'] = O.get('skin', SKIN); CUR['bone'] = lerpc(BONE, CUR['skin'], 0.85) if O.get('skin') else BONE
     # holding something: arms and hands go in front of the clothing so the grip reads
     if arms_front is None: arms_front = bool(held or hands or grip)
     pn.push(x, y, k)
@@ -489,6 +491,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         pn.line([(belt[0] - nx_ * 22, belt[1] - ny_ * 22), (belt[0] + nx_ * 22, belt[1] + ny_ * 22)], (70, 46, 30), 5)
     else:
         pn.poly(body, fill=O['tunic'], outline=INK, width=3.2)
+        garment_details(pn, O, body, nk, pl, hem, ux, uy, nx_, ny_, hw, f)
         if O.get('quilt'):
             for i in (-2, -1, 0, 1, 2):
                 a = (nk[0] + nx_ * i * 7 - ux * 4, nk[1] + ny_ * i * 7 - uy * 4)
@@ -579,15 +582,18 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         pn.poly([(hx - 30, hy + 26), (hx + 30, hy + 26), (hx + 40, hy + 50), (hx - 40, hy + 50)], fill=O['hood'], outline=INK, width=3)
         pn.ell(hx + f * 6, hy + 4, r * 0.78, r * 0.84, fill=SKIN, outline=INK, width=2.6)
     else:
-        if O.get('hair'):
-            pn.circ(hx - f * 3, hy - 3, r + 3, fill=O['hair'], outline=INK, width=3)
-        pn.circ(hx, hy, r, fill=SKIN, outline=INK, width=3.4)
-        if O.get('hair'):
-            pn.poly([(hx - r * .95, hy - 6), (hx - r * .7, hy - r * .78), (hx, hy - r - 3), (hx + r * .7, hy - r * .78), (hx + r * .95, hy - 6),
-                     (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=O['hair'])
+        hair_back(pn, hx, hy, r, f, O)
+        if O.get('ears'):
+            for sd in (-1, 1):
+                pn.ell(hx + sd * (r - 1), hy + 4, 7, 10, fill=CUR['skin'], outline=INK, width=2.6)
+                pn.arc(hx + sd * (r - 1), hy + 4, 4, 300 if sd > 0 else 120, 60 if sd > 0 else 240, lerpc(CUR['skin'], INK, .4), 1.6)
+        pn.circ(hx, hy, r, fill=CUR['skin'], outline=INK, width=3.4)
+        hair_front(pn, hx, hy, r, f, O)
     fk = r / 36
     pn.push(hx, hy + (3 if hat in ('crown', 'hood') else 0), fk)
+    features(pn, f, O)
     face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'), O.get('beard_style'))
+    if O.get('nose'): nose(pn, f, O['nose'])
     pn.pop()
     if hat == 'crown':
         cy = hy - r - 2
@@ -705,8 +711,129 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(xx, hy - r * .78 + 4), (xx + 4, hy - r * .78 + 18)], lerpc(O['fur'], INK, .3), 2, caps=False)
     if held and not arms_front: held(pn, J)
     pn.pop()
+    CUR['skin'] = SKIN; CUR['bone'] = BONE
     return J
 
 def blink_at(t, seed=0.0):
     ph = (t + seed * 1.37) % 3.3
     return 1.0 if ph < 0.06 else (0.6 if ph < 0.11 else 0.0)
+
+
+# ---------------- variety: hair styles, face features, garment details ----------------
+# OUT keys: skin (tone), hair (colour), hair_style ('crop' default, 'curly', 'receding', 'bald', 'tousled', 'long', 'fringe',
+# 'grey_temples'), ears, nose ('button', 'long', 'hook', 'broad'), age (0..1 forehead and eye lines), scar, mole,
+# brows (thick brow overlay colour), and garment keys exomis, patches, hem, neckerchief, belt (colour), sash.
+def hair_back(pn, hx, hy, r, f, O):
+    h = O.get('hair'); st = O.get('hair_style', 'crop')
+    if not h: return
+    if st == 'long':
+        pn.poly([(hx - r - 4, hy - 8), (hx + r + 4, hy - 8), (hx + r + 2, hy + r * 0.9), (hx - r - 2, hy + r * 0.9)], fill=h, outline=INK, width=3)
+        pn.circ(hx - f * 2, hy - 4, r + 4, fill=h, outline=INK, width=3)
+    elif st == 'curly':
+        for i in range(13):
+            a = math.pi * (0.95 + 1.1 * i / 12)
+            pn.circ(hx + math.cos(a) * (r + 1), hy - 4 + math.sin(a) * (r + 1), 10, fill=h, outline=INK, width=2.6)
+        pn.circ(hx, hy - 4, r + 2, fill=h)
+    elif st in ('receding', 'bald'):
+        for sd in (-1, 1):
+            pn.ell(hx + sd * (r - 4), hy - 2, 11, 18, fill=h, outline=INK, width=2.6)
+    else:
+        pn.circ(hx - f * 3, hy - 3, r + 3, fill=h, outline=INK, width=3)
+
+def hair_front(pn, hx, hy, r, f, O):
+    h = O.get('hair'); st = O.get('hair_style', 'crop')
+    if not h: return
+    hl = lerpc(h, (255, 248, 230), 0.25); dk = lerpc(h, INK, 0.35)
+    if st == 'crop' or st == 'grey_temples':
+        pn.poly([(hx - r * .95, hy - 6), (hx - r * .7, hy - r * .78), (hx, hy - r - 3), (hx + r * .7, hy - r * .78), (hx + r * .95, hy - 6),
+                 (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=h)
+        if st == 'grey_temples':
+            for sd in (-1, 1): pn.ell(hx + sd * (r * .82), hy - 10, 6, 10, fill=(190, 186, 178))
+    elif st == 'curly':
+        for i in range(7):
+            a = math.pi * (1.15 + 0.7 * i / 6)
+            pn.circ(hx + math.cos(a) * (r * .78), hy - 2 + math.sin(a) * (r * .78), 9, fill=h, outline=INK, width=2.2)
+            pn.circ(hx + math.cos(a) * (r * .78) - 2, hy - 4 + math.sin(a) * (r * .78), 3, fill=hl)
+    elif st == 'tousled':
+        pts = [(hx - r * .98, hy - 4)]
+        for i in range(8):
+            a = math.pi * (1.0 + i / 7)
+            rr = r + (9 if i % 2 else 2)
+            pts.append((hx + math.cos(a) * rr, hy - 3 + math.sin(a) * rr))
+        pts += [(hx + r * .98, hy - 4), (hx + r * .5, hy - r * .5), (hx + r * .1, hy - r * .35), (hx - r * .3, hy - r * .55), (hx - r * .6, hy - r * .45)]
+        pn.poly(pts, fill=h, outline=INK, width=2.8)
+        pn.line([(hx - r * .3, hy - r * .9), (hx - r * .1, hy - r * .6)], hl, 2.4)
+    elif st == 'fringe':
+        pn.poly([(hx - r * .97, hy - 2), (hx - r * .75, hy - r * .8), (hx, hy - r - 3), (hx + r * .75, hy - r * .8), (hx + r * .97, hy - 2),
+                 (hx + r * .8, hy - r * .42)] + [(hx + r * (.6 - .24 * i), hy - r * (.42 if i % 2 else .52)) for i in range(7)] + [(hx - r * .85, hy - r * .42)],
+                fill=h, outline=INK, width=2.6)
+    elif st == 'long':
+        pn.poly([(hx - r * .95, hy - 2), (hx - r * .7, hy - r * .8), (hx, hy - r - 4), (hx + r * .7, hy - r * .8), (hx + r * .95, hy - 2),
+                 (hx + r * .2, hy - r * .6), (hx - r * .1, hy - r * .48)], fill=h)
+    elif st == 'receding':
+        pn.arc(hx, hy, r - 2, 200, 235, h, 7); pn.arc(hx, hy, r - 2, 305, 340, h, 7)
+        pn.arc(hx - r * .2, hy - r * .55, 10, 200, 320, lerpc(CUR['skin'], INK, .25), 1.6)
+    elif st == 'bald':
+        pn.arc(hx - r * .25, hy - r * .45, 9, 210, 300, (255, 255, 255, 140), 3)
+
+def features(pn, f, O):
+    """Face local units (head r 36 at 0, 0). Drawn under the eyes and mouth."""
+    ag = O.get('age', 0)
+    if ag > 0:
+        c = lerpc(CUR['skin'], INK, 0.32)
+        for i in range(1 + int(ag * 2)):
+            pn.arc(f * 2, 4 - i * 4, 30, 250, 290, c, 1.6)   # forehead lines sit above the brows
+        for sd in (-1, 1):
+            ex = f * 2 + sd * 12.5
+            pn.line([(ex + sd * 11, -6), (ex + sd * 15, -9)], c, 1.4, caps=False)
+            pn.line([(ex + sd * 11, -2), (ex + sd * 15, -1)], c, 1.4, caps=False)
+    if O.get('scar'):
+        pn.line([(f * 16, -22), (f * 22, -6)], lerpc(CUR['skin'], (170, 80, 70), .55), 2.4, caps=False)
+        for i in range(3): pn.line([(f * (16.5 + i * 2.3) - 2, -19 + i * 5), (f * (16.5 + i * 2.3) + 2, -18 + i * 5)], lerpc(CUR['skin'], (170, 80, 70), .55), 1.4, caps=False)
+    if O.get('mole'):
+        pn.circ(f * -14, 12, 2, fill=lerpc(CUR['skin'], INK, .6))
+    if O.get('cheeks'):
+        for sd in (-1, 1): pn.ell(f * 2 + sd * 18, 9, 6, 3.4, fill=O['cheeks'] + (90,))
+
+def nose(pn, f, kind):
+    c = lerpc(CUR['skin'], INK, 0.5)
+    x = f * 4
+    if kind == 'button': pn.arc(x, 6, 3.6, 20, 160, c, 2.2)
+    elif kind == 'long': pn.line([(x - f * 1, -2), (x + f * 4, 9), (x - f * 1, 10)], c, 2.2)
+    elif kind == 'hook': pn.line([(x - f * 2, -4), (x + f * 4, 3), (x + f * 4, 8), (x - f * 1, 10)], c, 2.2)
+    elif kind == 'broad':
+        pn.arc(x - 4, 8, 3, 90, 200, c, 2); pn.arc(x + 4, 8, 3, -20, 90, c, 2); pn.line([(x - 3, 10), (x + 3, 10)], c, 2)
+
+def garment_details(pn, O, body, nk, pl, hem, ux, uy, nx_, ny_, hw, f):
+    col = O['tunic']; dk = lerpc(col, INK, 0.3); lt = lerpc(col, (255, 250, 236), 0.2)
+    q = lambda a, b: (a[0] * (1 - b) + 0, 0)
+    # cloth folds from the belt down
+    for i in (-1, 0, 1):
+        a_ = (lerp(nk[0], pl[0], 0.9) + nx_ * i * 12, lerp(nk[1], pl[1], 0.9) + ny_ * i * 12)
+        b_ = (hem[0] + nx_ * i * 18 + ux * 2, hem[1] + ny_ * i * 18 + uy * 2)
+        pn.line([a_, b_], dk + (150,), 1.8, caps=False)
+    if O.get('exomis'):   # labourer's tunic fastened on one shoulder: the other shoulder and part of the chest bare
+        sd = -1 if f > 0 else 1
+        p0 = (nk[0] + nx_ * sd * 26 - ux * 2, nk[1] + ny_ * sd * 26 - uy * 2)
+        p1 = (nk[0] - nx_ * sd * 4 - ux * 1, nk[1] - ny_ * sd * 4 - uy * 1)
+        p2 = (lerp(nk[0], pl[0], 0.42) + nx_ * sd * 27, lerp(nk[1], pl[1], 0.42) + ny_ * sd * 27)
+        pn.poly([p0, p1, p2], fill=CUR['skin'], outline=INK, width=2.4)
+        pn.line([p1, p2], dk, 3)
+        pn.circ(nk[0] - nx_ * sd * 14, nk[1] - ny_ * sd * 14 + 4, 3.2, fill=(150, 120, 80), outline=INK, width=1.4)
+    if O.get('hem'):
+        pn.line([(hem[0] - nx_ * (hw - 1), hem[1] - ny_ * (hw - 1)), (hem[0] + nx_ * (hw - 1), hem[1] + ny_ * (hw - 1))], O['hem'], 5, caps=False)
+    if O.get('patches'):
+        for (u, v, w_, h_) in ((0.62, 12, 9, 7), (0.8, -16, 7, 6)):
+            cx_, cy_ = lerp(nk[0], hem[0], u) + nx_ * v, lerp(nk[1], hem[1], u) + ny_ * v
+            pn.rect(cx_ - w_, cy_ - h_, cx_ + w_, cy_ + h_, fill=lerpc(col, (120, 100, 70), 0.45), outline=INK, width=1.6)
+            for j in range(4):
+                pn.line([(cx_ - w_ + 2 + j * w_ / 2, cy_ - h_ - 1), (cx_ - w_ + 2 + j * w_ / 2, cy_ - h_ + 2)], INK, 1.0, caps=False)
+    if O.get('neckerchief'):
+        c = O['neckerchief']
+        pn.poly([(nk[0] - nx_ * 18, nk[1] - ny_ * 18 + 2), (nk[0] + nx_ * 18, nk[1] + ny_ * 18 + 2),
+                 (nk[0] + nx_ * 4 - ux * 20, nk[1] + ny_ * 4 - uy * 20)], fill=c, outline=INK, width=2.2)
+    if O.get('sash'):
+        b = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
+        pn.line([(b[0] - nx_ * 24, b[1] - ny_ * 24), (b[0] + nx_ * 24, b[1] + ny_ * 24)], INK, 11, caps=False)
+        pn.line([(b[0] - nx_ * 23, b[1] - ny_ * 23), (b[0] + nx_ * 23, b[1] + ny_ * 23)], O['sash'], 7.5, caps=False)
+        pn.line([(b[0] + nx_ * 10, b[1] + ny_ * 10), (b[0] + nx_ * 14 - ux * 16, b[1] + ny_ * 14 - uy * 16)], O['sash'], 5)
