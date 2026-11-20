@@ -434,3 +434,80 @@ def aspis(pn, cx, cy, r=56, f=1, col=BRZ, device=None):
 
 def _ell_pts_(cx, cy, rx, ry, a0, a1, n=18):
     return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+
+# ---------------- NOW SHOWING card (screen to history overlay, E020) ----------------
+def now_showing_card(title, year=None, sub=None, portrait=True, scale=3, bg=None, progress=0.35, slot=(255, 255, 255)):
+    """Card that names the film or show on screen hook episodes. The poster slot is left blank (plain colour `slot`);
+    the user places the poster in their own edit (Claude never fills it with a real poster or an actor's likeness).
+    portrait: 380 x 790 design px with a 2:3 slot on top; landscape: 860 x 210 with a square slot on the left.
+    bg None gives a transparent background. Returns (RGBA image, slot box in image px, card box in image px)."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    S = scale; FD_ = FD
+    blk = lambda s: ImageFont.truetype(FD_ + 'InterDisplay-Black.otf', int(s * S))
+    med = lambda s: ImageFont.truetype(FD_ + 'Inter-Medium.otf', int(s * S))
+    DARK = (38, 30, 22); GOLD_ = (184, 134, 60); CREAM = (236, 226, 204); SOFT = (200, 188, 165); TRACK = (92, 80, 64); RUST_ = (170, 60, 40)
+    M = 60 * S
+    def fit(text, size, maxw, font=blk):     # maxw in design px
+        dd = ImageDraw.Draw(Image.new('RGB', (4, 4)))
+        while size > 10 and dd.textlength(text, font=font(size)) > maxw * S: size -= 1
+        return size
+    if portrait:
+        cw, pad = 380 * S, 24 * S
+        sw = cw - 2 * pad; sh = int(sw * 1.5)
+        _ts = fit(title.upper(), 64, sw / S)
+        _dd = ImageDraw.Draw(Image.new('RGB', (4, 4)))
+        _nsub = 0
+        if sub:
+            cur, n = '', 1
+            for wd in sub.split():
+                tr = (cur + ' ' + wd).strip()
+                if _dd.textlength(tr, font=med(24)) <= sw: cur = tr
+                else: n += 1; cur = wd
+            _nsub = min(n, 3)
+        ch = sh + pad + (26 + 34) * S + int(_ts * 1.08 * S) + (42 * S if year else 0) + _nsub * 32 * S + 22 * S + 6 * S + pad
+    else:
+        cw, ch, pad = 860 * S, 210 * S, 24 * S
+        sw = sh = 162 * S
+    Wd, Hd = cw + 2 * M, ch + 2 * M
+    im = Image.new('RGBA', (Wd, Hd), bg + (255,) if bg else (0, 0, 0, 0))
+    shd = Image.new('RGBA', (Wd, Hd), (0, 0, 0, 0)); sd = ImageDraw.Draw(shd)
+    sd.rounded_rectangle([M + 6 * S, M + 14 * S, M + cw + 6 * S, M + ch + 14 * S], 32 * S, fill=(0, 0, 0, 90))
+    im.alpha_composite(shd.filter(ImageFilter.GaussianBlur(14 * S)))
+    d = ImageDraw.Draw(im)
+    x, y = M, M
+    d.rounded_rectangle([x, y, x + cw, y + ch], 32 * S, fill=DARK + (255,))
+    sx, sy = x + pad, y + pad
+    d.rounded_rectangle([sx, sy, sx + sw, sy + sh], 20 * S, fill=slot + (255,))
+    def wrap(text, font, maxw):
+        lines, cur = [], ''
+        for wd in text.split():
+            tr = (cur + ' ' + wd).strip()
+            if d.textlength(tr, font=font) <= maxw: cur = tr
+            else: lines.append(cur); cur = wd
+        if cur: lines.append(cur)
+        return lines
+    if portrait:
+        tx, maxw = sx, sw
+        ty = sy + sh + 26 * S
+        d.text((tx, ty), 'NOW SHOWING', font=blk(22), fill=GOLD_); ty += 34 * S
+        ts = fit(title.upper(), 64, maxw / S)
+        d.text((tx, ty), title.upper(), font=blk(ts), fill=CREAM); ty += int(ts * 1.08 * S)
+        if year:
+            d.text((tx, ty), f'({year})', font=blk(30), fill=SOFT); ty += 42 * S
+        if sub:
+            for ln in wrap(sub, med(24), maxw)[:3]:
+                d.text((tx, ty), ln, font=med(24), fill=SOFT); ty += 32 * S
+        by = y + ch - pad - 6 * S
+        d.rounded_rectangle([tx, by, tx + maxw, by + 6 * S], 3 * S, fill=TRACK)
+        d.rounded_rectangle([tx, by, tx + int(maxw * progress), by + 6 * S], 3 * S, fill=RUST_)
+    else:
+        tx = sx + sw + 28 * S; maxw = x + cw - 40 * S - tx
+        d.text((tx, y + 34 * S), 'NOW SHOWING', font=blk(26), fill=GOLD_)
+        t_ = title.upper() + (f' ({year})' if year else '')
+        d.text((tx, y + 66 * S), t_, font=blk(fit(t_, 54, maxw / S)), fill=CREAM)
+        if sub: d.text((tx, y + 138 * S), sub, font=med(fit(sub, 28, maxw / S, med)), fill=SOFT)
+        by = y + 184 * S
+        d.rounded_rectangle([tx, by, tx + maxw, by + 6 * S], 3 * S, fill=TRACK)
+        d.rounded_rectangle([tx, by, tx + int(maxw * progress), by + 6 * S], 3 * S, fill=RUST_)
+    return im, (sx, sy, sx + sw, sy + sh), (x, y, x + cw, y + ch)
