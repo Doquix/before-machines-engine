@@ -241,7 +241,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
             pn.circ(ex0 + side * 12.5, hy - 3, 12, outline=INK, width=2.6)
         pn.line([(ex0 - 1.5, hy - 5), (ex0 + 1.5, hy - 5)], INK, 2.6, caps=False)
         pn.line([(ex0 - f * 24, hy - 5), (hx - f * r * 0.92, hy - 9)], INK, 2.4)
-    if 'blush' in ext:
+    if False and 'blush' in ext:   # blush disabled by user rule (E020)
         for side in (-1, 1): pn.ell(ex0 + side * 17, hy + 9, 7, 3.6, fill=(236, 120, 110, 140))
     mx, my = hx + f * 2, hy + 17
     big_mouth = mouth in ('scream', 'laugh', 'cry', 'pant', 'ooh')
@@ -367,6 +367,50 @@ MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
 CUR = {'skin': SKIN, 'bone': BONE}   # per figure skin tone (OUT key 'skin'); limbs follow it
+HELD = {'F': False, 'B': False}
+def sleeve_part(pn, sh_, el_, col):
+    """Short sleeve grown out of the garment (reference style): starts inside the body so it merges with the tunic,
+    flares a little, open cuff; outlined on its outer sides and cuff only, never along the body, with a shadow edge."""
+    if not LINE_LIMBS:
+        limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], col, 12); return
+    dx, dy = el_[0] - sh_[0], el_[1] - sh_[1]; L_ = math.hypot(dx, dy) or 1; ux, uy = dx / L_, dy / L_; nx, ny = -uy, ux
+    a = (sh_[0] - ux * 12, sh_[1] - uy * 12); b = (sh_[0] + ux * L_ * 0.42, sh_[1] + uy * L_ * 0.42)
+    w0, w1 = 8.5, 9.5
+    q = [(a[0] + nx * w0, a[1] + ny * w0), (b[0] + nx * w1, b[1] + ny * w1), (b[0] - nx * w1, b[1] - ny * w1), (a[0] - nx * w0, a[1] - ny * w0)]
+    pn.poly(q, fill=col)
+    pn.poly([q[0], q[1], (lerp(q[1][0], q[2][0], 0.3), lerp(q[1][1], q[2][1], 0.3)), (lerp(q[0][0], q[3][0], 0.3), lerp(q[0][1], q[3][1], 0.3))],
+            fill=lerpc(col, (40, 30, 40), 0.22))
+    m0 = (lerp(q[0][0], q[1][0], 0.45), lerp(q[0][1], q[1][1], 0.45)); m3 = (lerp(q[3][0], q[2][0], 0.45), lerp(q[3][1], q[2][1], 0.45))
+    pn.line([m0, q[1], q[2], m3], INK, 2.8)
+    pn.line([(lerp(q[1][0], q[2][0], 0.2) - ux * 4, lerp(q[1][1], q[2][1], 0.2) - uy * 4),
+             (lerp(q[1][0], q[2][0], 0.8) - ux * 4, lerp(q[1][1], q[2][1], 0.8) - uy * 4)], lerpc(col, INK, 0.35), 1.4, caps=False)
+
+def hose_arm(pn, J, s, f):
+    """Reference style arm (studied frame by frame in the user's reference videos): one thin ink line from the side
+    of the body to the hand, a smooth curve with no visible elbow, bowing outward like a parenthesis. The elbow joint
+    only steers the curve. A gripping hand has no hand shape: the line simply ends on the object."""
+    a = J['sh' + s]; e = J['el' + s]; b = J['ha' + s]
+    mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+    c = (2 * e[0] - mx, 2 * e[1] - my)          # control point so the curve passes through the elbow
+    c = (lerp(c[0], e[0], 0.35), lerp(c[1], e[1], 0.35))
+    pts = []
+    for i in range(17):
+        t = i / 16
+        pts.append(((1 - t) ** 2 * a[0] + 2 * (1 - t) * t * c[0] + t * t * b[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * c[1] + t * t * b[1]))
+    pn.line(pts, INK, 4.6)
+
+def line_hand(pn, J, s):
+    """Hands as in the reference style (E020 user rule): no hand shape, the thin arm line simply ends with a small
+    curl at the tip. A held prop is gripped where the line ends."""
+    hx_, hy_ = J['ha' + s]
+    if not LINE_LIMBS:
+        pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4); return
+    ex_, ey_ = J['el' + s]
+    dx, dy = hx_ - ex_, hy_ - ey_; L_ = math.hypot(dx, dy) or 1; dx, dy = dx / L_, dy / L_
+    nx, ny = -dy, dx
+    side = 1 if s == 'F' else -1
+    pn.line([(hx_, hy_), (hx_ + dx * 4 + nx * side * 1.2, hy_ + dy * 4 + ny * side * 1.2), (hx_ + dx * 6 + nx * side * 4.5, hy_ + dy * 6 + ny * side * 4.5)], INK, 4.2)
+
 LINE_LIMBS = True   # E020 user rule: bare limbs are thin black ink lines (clothing colours keep their fill)
 def limb(pn, pts, col, w=6):
     bare = (col is None or col == INK or col == BONE or col == CUR['bone'])
@@ -423,6 +467,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     f_behind: the same for the front arm (a shield worn on the front arm, with the hand reaching out past its rim)."""
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
+    HELD['F'] = bool(hands and 'F' in hands); HELD['B'] = bool(hands and 'B' in hands)
     CUR['skin'] = O.get('skin', SKIN); CUR['bone'] = lerpc(BONE, CUR['skin'], 0.85) if O.get('skin') else BONE
     # holding something: arms and hands go in front of the clothing so the grip reads
     if arms_front is None: arms_front = bool(held or hands or grip)
@@ -460,17 +505,20 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(kx - 2.2, ky + 4), (lerp(kx, ax_, .8) - 2.2, lerp(ky, ay_, .8))], light(g_, 0.5), 2.4, caps=False)
     # arms behind clothing
     def arm(s):
-        limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
+        if LINE_LIMBS:
+            hose_arm(pn, J, s, f)
+        else:
+            limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
     if not arms_front or carry or b_behind:
         arm('B')
         if b_behind and not carry:
             sh_, el_ = J['shB'], J['elB']
-            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
+            sleeve_part(pn, sh_, el_, O['sleeve'])
     if not arms_front or f_behind:
         arm('F')
         if f_behind:
             sh_, el_ = J['shF'], J['elF']
-            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
+            sleeve_part(pn, sh_, el_, O['sleeve'])
     # body garment
     t = math.radians(p['torso'])
     ux, uy = f * math.sin(t), -math.cos(t)          # up along torso
@@ -557,7 +605,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         # Republican scutum on its grip: the fist is behind the boss, the forearm behind the board, the sleeve cap
         # and upper arm show above the rim, the rim clears the shoulder at the top and the knees at the bottom
         sh_, el_ = J['shB'], J['elB']
-        limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
+        sleeve_part(pn, sh_, el_, O['sleeve'])
         sx_, sy_ = J['haB']
         scutum(pn, sx_, sy_, O['scutum'], f)
     if mid: mid(pn, J)
@@ -570,15 +618,14 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     for s in (('F',) if carry else ('B', 'F')):
         if (s == 'B' and b_behind) or (s == 'F' and f_behind):
             if not b_hide:
-                hx_, hy_ = J['ha' + s]; pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+                if not (LINE_LIMBS and HELD.get(s)): line_hand(pn, J, s)
             continue
         if O['sleeve'] == 'mail':
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
         else:
             sh_, el_ = J['sh' + s], J['el' + s]
-            limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
-        hx_, hy_ = J['ha' + s]
-        pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+            sleeve_part(pn, sh_, el_, O['sleeve'])
+        if not (LINE_LIMBS and HELD.get(s)): line_hand(pn, J, s)
     # head and headwear
     hx, hy = J['head']; r = L['head']
     hat = O['hat']
@@ -800,8 +847,7 @@ def features(pn, f, O):
         for i in range(3): pn.line([(f * (16.5 + i * 2.3) - 2, -19 + i * 5), (f * (16.5 + i * 2.3) + 2, -18 + i * 5)], lerpc(CUR['skin'], (170, 80, 70), .55), 1.4, caps=False)
     if O.get('mole'):
         pn.circ(f * -14, 12, 2, fill=lerpc(CUR['skin'], INK, .6))
-    if O.get('cheeks'):
-        for sd in (-1, 1): pn.ell(f * 2 + sd * 18, 9, 6, 3.4, fill=O['cheeks'] + (90,))
+    pass   # cheeks (blush) disabled by user rule (E020)
 
 def nose(pn, f, kind):
     c = lerpc(CUR['skin'], INK, 0.5)
