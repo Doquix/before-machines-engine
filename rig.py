@@ -372,6 +372,14 @@ OUT.update({
                      fur=(112, 86, 58), trim=(112, 80, 54), braids=(48, 38, 30), beard=(52, 40, 30), beard_style='stubble',
                      wide_belt=(84, 54, 36), plaques=_MB),
 })
+# Japan, Muromachi period craftsman (BM-P021): soft black eboshi cap, tube sleeved short robe (tsutsu-sode) to the knee,
+# gathered trousers (kukuri-bakama, thin coloured legs), straw sandals; from the shokunin utaawase picture scrolls.
+OUT.update({
+    'kkeeper': dict(tunic=(196, 184, 156), sleeve=(196, 184, 156), hose=(82, 92, 110), boot=(196, 170, 110), hat='eboshi', cap=(36, 32, 30),
+                    glasses=True, trim=(120, 104, 80), wide_belt=(70, 60, 50)),
+    'kaji2':   dict(tunic=(92, 108, 132), sleeve=(92, 108, 132), hose=(120, 104, 80), boot=(196, 170, 110), hat='eboshi', cap=(36, 32, 30),
+                    trim=(60, 70, 90), wide_belt=(60, 52, 44)),
+})
 EPISODE_OUTFIT = 'phalanx'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
@@ -739,6 +747,13 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                 xx = hx - r + 4 + i * (2 * r - 8) / 8
                 if abs(xx - hx) < 8: continue
                 pn.line([(xx, by - 2), (xx + 2, by + 7)], lerpc(fu, INK, .3), 1.8, caps=False)
+    elif hat == 'eboshi':
+        # soft black cap of commoners and craftsmen (momi eboshi): rounded, creased, the top slumped to one side
+        c = O['cap']; by = hy - r * .55
+        pn.poly([(hx - r * .64, by + 4), (hx - r * .6, by - 22), (hx - r * .36, by - 40), (hx + r * .05, by - 46), (hx + r * .42, by - 52),
+                 (hx + r * .78, by - 44), (hx + r * .62, by - 30), (hx + r * .66, by - 8), (hx + r * .64, by + 4)], fill=c, outline=INK, width=3)
+        pn.line([(hx - r * .4, by - 30), (hx + r * .1, by - 38), (hx + r * .5, by - 34)], light(c, 0.35), 2.2, caps=False)
+        pn.line([(hx - r * .6, by - 10), (hx + r * .6, by - 14)], light(c, 0.25), 2.0, caps=False)
     elif hat == 'fur':
         pn.ell(hx, hy - r * .78, r * .86, r * .82, fill=O['cap'], outline=INK, width=3)
         pn.rect(hx - r - 6, hy - r * .78, hx + r + 6, hy - r * .78 + 24, fill=O['fur'], outline=INK, width=3, r=12)

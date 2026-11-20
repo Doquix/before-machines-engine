@@ -910,3 +910,279 @@ def limb_layers(pn, x, y, ln, th, bend=0.0, hl_horn=0.0, hl_sinew=0.0, hl_core=0
             pC = (cx + nx * (-th * 0.5 - 26), cy + ny * (-th * 0.5 - 26))
             arrow(pn, (pC[0] + sg * tx * 60 * a_, pC[1] + sg * ty * 60 * a_), pC, (40, 90, 150), 7, 20)  # belly squeezes: inward
     return ctr, nrm
+
+
+# ================= Japan, Muromachi period, 15th to 16th century (period library BM-P015 to BM-P021) =================
+# Katana blade about 70 cm (nagasa, often about 60 to 73 cm), tang about 22 cm, sori about 1.5 to 2.5 cm.
+K_NAG = 70 * CM; K_TANG = 22 * CM; K_WB = 3.1 * CM; K_WY = 2.2 * CM; K_KL = 3.4 * CM; K_SORI = 2.0 * CM
+RAWSTEEL = (66, 66, 72); JIGANE = (150, 160, 174); SHINOGIJI = (118, 126, 140); YAKIBA = (226, 232, 238)
+NAKAGO = (64, 50, 42); KCLAY = (150, 136, 116); KCLAY_D = (112, 100, 84); HABAKI = (196, 122, 70)
+GLOW = (255, 128, 40); GLOW_HOT = (255, 214, 120)
+
+def _katana_pts(sori, n=40):
+    """Local blade geometry, edge down (+y), machi at x=0, tip at x=K_NAG. sori: curve depth in units (negative bends
+    the wrong way). Returns centreline offset function and width function."""
+    def dy(x):
+        u = x / K_NAG
+        if x < 0: return -4 * sori * (-x / K_NAG) * 0.6       # tang continues the curve gently
+        return 4 * sori * u * (1 - u) * (1 + 0.25 * (1 - u))    # slightly deeper toward the base (koshizori tendency)
+    def wid(x):
+        if x < 0: return lerp(K_WB * 0.92, K_WB * 0.6, -x / K_TANG)
+        return lerp(K_WB, K_WY, min(1, x / (K_NAG - K_KL)))
+    return dy, wid
+
+def katana(pn, x, y, k=1.0, ang=0.0, f=1, sori=K_SORI, heat=0.0, clay=0.0, polish=0.0, hamon=0.0, tang=True,
+           wet=0.0, hl_edge=0.0, hl_spine=0.0, hard=0.0, habaki=False, wscale=1.0, label_parts=0.0, clay_x=1.0, polish_x=1.0):
+    """Muromachi katana blade (BM-P015), side view, edge down. (x, y) is the machi (where blade meets tang).
+    clay 0..1 shows the clay coat (BM-P016: thick on the spine and sides, thin on the edge, with thin 'ashi' lines);
+    heat 0..1 glows it (exposed edge brightest); hard 0..1 turns the edge zone pale (martensite) during the quench;
+    polish 0..1 gives the finished steel; hamon 0..1 reveals the pale wave between hard edge and softer body.
+    wscale > 1 exaggerates the width for diagrams (say so on screen). Returns world points."""
+    dy, wid = _katana_pts(sori)
+    ca, sa = math.cos(ang), math.sin(ang)
+    def W_(lx, ly):
+        lx *= f
+        return (x + (lx * ca - ly * sa) * k, y + (lx * sa + ly * ca) * k)
+    n = 48
+    xs = [K_NAG * i / n for i in range(n + 1)]
+    yk = K_NAG - K_KL
+    spine, edge, shin, ham = [], [], [], []
+    for xx in xs:
+        c = dy(xx); w = wid(xx) * wscale
+        top = c - w / 2
+        spine.append((xx, top))
+        if xx <= yk:
+            edge.append((xx, top + w))
+            shin.append((xx, top + w * 0.33))
+        ham.append((xx, top + w * (0.66 + 0.07 * math.sin(xx * 0.55) + 0.03 * math.sin(xx * 1.7))))
+    # kissaki: edge sweeps up to the tip in a convex curve (fukura); tip on the spine line
+    tipx, tipy = spine[-1]
+    e0 = edge[-1]
+    for i in range(1, 9):
+        u = i / 8
+        ex = lerp(e0[0], tipx, u); ey = lerp(e0[1], tipy, u ** 1.6)
+        edge.append((ex, ey))
+    L = lod(pn, K_NAG * k)
+    # colours by state
+    body = lerpc(RAWSTEEL, JIGANE, polish)
+    out = [W_(*p) for p in spine] + [W_(*p) for p in edge[::-1]]
+    # tang
+    if tang:
+        tp = []
+        for i in range(9):
+            xx = -K_TANG * i / 8; c = dy(xx); w = wid(xx) * wscale
+            tp.append((xx, c - w / 2, c - w / 2 + w * (0.95 if i < 8 else 0.6)))
+        tpoly = [W_(xx, a) for xx, a, b in tp] + [W_(xx, b) for xx, a, b in tp[::-1]]
+        pn.poly(tpoly, fill=lerpc(NAKAGO, GLOW, heat * 0.5), outline=INK, width=2.4)
+        if L >= 1:
+            for i in range(1, 8):                     # file marks (yasurime)
+                xx = -K_TANG * i / 8.5; c = dy(xx); w = wid(xx) * wscale
+                pn.line([W_(xx + 0.6, c - w / 2 + 0.5), W_(xx - 0.6, c + w / 2 - 0.8)], shade(NAKAGO, 0.4), 1.2, caps=False)
+            xh = -K_TANG * 0.45; ch = dy(xh)
+            hp = W_(xh, ch - wid(xh) * wscale * 0.02)
+            pn.circ(hp[0], hp[1], max(1.4, 0.45 * CM * k * 0.5), fill=(30, 24, 20))       # mekugi-ana
+    pn.poly(out, fill=body, outline=None)
+    if polish_x < 1.0:
+        nmx = max(2, int(polish_x * n) + 1)
+        pn.poly([W_(*p) for p in spine] + [W_(*p) for p in edge[::-1]], fill=RAWSTEEL)
+        out_p = [W_(*p) for p in spine[:nmx]] + [W_(*p) for p in edge[:nmx][::-1]]
+        pn.poly(out_p, fill=body)
+    if polish > 0:
+        # shinogi-ji darker above the ridge line, yakiba frost below the hamon
+        sj = [W_(*p) for p in spine[:len(shin)]] + [W_(*p) for p in shin[::-1]]
+        pn.poly(sj, fill=lerpc(RAWSTEEL, SHINOGIJI, polish))
+    if hamon > 0 or hard > 0:
+        a_ = max(hamon, hard)
+        hp_ = [W_(*p) for p in ham[:len(edge) - 8]] if False else [W_(*p) for p in ham[:len(shin)]]
+        zone = hp_ + [W_(*p) for p in edge[::-1]]
+        col = lerpc(body, YAKIBA if hamon > 0 else (236, 236, 228), a_)
+        pn.poly(zone, fill=col + (int(255 * min(1, a_ * 1.1)),))
+        if hamon > 0 and L >= 1:
+            # boshi: the hamon turns back inside the point
+            pn.line(hp_ + [W_(K_NAG - K_KL * 0.4, dy(K_NAG) - wid(K_NAG) * 0.1)], light(YAKIBA, 0.2) + (int(255 * hamon),), 2.2, caps=False)
+            for i in range(0, len(hp_) - 1, 3):          # nie sparkle along the line
+                px, py = hp_[i]
+                pn.circ(px, py, 1.1, fill=(255, 255, 255, int(200 * hamon)))
+    if hl_edge > 0:
+        pn.poly([W_(*p) for p in ham[:len(shin)]] + [W_(*p) for p in edge[::-1]], fill=AMBER + (int(150 * hl_edge),))
+    if hl_spine > 0:
+        pn.poly([W_(*p) for p in spine[:len(shin)]] + [W_(*p) for p in ham[:len(shin)][::-1]], fill=(80, 140, 200, int(130 * hl_spine)))
+    if heat > 0:
+        # glowing steel: brightest along the thin edge, duller under the clay
+        g1 = lerpc(GLOW, GLOW_HOT, max(0, heat - 0.6) / 0.4)
+        pn.poly(out, fill=g1 + (int(235 * heat),))
+    if clay > 0 and clay_x < 1.0:
+        nmx = max(2, int(clay_x * n) + 1)
+        sp_, hm_ = spine[:nmx], ham[:nmx]
+        cc = lerpc(KCLAY, (190, 70, 30), heat * 0.6)
+        pn.poly([W_(*p) for p in sp_] + [W_(p[0], p[1] + 1.0) for p in hm_[::-1]], fill=cc + (int(255 * clay),), outline=INK + (int(200 * clay),), width=1.6)
+        pn.poly([W_(*p) for p in hm_] + [W_(*p) for p in edge[:nmx][::-1]], fill=cc + (int(90 * clay),))
+        if L >= 1:
+            for i in range(2, nmx - 1, 3):
+                hx_, hy_ = ham[i]; ex_, ey_ = edge[i]
+                pn.line([W_(hx_, hy_), W_(hx_ + 0.4, lerp(hy_, ey_, 0.7))], cc, max(1.2, 0.18 * CM * k * 0.6), caps=False)
+    elif clay > 0:
+        cl = [W_(*p) for p in spine] + [W_(p[0], p[1] + 1.0) for p in ham[::-1]]
+        cc = lerpc(KCLAY, (190, 70, 30), heat * 0.6)
+        pn.poly(cl, fill=cc + (int(255 * clay),), outline=INK + (int(200 * clay),), width=1.6)
+        # thin coat over the edge and the 'ashi' strokes down toward the edge
+        pn.poly([W_(*p) for p in ham[:len(shin)]] + [W_(*p) for p in edge[::-1]], fill=cc + (int(90 * clay),))
+        if L >= 1:
+            for i in range(2, len(shin) - 1, 3):
+                hx_, hy_ = ham[i]; ex_, ey_ = edge[i]
+                pn.line([W_(hx_, hy_), W_(hx_ + 0.4, lerp(hy_, ey_, 0.7))], cc + (int(255 * clay),), max(1.2, 0.18 * CM * k * 0.6), caps=False)
+            for i in range(1, len(spine) - 2, 2):        # clay texture
+                sx_, sy_ = spine[i]; hx_, hy_ = ham[i]
+                pn.line([W_(sx_, lerp(sy_, hy_, 0.3)), W_(sx_ + 1.2, lerp(sy_, hy_, 0.55))], KCLAY_D + (int(160 * clay),), 1.1, caps=False)
+    # outlines and lines
+    pn.poly(out, outline=INK, width=2.6)
+    if L >= 1 and clay < 0.6:
+        pn.line([W_(*p) for p in shin] + [W_(tipx - 0.2, tipy + 0.3)], shade(body, 0.35), 1.4, caps=False)
+        yp = edge[len(shin) - 1]
+        pn.line([W_(yp[0], dy(yk) - wid(yk) * wscale / 2), W_(*yp)], shade(body, 0.35), 1.4, caps=False)     # yokote
+        pn.line([W_(*p) for p in spine], light(body, 0.35), 1.2, caps=False)
+    if habaki:
+        hx0 = 0; c = dy(0); w = wid(0) * wscale
+        pn.poly([W_(-0.5, c - w / 2 - 0.6), W_(3.2 * CM, c - w / 2 - 0.5), W_(3.2 * CM, c + w / 2 + 0.5), W_(-0.5, c + w / 2 + 0.6)],
+                fill=HABAKI, outline=INK, width=2)
+    if wet > 0:
+        for i in range(6):
+            xx = K_NAG * (0.1 + 0.15 * i); c = dy(xx)
+            p0 = W_(xx, c + wid(xx) * wscale / 2)
+            pn.circ(p0[0], p0[1] + 4 + 3 * i % 5, 2.2, fill=(200, 220, 240, int(200 * wet)))
+    mid = W_(K_NAG / 2, dy(K_NAG / 2))
+    return dict(tip=W_(tipx, tipy), machi=W_(0, dy(0)), tang_end=W_(-K_TANG, dy(-K_TANG)), mid=mid,
+                edge_mid=W_(K_NAG / 2, dy(K_NAG / 2) + wid(K_NAG / 2) * wscale / 2),
+                spine_mid=W_(K_NAG / 2, dy(K_NAG / 2) - wid(K_NAG / 2) * wscale / 2),
+                ham_mid=W_(*ham[len(ham) // 2]), W=W_)
+
+def katana_section(pn, x, y, s=1.0, clay=0.0, hard=0.0, swell=0.0, heat=0.0, hl_spine=0.0, t=0.0, arrows=0.0):
+    """Cross-section of a shinogi-zukuri blade (spine up, edge down), real proportions about 3 cm by 0.7 cm, drawn at
+    scale s (pixels per mm). clay: thick coat on spine and sides, thin at the edge. hard: edge zone turns pale
+    (martensite). swell: the hard edge zone grows a little (exaggerated for the diagram)."""
+    mm = s
+    H_, T_ = 30 * mm, 7 * mm
+    sh_y = -H_ / 2 + H_ * 0.33
+    sw = 1 + 0.10 * swell
+    def P_(px, py): return (x + px, y + py)
+    top = (0, -H_ / 2); sL = (-T_ / 2, sh_y); sR = (T_ / 2, sh_y); edge_p = (0, H_ / 2)
+    mL = (-T_ * 0.12, -H_ / 2 + 0.4 * mm); mR = (T_ * 0.12, -H_ / 2 + 0.4 * mm)
+    hy = H_ * 0.18                  # hamon depth from the edge region boundary
+    if clay > 0:
+        ct = 6 * mm * clay; ce = 1.2 * mm * clay
+        cp = [P_(-T_ / 2 - ct, sh_y), P_(-T_ * 0.12 - ct * 0.7, -H_ / 2 - ct * 0.8), P_(T_ * 0.12 + ct * 0.7, -H_ / 2 - ct * 0.8),
+              P_(T_ / 2 + ct, sh_y), P_(T_ * 0.22 + ct * 0.5, hy), P_(ce, H_ / 2 + ce), P_(-ce, H_ / 2 + ce), P_(-T_ * 0.22 - ct * 0.5, hy)]
+        pn.poly(cp, fill=lerpc(KCLAY, (190, 70, 30), heat * 0.6), outline=INK, width=2.4)
+    bodyc = lerpc(RAWSTEEL, GLOW, heat)
+    pn.poly([P_(*mL), P_(*mR), P_(*sR), P_(*edge_p), P_(*sL)], fill=bodyc, outline=INK, width=2.6)
+    if hard > 0:
+        # the edge zone below the hamon: grows on 'swell'
+        zl = (-T_ * 0.26, hy); zr = (T_ * 0.26, hy)
+        e2 = (0, H_ / 2 + (sw - 1) * H_ * 0.35)
+        zl2 = (zl[0] * sw, zl[1]); zr2 = (zr[0] * sw, zr[1])
+        pn.poly([P_(*zl2), P_(*zr2), P_(*e2)], fill=lerpc(bodyc, (238, 240, 236), hard), outline=INK, width=2.2)
+        if arrows > 0:
+            for a in (-1, 1):
+                p0 = P_(a * T_ * 0.3 * sw, hy + 10 * mm); p1 = P_(a * (T_ * 0.3 * sw + 26 * arrows), hy + 10 * mm)
+                arrow(pn, p0, p1, RUST, 6, 16)
+            arrow(pn, P_(0, H_ / 2 + 4), P_(0, H_ / 2 + 4 + 30 * arrows), RUST, 6, 16)
+    if hl_spine > 0:
+        pn.poly([P_(*mL), P_(*mR), P_(*sR), P_(T_ * 0.26, hy), P_(-T_ * 0.26, hy), P_(*sL)], fill=(80, 140, 200, int(120 * hl_spine)))
+    return dict(top=P_(0, -H_ / 2), edge=P_(0, H_ / 2), side=P_(T_ / 2, sh_y), H=H_, T=T_)
+
+def quench_trough(pn, x, y, k=1.0, ripple=0.0, t=0.0, steam=0.0, splash_t=None, length=150, depth=40, front=True):
+    """Water trough (mizubune, BM-P017): long plank box on the floor, seen slightly from above so the water shows over
+    the lower front wall. (x, y) is the floor centre under it. front=False: back wall and water (draw the blade after);
+    front=True: the water surface over anything dipped in it, then the front wall."""
+    L_, D_ = length * CM, depth * CM
+    x0, x1 = x - L_ / 2 * k, x + L_ / 2 * k
+    top = y - D_ * k
+    wl = top + 8 * k
+    ftop = top + 22 * k
+    if not front:
+        pn.rect(x0 + 6 * k, top, x1 - 6 * k, ftop + 4 * k, fill=shade(WOOD, 0.3), outline=INK, width=3)
+        pn.rect(x0 + 10 * k, wl, x1 - 10 * k, ftop + 4 * k, fill=(60, 88, 104))
+        return wl
+    # water surface (translucent over the dipped blade) with ripples
+    pn.rect(x0 + 10 * k, wl, x1 - 10 * k, ftop, fill=(70, 104, 122, 150))
+    pts = []
+    for i in range(41):
+        xx = lerp(x0 + 10 * k, x1 - 10 * k, i / 40)
+        pts.append((xx, wl + ripple * 3 * k * math.sin(i * 0.9 - t * 14)))
+    pn.line(pts, (170, 206, 220), 2.6 * k, caps=False)
+    pn.poly([(x0, ftop), (x1, ftop), (x1, y), (x0, y)], fill=WOOD, outline=INK, width=3)
+    pn.poly([(x0, ftop), (x0 + 6 * k, top), (x0 + 10 * k, top), (x0 + 6 * k, ftop)], fill=shade(WOOD, 0.15), outline=INK, width=2)
+    pn.poly([(x1, ftop), (x1 - 6 * k, top), (x1 - 10 * k, top), (x1 - 6 * k, ftop)], fill=shade(WOOD, 0.15), outline=INK, width=2)
+    if lod(pn, L_ * k) >= 1:
+        for i in range(1, 3):
+            yy = lerp(ftop, y, i / 3)
+            pn.line([(x0 + 2 * k, yy), (x1 - 2 * k, yy)], WOOD_D, 2, caps=False)
+        for xx in (x0 + 12 * k, x1 - 12 * k):
+            pn.rect(xx - 4 * k, ftop, xx + 4 * k, y, fill=WOOD_D, outline=INK, width=1.6)
+        rnd = random.Random(3)
+        for i in range(14):
+            xx = rnd.uniform(x0 + 20 * k, x1 - 36 * k); yy = rnd.uniform(ftop + 4 * k, y - 4 * k)
+            pn.line([(xx, yy), (xx + 16 * k, yy + rnd.uniform(-1, 1) * k)], light(WOOD, 0.2), 1.2, caps=False)
+    pn.line([(x0, ftop), (x1, ftop)], light(WOOD, 0.3), 2.4, caps=False)
+    return wl
+
+def steam(pn, x, y, t, t0, strength=1.0, width=200, seed=1):
+    """Steam burst from a quench: straight ahead puffs with a fixed seed."""
+    u = t - t0
+    if u < 0 or u > 2.4: return
+    rnd = random.Random(seed)
+    for i in range(26):
+        d0 = rnd.uniform(0, 0.5)
+        uu = u - d0
+        if uu < 0: continue
+        life = rnd.uniform(1.0, 1.9)
+        if uu > life: continue
+        a = 1 - uu / life
+        px = x + rnd.uniform(-width / 2, width / 2) + math.sin(uu * 2 + i) * 14
+        py = y - uu * rnd.uniform(140, 260) * strength
+        r = (14 + uu * 60) * rnd.uniform(0.7, 1.3) * strength
+        pn.circ(px, py, r, fill=(244, 244, 240, int(150 * a * strength)))
+
+def forge_hearth(pn, x, y, k=1.0, glow=1.0, t=0.0, bellows=0.0, blade_slot=True):
+    """Floor forge (hodo) with a fuigo box bellows (BM-P018): charcoal bed between two low clay walls, the bellows box
+    on its far side with a push pull handle. (x, y) is floor centre under the charcoal. bellows 0..1 handle position."""
+    def R(u, v): return (x + u * k, y + v * k)
+    # bellows box (wood), behind and to the right
+    pn.rect(*R(60, -110), *R(200, 0), fill=WOOD, outline=INK, width=3, r=4)
+    for vv in (-80, -50, -20): pn.line([R(64, vv), R(196, vv)], WOOD_D, 2, caps=False)
+    hx = lerp(210, 250, bellows)
+    pn.line([R(200, -60), R(hx, -60)], (90, 70, 50), 6 * k)
+    pn.rect(*R(hx, -74), *R(hx + 10, -46), fill=WOOD_D, outline=INK, width=2)
+    # walls and charcoal bed
+    pn.rect(*R(-120, -46), *R(60, 0), fill=(150, 104, 76), outline=INK, width=3, r=6)
+    rnd = random.Random(5)
+    for i in range(40):
+        u = rnd.uniform(-110, 50); v = rnd.uniform(-66, -40)
+        g = glow * (0.5 + 0.5 * math.sin(t * 6 + i))
+        c = lerpc((40, 34, 30), (255, 140, 50), g * rnd.uniform(0.4, 1))
+        pn.circ(*R(u, v), rnd.uniform(5, 9) * k, fill=c, outline=INK, width=1.2)
+    if glow > 0:
+        pn.ell(*R(-30, -60), 110 * k, 40 * k, fill=(255, 160, 60, int(70 * glow)))
+    pn.rect(*R(-124, -40), *R(64, 0), fill=(166, 116, 84), outline=INK, width=3, r=4)   # front wall
+    return dict(fire=R(-30, -58))
+
+def tongs(pn, grip, jaw, open_=0.0, w=1.0):
+    """Smith's tongs (hashi, BM-P019): two iron arms riveted near the jaws. grip: where the hand holds the handles."""
+    gx, gy = grip; jx, jy = jaw
+    dx, dy_ = jx - gx, jy - gy; L_ = math.hypot(dx, dy_) or 1
+    ux, uy = dx / L_, dy_ / L_; nx, ny = -uy, ux
+    rv = (gx + ux * L_ * 0.8, gy + uy * L_ * 0.8)
+    for s in (-1, 1):
+        a = (gx + nx * s * 4 * w, gy + ny * s * 4 * w)
+        b = (rv[0] + nx * s * 1.5 * w, rv[1] + ny * s * 1.5 * w)
+        c = (jx + nx * s * (2.5 + open_ * 6) * w, jy + ny * s * (2.5 + open_ * 6) * w)
+        pn.line([a, b, c], INK, 6.5 * w); pn.line([a, b, c], IRON, 3.8 * w)
+    pn.circ(rv[0], rv[1], 3.2 * w, fill=light(IRON, 0.3), outline=INK, width=1.4)
+
+def hera(pn, x, y, ang=0.0, k=1.0):
+    """Clay spatula (BM-P020): a thin flat wooden or bamboo blade with a short handle. (x, y) is the tip."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    q = lambda u, v: (x + (u * ca - v * sa) * k, y + (u * sa + v * ca) * k)
+    pn.poly([q(0, -5), q(26, -6), q(30, -3), q(30, 3), q(26, 6), q(0, 5)], fill=(206, 178, 120), outline=INK, width=2)
+    pn.poly([q(30, -3), q(70, -3), q(72, 0), q(70, 3), q(30, 3)], fill=(150, 112, 70), outline=INK, width=2)
+    pn.ell(*q(4, 0), 5 * k, 3.6 * k, fill=KCLAY)
