@@ -367,8 +367,12 @@ MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
 CUR = {'skin': SKIN, 'bone': BONE}   # per figure skin tone (OUT key 'skin'); limbs follow it
+LINE_LIMBS = True   # E020 user rule: bare limbs are thin black ink lines (clothing colours keep their fill)
 def limb(pn, pts, col, w=6):
-    col = CUR['bone'] if (col is None or col == INK or col == BONE) else col
+    bare = (col is None or col == INK or col == BONE or col == CUR['bone'])
+    if bare and LINE_LIMBS:
+        pn.line(pts, INK, 4.6); return
+    col = CUR['bone'] if bare else col
     pn.line(pts, INK, w + 5.5); pn.line(pts, col, w)
 
 def lion(pn, x, y, s):
@@ -810,6 +814,21 @@ def nose(pn, f, kind):
 
 def garment_details(pn, O, body, nk, pl, hem, ux, uy, nx_, ny_, hw, f):
     col = O['tunic']; dk = lerpc(col, INK, 0.3); lt = lerpc(col, (255, 250, 236), 0.2)
+    # rendered cloth (E020 user rule): one shadow tone on the side away from the light (light from screen right),
+    # a lit edge on the near side, a darker band above the hem, a neckline and shoulder seams; outline redrawn on top
+    sh_c = lerpc(col, (40, 30, 40), 0.24); hi_c = lerpc(col, (255, 244, 220), 0.32)
+    R0, L0, L1, R1 = body
+    mid_t = (lerp(L0[0], R0[0], 0.36), lerp(L0[1], R0[1], 0.36)); mid_b = (lerp(L1[0], R1[0], 0.3), lerp(L1[1], R1[1], 0.3))
+    pn.poly([L0, mid_t, (lerp(mid_t[0], mid_b[0], 0.5) + nx_ * 3, lerp(mid_t[1], mid_b[1], 0.5) + ny_ * 3), mid_b, L1], fill=sh_c)
+    pn.poly([(lerp(L0[0], R0[0], 0.84), lerp(L0[1], R0[1], 0.84)), R0, R1, (lerp(L1[0], R1[0], 0.86), lerp(L1[1], R1[1], 0.86))], fill=hi_c)
+    hb0 = (lerp(L0[0], L1[0], 0.9), lerp(L0[1], L1[1], 0.9)); hb1 = (lerp(R0[0], R1[0], 0.9), lerp(R0[1], R1[1], 0.9))
+    pn.poly([hb0, hb1, R1, L1], fill=lerpc(col, INK, 0.16) + (150,))
+    nc = (nk[0] - ux * 2, nk[1] - uy * 2)
+    pn.line([(nc[0] - nx_ * 11, nc[1] - ny_ * 11), (nc[0] - ux * 7, nc[1] - uy * 7), (nc[0] + nx_ * 11, nc[1] + ny_ * 11)], INK, 2.2)
+    for sd in (-1, 1):
+        a_ = (nk[0] + nx_ * sd * 20 - ux * 2, nk[1] + ny_ * sd * 20 - uy * 2)
+        pn.line([a_, (a_[0] - ux * 12 + nx_ * sd * 3, a_[1] - uy * 12 + ny_ * sd * 3)], dk + (170,), 1.6, caps=False)
+    pn.poly(body, fill=None, outline=INK, width=3.2)
     q = lambda a, b: (a[0] * (1 - b) + 0, 0)
     # cloth folds from the belt down
     for i in (-1, 0, 1):
