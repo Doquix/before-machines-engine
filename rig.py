@@ -828,6 +828,52 @@ def garment_details(pn, O, body, nk, pl, hem, ux, uy, nx_, ny_, hw, f):
     for sd in (-1, 1):
         a_ = (nk[0] + nx_ * sd * 20 - ux * 2, nk[1] + ny_ * sd * 20 - uy * 2)
         pn.line([a_, (a_[0] - ux * 12 + nx_ * sd * 3, a_[1] - uy * 12 + ny_ * sd * 3)], dk + (170,), 1.6, caps=False)
+    # ---- cloth like a prop: pattern, weave border, belt blousing, tension folds, seam stitching, wear, fasteners
+    TP = lambda a, b: (lerp(lerp(L0[0], R0[0], b), lerp(L1[0], R1[0], b), a), lerp(lerp(L0[1], R0[1], b), lerp(L1[1], R1[1], b), a))
+    pat = O.get('pattern')
+    if pat in ('stripes', 'check'):
+        pc = O.get('pattern_col', lerpc(col, INK, 0.22))
+        for i in range(1, 9):
+            b = i / 9; pn.line([TP(0.02, b), TP(0.98, b)], pc + (150,), 1.6, caps=False)
+        if pat == 'check':
+            for i in range(1, 9):
+                a = i / 9; pn.line([TP(a, 0.03), TP(a, 0.97)], pc + (150,), 1.6, caps=False)
+    if O.get('border'):         # woven band near the hem with a small repeating motif
+        bc = O['border']
+        pn.poly([TP(0.86, 0.01), TP(0.86, 0.99), TP(0.94, 0.99), TP(0.94, 0.01)], fill=bc)
+        for i in range(8):
+            b0 = 0.06 + i * 0.12
+            pn.line([TP(0.88, b0), TP(0.92, b0 + 0.05), TP(0.88, b0 + 0.1)], lerpc(bc, (255, 240, 200), 0.45), 1.4, caps=False)
+        for a_ in (0.86, 0.94): pn.line([TP(a_, 0.01), TP(a_, 0.99)], INK + (200,), 1.2, caps=False)
+    # belt with the tunic bloused over it (kolpos): curved overhang line and pull folds toward the belt
+    if not O.get('no_belt'):
+        bcol = O.get('belt_col', (92, 60, 36))
+        pn.line([TP(0.6, 0.0), TP(0.6, 1.0)], INK, 6.5, caps=False)
+        pn.line([TP(0.6, 0.02), TP(0.6, 0.98)], bcol, 4, caps=False)
+        pn.line([TP(0.52, 0.04), TP(0.57, 0.3), TP(0.555, 0.5), TP(0.57, 0.72), TP(0.52, 0.96)], dk, 1.8, caps=False)
+        if O.get('belt_knot'):
+            k_ = TP(0.6, 0.62); pn.line([k_, TP(0.74, 0.6)], bcol, 2.6); pn.line([k_, TP(0.72, 0.68)], bcol, 2.6)
+            pn.circ(k_[0], k_[1], 2.8, fill=bcol, outline=INK, width=1.2)
+        else:
+            k_ = TP(0.6, 0.55); pn.rect(k_[0] - 3.4, k_[1] - 3.4, k_[0] + 3.4, k_[1] + 3.4, fill=(196, 150, 70), outline=INK, width=1.2)
+        for b in (0.2, 0.42, 0.66, 0.84):   # tension folds radiating up from the belt
+            pn.line([TP(0.58, b), TP(0.42, b + (0.06 if b < 0.5 else -0.06))], dk + (160,), 1.4, caps=False)
+    for b in (0.18, 0.5, 0.8):   # drape folds: soft U curves above the hem
+        pn.line([TP(0.7, b - 0.07), TP(0.8, b), TP(0.7, b + 0.07)], dk + (140,), 1.4, caps=False)
+    if O.get('stitch'):           # running stitch down the side seam
+        for i in range(10):
+            a = 0.08 + i * 0.085
+            pn.line([TP(a, 0.92), TP(a + 0.035, 0.92)], lerpc(col, (255, 245, 225), 0.5), 1.2, caps=False)
+    if O.get('stains'):           # work wear: dirt and sweat patches, soft and translucent
+        for (a, b, r_) in ((0.3, 0.22, 5), (0.74, 0.66, 6), (0.5, 0.82, 4)):
+            c_ = TP(a, b); pn.ell(c_[0], c_[1], r_ * 1.4, r_, fill=lerpc(col, (90, 70, 50), 0.5) + (90,))
+    if O.get('frayed'):           # frayed hem notches
+        for i in range(7):
+            c_ = TP(1.0, 0.07 + i * 0.14)
+            pn.line([c_, (c_[0] + ux * -4 + nx_ * 1.5, c_[1] + uy * -4 + ny_ * 1.5)], INK, 1.4, caps=False)
+    if O.get('fibula'):           # bronze brooch pinning the cloth at the shoulder
+        c_ = TP(0.05, 0.8 if f > 0 else 0.2)
+        pn.circ(c_[0], c_[1], 4.6, fill=(206, 160, 76), outline=INK, width=1.6); pn.circ(c_[0] - 1, c_[1] - 1, 1.4, fill=(250, 220, 150))
     pn.poly(body, fill=None, outline=INK, width=3.2)
     q = lambda a, b: (a[0] * (1 - b) + 0, 0)
     # cloth folds from the belt down

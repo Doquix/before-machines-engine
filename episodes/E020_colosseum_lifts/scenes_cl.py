@@ -640,21 +640,62 @@ def sc_end(base, pn, t):
     if op > 0 and t < T['opens'] + 0.5:
         particles(pn, 'dust', 560, HOLE['y0'], t, T['opens'] + 0.15, 1.0, seed=3, ground=HOLE['y1'])
 
+# ---------------- SHOT SIZE PLAN (camera framing; a reframe inside a scene is a cut) ----------------
+def cam_hook(t, sc, ox, oy):        # MEDIUM WIDE on the trap door, slow push to MEDIUM as the tiger rises
+    z = 1.0 + 0.1 * eio(P(t, 0.3, T['burst']))
+    return camfocus(z, 520, 1300, 520, 1300, ox, oy)
+def cam_elevator(t, sc, ox, oy):    # INSERT: tight on the car, the morph fills the frame
+    return camfocus(1.35, 540, 1000, 540, 960, ox, oy)
+def cam_plan(t, sc, ox, oy):        # GRAPHIC: top down plan, slow push
+    return camfocus(1.0 + 0.08 * eio(P(t, T['s5'], 2.2)), 540, 860, 540, 900, ox, oy)
+def cam_cage(t, sc, ox, oy):        # CLOSE UP on the lion's face through the bars, eased back to MEDIUM on "cage"
+    u = eio(P(t, T['cage6'] - 0.2, 0.5))
+    return camfocus(lerp(1.6, 1.05, u), lerp(580, 560, u), lerp(1110, 1000, u), 540, lerp(980, 980, u), ox, oy)
+def cam_fit(t, sc, ox, oy):         # MEDIUM diagram
+    return camfocus(1.0, 540, 960, 540, 960, ox, oy)
+def cam_capstan(t, sc, ox, oy):
+    if t < T['s9']:                 # WIDE: the machine assembles
+        return camfocus(0.98, CP_X + 160, 1000, 540, 980, ox, oy)
+    if t < T['s10']:                # MEDIUM: the Keeper and the two story post
+        return camfocus(1.12, 650, 1030, 540, 980, ox, oy)
+    if t < T['s11']:                # MEDIUM CLOSE: faces of the lower crew straining on "Eight men pushed"
+        return camfocus(1.75, CP_X, HFLOOR - 300, 540, 1000, ox, oy)
+    u = eio(P(t, T['s11'], 0.5))    # WIDE again for the count, four and four
+    return camfocus(lerp(1.15, 0.98, u), CP_X + 160, 1020, 540, 980, ox, oy)
+def cam_lift(t, sc, ox, oy):
+    if t < T['s13']:                # INSERT: rope winding onto the drum
+        return camfocus(2.1, 300, 1040, 540, 960, ox, oy)
+    u = eio(P(t, T['climbed'] - 0.1, T['feet'] + 0.5 - T['climbed']))   # MEDIUM: tracking the cage up
+    return camfocus(1.15, SH_X - 60, lerp(1080, 760, u), 540, lerp(980, 860, u), ox, oy)
+def cam_ramp(t, sc, ox, oy):        # MEDIUM CLOSE on the cage, pulling to MEDIUM as the ramp lands
+    u = eio(P(t, T['swung'] - 0.2, 0.7))
+    return camfocus(lerp(1.7, 1.25, u), lerp(640, 540, u), lerp(1000, 960, u), 540, 920, ox, oy)
+def cam_crowd(t, sc, ox, oy):       # CLOSE on cheering faces, pulling out to WIDE on "people"
+    z = 1.0 + 0.08 * eio(P(t, T['s16'], 3.0))     # WIDE: the whole cavea
+    return camfocus(z, 540, 800, 540, 800, ox, oy)
+def cam_dozens(t, sc, ox, oy):      # GRAPHIC: overhead plan, punch in on "hidden"
+    return camfocus(1.0 + 0.06 * eio(P(t, T['s17'], 2.8)) + 0.07 * eio(P(t, T['hidden'], 0.4)), 540, 860, 540, 900, ox, oy)
+def cam_hunter(t, sc, ox, oy):      # CLOSE UP on the hunter, to EXTREME CLOSE on his eyes at "where"
+    u = eio(P(t, T['where'] - 0.15, 0.35))
+    return camfocus(lerp(1.0, 1.9, u), lerp(540, 400, u), lerp(900, 1380 - 2.3 * 236, u), 540, lerp(900, 820, u), ox, oy)
+def cam_end(t, sc, ox, oy):         # MEDIUM WIDE, the same framing as the opening for the loop
+    return camfocus(1.0, 520, 1300, 520, 1300, ox, oy)
+
 SCENES = [
-    (0.0, sc_hook, None, None),
+    (0.0, sc_hook, cam_hook, None),
     (T['s1'], sc_real, cam_real, None),
     (T['s2'], sc_down, cam_down, 'slide'),
-    (T['s3'], sc_elevator, None, None),
+    (T['s3'], sc_elevator, cam_elevator, None),
     (T['s4'], sc_corridor, cam_corridor, 'dissolve'),
-    (T['s5'], sc_plan, None, 'dissolve'),
+    (T['s5'], sc_plan, cam_plan, 'dissolve'),
     (T['s6'], sc_cage, cam_cage, 'dissolve'),
-    (T['s7'], sc_fit, None, 'dissolve'),
+    (T['s7'], sc_fit, cam_fit, 'dissolve'),
     (T['s8'], sc_capstan, cam_capstan, 'slide'),
     (T['s12'], sc_lift, cam_lift, None),
     (T['s14'], sc_ramp, cam_ramp, 'slide'),
     (T['s15'], sc_run, cam_run, 'dissolve'),
     (T['s16'], sc_crowd, cam_crowd, None),
-    (T['s17'], sc_dozens, None, 'slide'),
+    (T['s17'], sc_dozens, cam_dozens, 'slide'),
     (T['s18'], sc_hunter, cam_hunter, None),
-    (T['s19'], sc_end, None, None),
+    (T['s19'], sc_end, cam_end, None),
 ]
