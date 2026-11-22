@@ -29,13 +29,27 @@ def _font(sz):
     return ImageFont.truetype(fp[0], sz) if fp else ImageFont.load_default()
 
 def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, out='thumb', dim=0.35,
-            sizes=(170, 100, 76), colors=None):
+            sizes=(170, 100, 76), colors=None, fit=(70, 660, 1010, 1820)):
     """lines: three short lines, top to bottom (big gold, white, gold). draw_item(pn) draws the hero item at full
     detail; only its outline is used (alpha above 90, so ground shadows drop out)."""
     CAM.drift = 0; CAM.set(0)
     im = Image.blend(env.get(env_name).convert('RGBA'), Image.new('RGBA', (W, H), (40, 34, 30, 255)), dim)
     lay = new_layer(); draw_item(Pen(lay, cam=False))
-    a = lay.resize((W, H), Image.BOX).split()[3].point(lambda v: 255 if v > 90 else 0).filter(ImageFilter.GaussianBlur(1.2))
+    a = lay.resize((W, H), Image.BOX).split()[3].point(lambda v: 255 if v > 90 else 0)
+    if fit:   # scale and centre the whole silhouette inside the fit box so the item is fully visible
+        bb = a.getbbox()
+        if bb:
+            x0, y0, x1, y1 = fit
+            sc_ = min((x1 - x0) / (bb[2] - bb[0]), (y1 - y0) / (bb[3] - bb[1]))
+            piece = a.crop(bb).resize((int((bb[2] - bb[0]) * sc_), int((bb[3] - bb[1]) * sc_)), Image.LANCZOS)
+            a = Image.new('L', (W, H), 0)
+            px, py = (x0 + x1 - piece.width) // 2, (y0 + y1 - piece.height) // 2
+            a.paste(piece, (px, py)); a = a.point(lambda v: 255 if v > 127 else 0)
+            import numpy as np
+            m = np.asarray(a) > 0; ys_, xs_ = np.nonzero(m)
+            top = ys_ < np.percentile(ys_, 55)          # centre of the upper body, not the stand
+            qmark = (int(xs_[top].mean()), int(ys_[top].mean()) + 50)
+    a = a.filter(ImageFilter.GaussianBlur(1.2))
     glow = a.filter(ImageFilter.GaussianBlur(26)).point(lambda v: min(255, int(v * 1.6)))
     L = lambda c: Image.new('L', (W, H), c)
     im.alpha_composite(Image.merge('RGBA', (L(GLOW[0]), L(GLOW[1]), L(GLOW[2]), glow)))
@@ -53,7 +67,7 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, 
     h = Image.new('RGB', (1280, 720))
     bg = Image.blend(env.get(env_name).convert('RGB'), Image.new('RGB', (W, H), (40, 34, 30)), dim)
     h.paste(bg.resize((1280, 2276)).crop((0, 800, 1280, 1520)))
-    h.paste(v.crop((0, 600, 1080, 1840)).resize((560, 643)), (720, 60))
+    h.paste(v.crop((0, 600, 1080, 1880)).resize((540, 640)), (730, 50))
     d = ImageDraw.Draw(h)
     hs = [140, 66, 66] if len(lines) == 3 else [120] * len(lines)
     hy = (200, 350, 470) if len(lines) == 3 else (250, 410, 570)
