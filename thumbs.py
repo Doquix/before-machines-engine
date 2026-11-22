@@ -1,13 +1,13 @@
 """Before Machines mystery thumbnail format (first used E021, 2026-11-22).
 
 The episode's hero item is hidden as a solid dark silhouette with a warm rim glow and a big gold question mark on it,
-the Keeper stands beside it in period kit with a SURPRISED face, and three stacked lines at the top tease the mechanism
-without naming it. Every line must be true: hide the answer, never invent one.
+the Keeper stands beside it in period kit with a SURPRISED face, and ONE short phrase at the top (one or two lines,
+all gold) teases the mechanism without naming it. Every line must be true: hide the answer, never invent one.
 
 Usage (from an episode folder, after the period kit is approved):
     import thumbs
     thumbs.mystery(draw_item=lambda pn: PR.scorpio(pn, x, y, 4.4, ...), env_name='rcamp', outfit='rkeep21',
-                   lines=('NO BOW.', 'NO GUNPOWDER.', 'SO WHAT FIRED IT?'), qmark=(470, 1020), out='E021_thumb')
+                   lines=("ROME'S SNIPER", 'RIFLE?'), sizes=(130, 130), colors=(thumbs.GOLD, thumbs.GOLD), qmark=(470, 1020), out='E021_thumb')
 Writes OUT_mystery_vertical.png (1080x1920, the Short's cover) and OUT_mystery_16x9.png (1280x720).
 """
 import glob
@@ -29,7 +29,7 @@ def _font(sz):
     return ImageFont.truetype(fp[0], sz) if fp else ImageFont.load_default()
 
 def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 1900, 3.2), out='thumb', dim=0.35,
-            sizes=(170, 100, 76)):
+            sizes=(170, 100, 76), colors=None):
     """lines: three short lines, top to bottom (big gold, white, gold). draw_item(pn) draws the hero item at full
     detail; only its outline is used (alpha above 90, so ground shadows drop out)."""
     CAM.drift = 0; CAM.set(0)
@@ -44,7 +44,8 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 
     outlined(pn, qmark[0], qmark[1], '?', 380, GOLD)
     kx, ky, kk = keeper
     figure(pn, kx, ky, kk, -1, pose('idle', head=-6), outfit, 'surprised', look=(-0.9, -0.4))
-    for (y, col), txt, sz in zip(((230, GOLD), (400, WHITE), (545, GOLD)), lines, sizes):
+    cols = colors or (GOLD, WHITE, GOLD)
+    for y, col, txt, sz in zip((230, 400, 545), cols, lines, sizes):
         outlined(pn, 540, y, txt, sz, col)
     flatten(im, lay2)
     v = im.convert('RGB'); v.save(f'{out}_mystery_vertical.png')
@@ -53,7 +54,9 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 
     h.paste(bg.resize((1280, 2276)).crop((0, 800, 1280, 1520)))
     h.paste(v.crop((0, 560, 1080, 1920)).resize((540, 680)), (740, 40))
     d = ImageDraw.Draw(h)
-    for (y, col, sz), txt in zip(((200, GOLD, 140), (350, WHITE, 66), (470, WHITE, 66)), lines):
+    hs = [140, 66, 66] if len(lines) == 3 else [120] * len(lines)
+    hy = (200, 350, 470) if len(lines) == 3 else (250, 410, 570)
+    for y, col, sz, txt in zip(hy, cols, hs, lines):
         d.text((380, y), txt, font=_font(sz), fill=col, anchor='mm', stroke_width=10, stroke_fill=INK)
     h.save(f'{out}_mystery_16x9.png')
     return v, h
