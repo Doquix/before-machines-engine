@@ -161,3 +161,67 @@ if __name__ == '__main__':
     o = Image.new('RGB', (270 * len(ims), 480))
     for i, im in enumerate(ims): o.paste(im, (i * 270, 0))
     o.save('env_sheet.png')
+
+# ---------------- E021 Roman scorpio ----------------
+GREY = ((150, 160, 170), (214, 208, 190), (20, 16, 6))
+def env_yard():
+    """Modern back yard: pale sky, wooden fence, lawn, a shrub or two."""
+    im = sky((150, 190, 222), (232, 236, 226), (30, 20, 0), 0.5)
+    clouds(im, 11, (255, 255, 255, 150), n=6, y0=200, y1=700)
+    d = ImageDraw.Draw(im)
+    hill_layer(im, 1040, 18, (138, 160, 120), 3, freqs=(1.2, 3.0))
+    d = ImageDraw.Draw(im)
+    for cx, cy, r in ((140, 1000, 120), (930, 990, 140), (300, 1010, 80)):
+        d.ellipse([cx - r, cy - r * .8, cx + r, cy + r * .8], fill=(92, 120, 76))
+    for x in range(-20, W + 40, 64):    # fence boards
+        d.polygon([(x, 1180), (x, 1030), (x + 28, 1010), (x + 58, 1030), (x + 58, 1180)], fill=(196, 168, 128), outline=(120, 96, 70))
+    d.rectangle([0, 1070, W, 1084], fill=(170, 142, 104)); d.rectangle([0, 1140, W, 1154], fill=(170, 142, 104))
+    d.rectangle([0, 1180, W, H], fill=(122, 156, 92))
+    rnd = random.Random(6)
+    for _ in range(260):
+        x, y = rnd.uniform(0, W), rnd.uniform(1190, 1900)
+        d.line([(x, y), (x + rnd.uniform(-4, 4), y - rnd.uniform(8, 18))], fill=(96, 130, 70), width=2)
+    return grade(im, blur=3, sat=0.8)
+
+def _rcamp(top, bot, glow, dark=1.0):
+    im = sky(top, bot, glow, 0.4)
+    clouds(im, 21, (236, 232, 224, 120), n=8)
+    hill_layer(im, 950, 60, (126, 134, 128), 4)
+    hill_layer(im, 1060, 26, (112, 120, 100), 8, freqs=(1.4, 3.3, 6.0))
+    d = ImageDraw.Draw(im)
+    for i, (x, y, s) in enumerate(((140, 1150, 0.8), (380, 1130, 0.6), (820, 1150, 0.85), (1000, 1125, 0.55))):
+        w_ = 80 * s; h_ = 70 * s          # leather tents (papilio): low ridge tents
+        d.polygon([(x - w_, y), (x - w_ * .7, y - h_), (x + w_ * .7, y - h_), (x + w_, y)], fill=(176, 140, 100), outline=INK)
+        d.polygon([(x - w_ * .2, y), (x, y - h_ * .8), (x + w_ * .2, y)], fill=(70, 52, 38))
+        for k in range(-2, 3): d.line([(x + k * w_ * .3, y), (x + k * w_ * .24, y - h_)], fill=(150, 116, 80), width=2)
+    for x in range(-10, W + 20, 24):    # stake rampart of the camp
+        d.polygon([(x, 1240), (x + 9, 1186 - (x * 37 % 17)), (x + 18, 1240)], fill=(110, 84, 56), outline=INK)
+    d.rectangle([0, 1240, W, H], fill=(140, 124, 92))
+    rnd = random.Random(4)
+    for _ in range(70):
+        x, y = rnd.uniform(0, W), rnd.uniform(1250, 1900)
+        d.ellipse([x - 40, y - 4, x + 40, y + 4], fill=(120, 106, 78))
+    return grade(im, blur=4, bright=0.92 * dark)
+def env_rcamp(): return _rcamp((150, 168, 186), (226, 216, 194), (40, 24, 0))
+def env_rcamp_rain(): return _rcamp((96, 104, 114), (160, 160, 156), None, 0.85)
+
+def env_avaricum():
+    """Night at Avaricum: dark sky, fire glow low on the left where the terrace burns."""
+    im = sky((18, 20, 34), (70, 46, 40), (120, 50, 10), 0.75)
+    d = ImageDraw.Draw(im, 'RGBA')
+    rnd = random.Random(3)
+    for _ in range(90):
+        x, y = rnd.uniform(0, W), rnd.uniform(0, 800); r = rnd.choice((1, 1, 2))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(230, 226, 210, 160))
+    hill_layer(im, 1180, 30, (30, 26, 34), 5)
+    return grade(im, blur=2, sat=0.9, bright=1.0, cap=False)
+
+def env_downs():
+    """Dorset downs for Hod Hill: grey green sky, chalk ridges."""
+    im = sky((160, 176, 186), (224, 222, 204), (20, 14, 0), 0.5)
+    clouds(im, 31, (244, 244, 236, 130), n=7)
+    hill_layer(im, 1000, 90, (128, 146, 106), 4, freqs=(0.6, 1.5, 3.0))
+    hill_layer(im, 1120, 50, (116, 136, 92), 9, freqs=(0.8, 2.0, 4.0))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 1250, W, H], fill=(110, 130, 84))
+    return grade(im, blur=3.5, sat=0.8)

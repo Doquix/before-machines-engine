@@ -362,9 +362,92 @@ EPISODE_OUTFIT = 'phalanx'
 MAIL = (150, 154, 160); MAIL_D = (108, 112, 120); GOLD = (232, 184, 60)
 
 BONE = (240, 232, 214)
+LINE_LIMBS = True        # E020 user rule: bare limbs are thin ink lines; clothing colours keep their fill
+LIMB_W = 3.4
+def _bare(col): return col is None or col == INK or col == BONE
 def limb(pn, pts, col, w=6):
-    col = BONE if (col is None or col == INK) else col
+    if LINE_LIMBS and _bare(col):
+        pn.line(pts, INK, LIMB_W); return
+    col = BONE if _bare(col) else col
     pn.line(pts, INK, w + 5.5); pn.line(pts, col, w)
+
+def _qbez(a, c, b, n=10):
+    return [((1 - u) ** 2 * a[0] + 2 * (1 - u) * u * c[0] + u * u * b[0], (1 - u) ** 2 * a[1] + 2 * (1 - u) * u * c[1] + u * u * b[1]) for u in [i / n for i in range(n + 1)]]
+
+def hose_arm(pn, sh, el, ha, bow=1.0):
+    """E020 user rule: an arm is one thin ink line from inside the sleeve to the hand, a smooth curve with no visible
+    elbow, bowing outward toward the elbow side."""
+    mx, my = (sh[0] + ha[0]) / 2, (sh[1] + ha[1]) / 2
+    c = (lerp(mx, el[0], 1.6 * bow), lerp(my, el[1], 1.6 * bow))
+    pn.line(_qbez(sh, c, ha), INK, LIMB_W)
+
+def line_hand(pn, ha, el, f=1):
+    """A free hand: a small curl at the end of the arm line (no hand shape)."""
+    dx, dy = ha[0] - el[0], ha[1] - el[1]; Ln = math.hypot(dx, dy) or 1
+    ux, uy = dx / Ln, dy / Ln
+    a0 = math.degrees(math.atan2(uy, ux))
+    cx_, cy_ = ha[0] - uy * 3.2 * f, ha[1] + ux * 3.2 * f
+    pn.arc(cx_, cy_, 3.4, a0 - 30, a0 + 200, INK, 2.6)
+
+def sleeve_part(pn, sh, el, col, frac=0.38, w0=15.0, w1=12.5, ha=None):
+    """Sleeve growing out of the garment with an open cuff (never a round cap). frac of the upper arm; with ha it
+    runs to the wrist (long sleeve)."""
+    pts = [sh, (lerp(sh[0], el[0], frac), lerp(sh[1], el[1], frac))] if ha is None else [sh, el, (lerp(el[0], ha[0], 0.86), lerp(el[1], ha[1], 0.86))]
+    end = pts[-1]; prv = pts[-2]
+    dx, dy = end[0] - prv[0], end[1] - prv[1]; Ln = math.hypot(dx, dy) or 1; ux, uy = dx / Ln, dy / Ln; nx, ny = -uy, ux
+    L1, R1 = [], []
+    for i, p_ in enumerate(pts):
+        a_ = pts[min(i + 1, len(pts) - 1)]; b_ = pts[max(i - 1, 0)]
+        tx, ty = a_[0] - b_[0], a_[1] - b_[1]; tl = math.hypot(tx, ty) or 1
+        qx, qy = -ty / tl, tx / tl
+        ww = lerp(w0, w1, i / (len(pts) - 1)) / 2
+        L1.append((p_[0] + qx * ww, p_[1] + qy * ww)); R1.append((p_[0] - qx * ww, p_[1] - qy * ww))
+    poly = L1 + R1[::-1]
+    pn.poly(poly, fill=col, outline=INK, width=2.6)
+    pn.line([L1[0], L1[-1]] if len(L1) == 2 else L1, light(col, 0.25), 1.6, caps=False)
+    # open cuff: a darker inner edge across the end
+    pn.line([(end[0] + nx * w1 * .42 - ux * 1.5, end[1] + ny * w1 * .42 - uy * 1.5), (end[0] - nx * w1 * .42 - ux * 1.5, end[1] - ny * w1 * .42 - uy * 1.5)], shade(col, 0.45), 2.4, caps=False)
+    return end
+
+def garment_details(pn, body, col, nk, pl, hem, ux, uy, nx_, ny_, hw, belt=None, folds=True):
+    """Clothing rendered like a prop (E020 user rule): shadow tone on the side away from the light (light from screen
+    right), lit near edge, darker band above the hem, neckline, shoulder seams, belt tension folds, drape folds."""
+    a, b, c_, d_ = body            # a,b: neck corners; c_,d_: hem corners
+    left_top, left_bot = (a, d_) if a[0] < b[0] else (b, c_)
+    right_top, right_bot = (b, c_) if a[0] < b[0] else (a, d_)
+    pn.poly([left_top, lerp2_(left_top, right_top, .3), lerp2_(left_bot, right_bot, .26), left_bot], fill=shade(col, 0.16) + (230,))
+    pn.line([lerp2_(right_top, left_top, .06), lerp2_(right_bot, left_bot, .05)], light(col, 0.3), 2.2, caps=False)
+    pn.poly([lerp2_(left_bot, left_top, .13), lerp2_(right_bot, right_top, .13), right_bot, left_bot], fill=shade(col, 0.22) + (200,))
+    pn.arc(nk[0], nk[1] - uy * 0 + 2, 11, 20, 160, shade(col, 0.45), 2.2)
+    for sd in (-1, 1):
+        pn.line([(nk[0] + nx_ * sd * 12, nk[1] + ny_ * sd * 12 + 2), (nk[0] + nx_ * sd * 23, nk[1] + ny_ * sd * 23 + 6)], shade(col, 0.35), 1.6, caps=False)
+    if folds and belt is not None:
+        for sd in (-1, 1):
+            pn.line([(belt[0] + nx_ * sd * 8, belt[1] + ny_ * sd * 8 - 2), (belt[0] + nx_ * sd * 15 + ux * 18, belt[1] + ny_ * sd * 15 + uy * 18)], shade(col, 0.32), 1.6, caps=False)
+            pn.line([(hem[0] + nx_ * sd * 14, hem[1] + ny_ * sd * 14 - 3), (hem[0] + nx_ * sd * 10 + ux * 14, hem[1] + ny_ * sd * 10 + uy * 14)], shade(col, 0.3), 1.6, caps=False)
+    pn.poly(body, outline=INK, width=3.2)
+
+def lerp2_(a, b, u): return (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u)
+
+def mail_texture(pn, poly_pts, col, step=7.0):
+    """Rows of small ring arcs inside a polygon's bounding box, clipped roughly by row extents."""
+    xs = [p[0] for p in poly_pts]; ys = [p[1] for p in poly_pts]
+    if (max(xs) - min(xs)) * pn.k() < 50: return
+    y = min(ys) + step * .8; row = 0
+    while y < max(ys) - step * .4:
+        # row extent from the polygon edges at this y
+        cuts = []
+        n = len(poly_pts)
+        for i in range(n):
+            p0, p1 = poly_pts[i], poly_pts[(i + 1) % n]
+            if (p0[1] - y) * (p1[1] - y) <= 0 and p0[1] != p1[1]:
+                cuts.append(p0[0] + (y - p0[1]) * (p1[0] - p0[0]) / (p1[1] - p0[1]))
+        if len(cuts) >= 2:
+            x0_, x1_ = min(cuts) + 3, max(cuts) - 3
+            x = x0_ + (step / 2 if row % 2 else 0)
+            while x < x1_:
+                pn.arc(x, y, step * .42, 20, 160, shade(col, 0.4), 1.2); x += step
+        y += step * .62; row += 1
 
 def lion(pn, x, y, s):
     # small heraldic lion passant guardant, simplified
@@ -414,8 +497,10 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     f_behind: the same for the front arm (a shield worn on the front arm, with the hand reaching out past its rim)."""
     if isinstance(p, str): p = POSES[p]
     O = OUT[out]
+    global SKIN
+    _skin0 = SKIN; SKIN = O.get('skin', _skin0)
     # holding something: arms and hands go in front of the clothing so the grip reads
-    if arms_front is None: arms_front = bool(held or hands or grip)
+    if arms_front is None: arms_front = True if LINE_LIMBS else bool(held or hands or grip)
     pn.push(x, y, k)
     if shadow:
         pn.ell(f * 6, 3, 46, 9, fill=(20, 14, 10, 70))
@@ -439,9 +524,17 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     hose = MAIL if O['hose'] == 'mail' else O['hose']
     for s in ('B', 'F'):
         hp_ = (J['pelvis'][0] + (f * HIP if s == 'F' else -f * HIP), J['pelvis'][1])
-        limb(pn, [hp_, J['knee' + s], J['foot' + s]], hose, 6.5)
+        limb(pn, [hp_, J['knee' + s], J['foot' + s]], hose, 6.5 if _bare(hose) or not O.get('trousers') else 9.5)
+        if O.get('trousers') and O.get('pattern') and not _bare(hose):
+            kn, ft = J['knee' + s], J['foot' + s]
+            for seg_ in ((hp_, kn), (kn, ft)):
+                for u_ in (0.25, 0.55, 0.85):
+                    q_ = lerp2_(seg_[0], seg_[1], u_)
+                    pn.line([(q_[0] - 4.4, q_[1]), (q_[0] + 4.4, q_[1])], shade(hose, 0.35), 1.6, caps=False)
         fx, fy = J['foot' + s]
         pn.ell(fx + f * 6, fy - 3, 11, 6, fill=O['boot'], outline=INK, width=2.6)
+        if O.get('sneaker'):
+            pn.line([(fx + f * 6 - 10, fy + 1.5), (fx + f * 6 + 10, fy + 1.5)], (70, 70, 76), 2.6, caps=False)
         if O.get('greaves'):   # bronze greaves sprung over the shin, knee to ankle
             kx, ky = J['knee' + s]; g_ = O['greaves']
             ax_, ay_ = lerp(kx, fx, 0.9), lerp(ky, fy, 0.9)
@@ -450,7 +543,8 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(kx - 2.2, ky + 4), (lerp(kx, ax_, .8) - 2.2, lerp(ky, ay_, .8))], light(g_, 0.5), 2.4, caps=False)
     # arms behind clothing
     def arm(s):
-        limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
+        if LINE_LIMBS: hose_arm(pn, J['sh' + s], J['el' + s], J['ha' + s])
+        else: limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], None, 6.5)
     if not arms_front or carry or b_behind:
         arm('B')
         if b_behind and not carry:
@@ -471,7 +565,41 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     sw, hw = 25, 35
     body = [(nk[0] + nx_ * sw - ux * 2, nk[1] + ny_ * sw - uy * 2), (nk[0] - nx_ * sw - ux * 2, nk[1] - ny_ * sw - uy * 2),
             (hem[0] - nx_ * hw, hem[1] - ny_ * hw), (hem[0] + nx_ * hw, hem[1] + ny_ * hw)]
-    if O.get('mail'):
+    if O.get('lorica'):
+        # Republican mail shirt (BM-P038): tunic hem shows below the mail; doubled shoulder cape fastened on the chest
+        tc = O['tunic']
+        hem2 = (pl[0] - ux * (hl_ + 12), pl[1] - uy * (hl_ + 12))
+        tun = [(hem[0] - nx_ * hw + ux * 4, hem[1] - ny_ * hw + uy * 4), (hem[0] + nx_ * hw + ux * 4, hem[1] + ny_ * hw + uy * 4),
+               (hem2[0] + nx_ * (hw + 3), hem2[1] + ny_ * (hw + 3)), (hem2[0] - nx_ * (hw + 3), hem2[1] - ny_ * (hw + 3))]
+        pn.poly(tun, fill=tc, outline=INK, width=2.8)
+        pn.poly([lerp2_(tun[3], tun[0], .45), lerp2_(tun[2], tun[1], .45), tun[2], tun[3]], fill=shade(tc, 0.2))
+        pn.poly(body, fill=MAIL, outline=INK, width=3.2)
+        pn.poly([body[0] if body[0][0] < body[1][0] else body[1], lerp2_(body[0], body[1], .5), lerp2_(body[3], body[2], .5),
+                 body[3] if body[0][0] < body[1][0] else body[2]], fill=MAIL_D + (120,))
+        mail_texture(pn, body, MAIL)
+        cape_y = 0.36
+        ca_ = [(nk[0] + nx_ * (sw + 5) - ux * 3, nk[1] + ny_ * (sw + 5) - uy * 3), (nk[0] - nx_ * (sw + 5) - ux * 3, nk[1] - ny_ * (sw + 5) - uy * 3),
+               (lerp(nk[0], pl[0], cape_y) - nx_ * (sw + 7), lerp(nk[1], pl[1], cape_y) - ny_ * (sw + 7)),
+               (lerp(nk[0], pl[0], cape_y - .08), lerp(nk[1], pl[1], cape_y - .08)),
+               (lerp(nk[0], pl[0], cape_y) + nx_ * (sw + 7), lerp(nk[1], pl[1], cape_y) + ny_ * (sw + 7))]
+        pn.poly(ca_, fill=light(MAIL, 0.08), outline=INK, width=2.8)
+        mail_texture(pn, ca_, light(MAIL, 0.08), 6.5)
+        cc_ = (lerp(nk[0], pl[0], cape_y - .1), lerp(nk[1], pl[1], cape_y - .1))
+        for sd in (-1, 1):   # bronze fastening hooks on the chest
+            pn.circ(cc_[0] + nx_ * sd * 7, cc_[1] + ny_ * sd * 7, 3.4, fill=(196, 150, 72), outline=INK, width=1.4)
+        pn.line([(cc_[0] - nx_ * 7, cc_[1] - ny_ * 7), (cc_[0] + nx_ * 7, cc_[1] + ny_ * 7)], (150, 104, 44), 2, caps=False)
+        belt = (lerp(nk[0], pl[0], 0.86), lerp(nk[1], pl[1], 0.86))
+        pn.line([(belt[0] - nx_ * 24, belt[1] - ny_ * 24), (belt[0] + nx_ * 24, belt[1] + ny_ * 24)], INK, 8)
+        pn.line([(belt[0] - nx_ * 24, belt[1] - ny_ * 24), (belt[0] + nx_ * 24, belt[1] + ny_ * 24)], (96, 62, 36), 5)
+        for sd in (-0.5, 0.0, 0.5): pn.circ(belt[0] + nx_ * sd * 30, belt[1] + ny_ * sd * 30, 2.4, fill=(196, 150, 72))
+        if O.get('gladius'):   # sheathed gladius on the RIGHT hip (wearer's right = the back arm side)
+            gx_ = belt[0] - f * 22; gy_ = belt[1] + 2
+            pn.poly([(gx_ - 4.5, gy_ - 6), (gx_ + 4.5, gy_ - 6), (gx_ + 4, gy_ + 44), (gx_, gy_ + 50), (gx_ - 4, gy_ + 44)], fill=(96, 62, 36), outline=INK, width=2.2)
+            for yy in (2, 20, 38): pn.line([(gx_ - 4.5, gy_ + yy), (gx_ + 4.5, gy_ + yy)], (196, 150, 72), 2, caps=False)
+            pn.rect(gx_ - 7, gy_ - 10, gx_ + 7, gy_ - 6, fill=(220, 206, 170), outline=INK, width=1.6)
+            pn.ell(gx_, gy_ - 16, 4.5, 6, fill=(220, 206, 170), outline=INK, width=1.6)
+            pn.circ(gx_, gy_ - 23, 4, fill=(220, 206, 170), outline=INK, width=1.6)
+    elif O.get('mail'):
         pn.poly(body, fill=MAIL, outline=INK, width=3.2)
         sc_ = [(lerp(body[0][0], body[3][0], .06), lerp(body[0][1], body[3][1], .06)),
                (lerp(body[1][0], body[2][0], .06), lerp(body[1][1], body[2][1], .06)),
@@ -541,7 +669,33 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(lerp(nk[0], pl[0], 0.3) - nx_ * 8, lerp(nk[1], pl[1], 0.3) - ny_ * 8),
                      (lerp(nk[0], pl[0], 0.3) + nx_ * 8, lerp(nk[1], pl[1], 0.3) + ny_ * 8)], (150, 54, 42), 3)
         belt = (lerp(nk[0], pl[0], 0.88), lerp(nk[1], pl[1], 0.88))
-        pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], (70, 46, 30), 4)
+        if O.get('pattern') == 'stripe':
+            for i in range(-3, 4):
+                a_ = (nk[0] + nx_ * i * 6.5 - ux * 1, nk[1] + ny_ * i * 6.5 - uy * 1)
+                b_ = (hem[0] + nx_ * i * 9.5 + ux * 2, hem[1] + ny_ * i * 9.5 + uy * 2)
+                pn.line([a_, b_], O.get('pcol', shade(O['tunic'], 0.3)), 2.2, caps=False)
+        elif O.get('pattern') == 'check':
+            for i in range(-3, 4):
+                a_ = (nk[0] + nx_ * i * 6.5 - ux * 1, nk[1] + ny_ * i * 6.5 - uy * 1)
+                b_ = (hem[0] + nx_ * i * 9.5 + ux * 2, hem[1] + ny_ * i * 9.5 + uy * 2)
+                pn.line([a_, b_], O.get('pcol', shade(O['tunic'], 0.3)) + (150,), 2.0, caps=False)
+            for j in range(1, 7):
+                a_ = lerp2_(body[0], body[3], j / 7); b_ = lerp2_(body[1], body[2], j / 7)
+                pn.line([a_, b_], O.get('pcol', shade(O['tunic'], 0.3)) + (150,), 2.0, caps=False)
+        if LINE_LIMBS and not O.get('no_details'):
+            garment_details(pn, body, O['tunic'], nk, pl, hem, ux, uy, nx_, ny_, hw, belt=None if O.get('no_belt') else belt)
+        if O.get('collar'):    # modern shirt: collar points and a button line
+            for sd in (-1, 1):
+                pn.poly([(nk[0], nk[1] + 2), (nk[0] + nx_ * sd * 17, nk[1] + ny_ * sd * 17 - 2), (nk[0] + nx_ * sd * 7 + ux * -14, nk[1] + ny_ * sd * 7 + uy * -14)],
+                        fill=light(O['tunic'], 0.2), outline=INK, width=2)
+            for j in range(4):
+                q_ = lerp2_((nk[0] - ux * 14, nk[1] - uy * 14), hem, 0.08 + j * 0.24)
+                pn.circ(q_[0], q_[1], 1.8, fill=shade(O['tunic'], 0.5))
+        if not O.get('no_belt'):
+            bc_ = O.get('belt_col', (70, 46, 30))
+            pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], INK, 7)
+            pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], bc_, 4)
+            if O.get('fibula'): pn.circ(belt[0], belt[1], 3.2, fill=(196, 150, 72), outline=INK, width=1.4)
     if carry:
         # Republican scutum on its grip: the fist is behind the boss, the forearm behind the board, the sleeve cap
         # and upper arm show above the rim, the rim clears the shoulder at the top and the knees at the bottom
@@ -558,16 +712,20 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
     # sleeves on upper arm bones (and full mail sleeves)
     for s in (('F',) if carry else ('B', 'F')):
         if (s == 'B' and b_behind) or (s == 'F' and f_behind):
-            if not b_hide:
+            if not b_hide and not LINE_LIMBS:
                 hx_, hy_ = J['ha' + s]; pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
             continue
         if O['sleeve'] == 'mail':
             limb(pn, [J['sh' + s], J['el' + s], J['ha' + s]], MAIL, 13)
+        elif LINE_LIMBS:
+            sleeve_part(pn, J['sh' + s], J['el' + s], O['sleeve'], ha=J['ha' + s] if O.get('long_sleeve') else None,
+                        frac=O.get('sleeve_frac', 0.42))
         else:
             sh_, el_ = J['sh' + s], J['el' + s]
             limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
         hx_, hy_ = J['ha' + s]
-        pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+        if not LINE_LIMBS: pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
+        elif not (hands and s in hands): line_hand(pn, J['ha' + s], J['el' + s], f if s == 'F' else -f)
     # head and headwear
     hx, hy = J['head']; r = L['head']
     hat = O['hat']
@@ -579,6 +737,12 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         pn.poly([(hx - 30, hy + 26), (hx + 30, hy + 26), (hx + 40, hy + 50), (hx - 40, hy + 50)], fill=O['hood'], outline=INK, width=3)
         pn.ell(hx + f * 6, hy + 4, r * 0.78, r * 0.84, fill=SKIN, outline=INK, width=2.6)
     else:
+        if O.get('hair_long'):
+            hc_ = O['hair']
+            pn.poly([(hx - r - 4, hy - 10), (hx - r - 10, hy + 40), (hx - r * .4, hy + 46), (hx + r * .4, hy + 46), (hx + r + 10, hy + 40), (hx + r + 4, hy - 10)],
+                    fill=hc_, outline=INK, width=2.8)
+            for dx_ in (-r - 4, -r + 4, r - 4, r + 4):
+                pn.line([(hx + dx_, hy + 6), (hx + dx_ * 1.05, hy + 38)], shade(hc_, 0.35), 1.6, caps=False)
         if O.get('hair'):
             pn.circ(hx - f * 3, hy - 3, r + 3, fill=O['hair'], outline=INK, width=3)
         pn.circ(hx, hy, r, fill=SKIN, outline=INK, width=3.4)
@@ -705,8 +869,27 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             pn.line([(xx, hy - r * .78 + 4), (xx + 4, hy - r * .78 + 18)], lerpc(O['fur'], INK, .3), 2, caps=False)
     if held and not arms_front: held(pn, J)
     pn.pop()
+    SKIN = _skin0
     return J
 
 def blink_at(t, seed=0.0):
     ph = (t + seed * 1.37) % 3.3
     return 1.0 if ph < 0.06 else (0.6 if ph < 0.11 else 0.0)
+# E021 Roman scorpio: late Republican crew (BM-P037, BM-P038), Gallic defenders at Avaricum (BM-P039), modern Keeper (BM-P044)
+OUT.update({
+    'rkeep21': dict(tunic=(150, 58, 44), sleeve=(150, 58, 44), hose=BONE, boot=(96, 66, 40), hat='montefortino', cap=(196, 146, 66),
+                    lorica=True, gladius=True, glasses=True),
+    'rcrew21': dict(tunic=(214, 200, 168), sleeve=(214, 200, 168), hose=BONE, boot=(96, 66, 40), hat='montefortino', cap=(178, 132, 60),
+                    lorica=True, gladius=True, skin=(214, 176, 138), beard=(52, 40, 30), beard_style='stubble'),
+    'gaul1':   dict(tunic=(156, 128, 74), sleeve=(156, 128, 74), long_sleeve=True, pattern='check', pcol=(84, 104, 60), hose=(118, 92, 62),
+                    trousers=True, boot=(96, 66, 40), hat=None, hair=(200, 160, 92), hair_long=True, beard=(200, 160, 92), beard_style='walrus',
+                    cloak=(132, 60, 44), belt_col=(80, 54, 34)),
+    'gaul2':   dict(tunic=(122, 72, 54), sleeve=(122, 72, 54), long_sleeve=True, pattern='stripe', pcol=(196, 170, 110), hose=(94, 84, 70),
+                    trousers=True, boot=(80, 56, 36), hat=None, hair=(70, 50, 36), hair_long=True, beard=(70, 50, 36), beard_style='mustache',
+                    skin=(236, 212, 182), belt_col=(60, 40, 26)),
+    'gaul3':   dict(tunic=(196, 178, 132), sleeve=(196, 178, 132), long_sleeve=True, hose=(82, 94, 114), trousers=True, pattern='check',
+                    pcol=(150, 70, 50), boot=(96, 66, 40), hat=None, hair=(168, 92, 52), hair_long=True, beard=(168, 92, 52), beard_style='short',
+                    skin=(240, 220, 196), belt_col=(90, 60, 36), fibula=True),
+    'kmod':    dict(tunic=(92, 118, 150), sleeve=(92, 118, 150), long_sleeve=True, collar=True, hose=(62, 82, 120), trousers=True,
+                    boot=(236, 234, 228), sneaker=True, hat=None, hair=(92, 70, 50), glasses=True, belt_col=(80, 56, 36)),
+})
