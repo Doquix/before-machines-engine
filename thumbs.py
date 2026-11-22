@@ -36,6 +36,7 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, 
     im = Image.blend(env.get(env_name).convert('RGBA'), Image.new('RGBA', (W, H), (40, 34, 30, 255)), dim)
     lay = new_layer(); draw_item(Pen(lay, cam=False))
     a = lay.resize((W, H), Image.BOX).split()[3].point(lambda v: 255 if v > 90 else 0)
+    fit_px = None; fit_sc = 1.0
     if fit:   # scale and centre the whole silhouette inside the fit box so the item is fully visible
         bb = a.getbbox()
         if bb:
@@ -45,6 +46,7 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, 
             a = Image.new('L', (W, H), 0)
             px, py = (x0 + x1 - piece.width) // 2, (y0 + y1 - piece.height) // 2
             a.paste(piece, (px, py)); a = a.point(lambda v: 255 if v > 127 else 0)
+            fit_px, fit_sc = (px, py), 1.0
             import numpy as np
             m = np.asarray(a) > 0; ys_, xs_ = np.nonzero(m)
             top = ys_ < np.percentile(ys_, 55)          # centre of the upper body, not the stand
@@ -64,14 +66,30 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, 
         outlined(pn, 540, y, txt, sz, col)
     flatten(im, lay2)
     v = im.convert('RGB'); v.save(f'{out}_mystery_vertical.png')
-    h = Image.new('RGB', (1280, 720))
-    bg = Image.blend(env.get(env_name).convert('RGB'), Image.new('RGB', (W, H), (40, 34, 30)), dim)
-    h.paste(bg.resize((1280, 2276)).crop((0, 800, 1280, 1520)))
-    h.paste(v.crop((0, 600, 1080, 1880)).resize((540, 640)), (730, 50))
+    # 16:9: same silhouette refitted on the right, phrase on the left sized to fit its half
+    h = Image.blend(env.get(env_name).convert('RGB').resize((1280, 2276)).crop((0, 800, 1280, 1520)),
+                    Image.new('RGB', (1280, 720), (40, 34, 30)), dim).convert('RGBA')
+    bb = a.getbbox()
+    if bb:
+        bx0, by0, bx1, by1 = 690, 70, 1240, 670
+        sc2 = min((bx1 - bx0) / (bb[2] - bb[0]), (by1 - by0) / (bb[3] - bb[1]))
+        sz2 = (int((bb[2] - bb[0]) * sc2), int((bb[3] - bb[1]) * sc2))
+        m2 = Image.new('L', (1280, 720), 0); px2, py2 = (bx0 + bx1 - sz2[0]) // 2, (by0 + by1 - sz2[1]) // 2
+        m2.paste(a.crop(bb).resize(sz2, Image.LANCZOS), (px2, py2))
+        g2 = m2.filter(ImageFilter.GaussianBlur(16)).point(lambda v: min(255, int(v * 1.6)))
+        L2 = lambda c: Image.new('L', (1280, 720), c)
+        h.alpha_composite(Image.merge('RGBA', (L2(GLOW[0]), L2(GLOW[1]), L2(GLOW[2]), g2)))
+        h.alpha_composite(Image.merge('RGBA', (L2(SIL[0]), L2(SIL[1]), L2(SIL[2]), m2)))
+        qx2 = px2 + (qmark[0] - fit_px[0]) * sc2 / fit_sc if fit_px else (bx0 + bx1) // 2
+        qy2 = py2 + (qmark[1] - fit_px[1]) * sc2 / fit_sc if fit_px else (by0 + by1) // 2
     d = ImageDraw.Draw(h)
-    hs = [140, 66, 66] if len(lines) == 3 else [120] * len(lines)
-    hy = (200, 350, 470) if len(lines) == 3 else (250, 410, 570)
-    for y, col, sz, txt in zip(hy, cols, hs, lines):
-        d.text((380, y), txt, font=_font(sz), fill=col, anchor='mm', stroke_width=10, stroke_fill=INK)
+    if bb: d.text((qx2, qy2), '?', font=_font(230), fill=GOLD, anchor='mm', stroke_width=10, stroke_fill=INK)
+    cols = colors or (GOLD, WHITE, GOLD)
+    n = len(lines); fs = 150
+    while fs > 40 and max(d.textlength(t_, font=_font(fs)) for t_ in lines) > 620: fs -= 6
+    y0 = 360 - (n - 1) * fs * 0.55
+    for i, (txt, col) in enumerate(zip(lines, cols)):
+        d.text((345, y0 + i * fs * 1.1), txt, font=_font(fs), fill=col, anchor='mm', stroke_width=10, stroke_fill=INK)
+    h = h.convert('RGB')
     h.save(f'{out}_mystery_16x9.png')
     return v, h
