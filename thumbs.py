@@ -1,7 +1,7 @@
 """Before Machines mystery thumbnail format (first used E021, 2026-11-22).
 
 The episode's hero item is hidden as a solid dark silhouette with a warm rim glow and a big gold question mark on it,
-the Keeper stands beside it in period kit with a SURPRISED face, and ONE short phrase at the top (one or two lines,
+no character (the item alone carries the frame; keeper=(x, y, k) adds the Keeper only if asked), and ONE short phrase at the top (one or two lines,
 all gold) teases the mechanism without naming it. Every line must be true: hide the answer, never invent one.
 
 Usage (from an episode folder, after the period kit is approved):
@@ -28,7 +28,7 @@ def _font(sz):
     fp = [f for f in glob.glob('/usr/share/fonts/**/*.[ot]tf', recursive=True) if 'Inter' in f and 'Black' in f]
     return ImageFont.truetype(fp[0], sz) if fp else ImageFont.load_default()
 
-def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 1900, 3.2), out='thumb', dim=0.35,
+def mystery(draw_item, env_name, outfit, lines, qmark=(540, 1020), keeper=None, out='thumb', dim=0.35,
             sizes=(170, 100, 76), colors=None):
     """lines: three short lines, top to bottom (big gold, white, gold). draw_item(pn) draws the hero item at full
     detail; only its outline is used (alpha above 90, so ground shadows drop out)."""
@@ -42,8 +42,9 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 
     im.alpha_composite(Image.merge('RGBA', (L(SIL[0]), L(SIL[1]), L(SIL[2]), a)))
     lay2 = new_layer(); pn = Pen(lay2, cam=False)
     outlined(pn, qmark[0], qmark[1], '?', 380, GOLD)
-    kx, ky, kk = keeper
-    figure(pn, kx, ky, kk, -1, pose('idle', head=-6), outfit, 'surprised', look=(-0.9, -0.4))
+    if keeper:
+        kx, ky, kk = keeper
+        figure(pn, kx, ky, kk, -1, pose('idle', head=-6), outfit, 'surprised', look=(-0.9, -0.4))
     cols = colors or (GOLD, WHITE, GOLD)
     for y, col, txt, sz in zip((230, 400, 545), cols, lines, sizes):
         outlined(pn, 540, y, txt, sz, col)
@@ -52,7 +53,7 @@ def mystery(draw_item, env_name, outfit, lines, qmark=(470, 1020), keeper=(870, 
     h = Image.new('RGB', (1280, 720))
     bg = Image.blend(env.get(env_name).convert('RGB'), Image.new('RGB', (W, H), (40, 34, 30)), dim)
     h.paste(bg.resize((1280, 2276)).crop((0, 800, 1280, 1520)))
-    h.paste(v.crop((0, 560, 1080, 1920)).resize((540, 680)), (740, 40))
+    h.paste(v.crop((0, 600, 1080, 1840)).resize((560, 643)), (720, 60))
     d = ImageDraw.Draw(h)
     hs = [140, 66, 66] if len(lines) == 3 else [120] * len(lines)
     hy = (200, 350, 470) if len(lines) == 3 else (250, 410, 570)
