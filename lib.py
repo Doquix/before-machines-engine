@@ -71,6 +71,8 @@ class Cam:
         c.s, c.ox, c.oy = sc, ox, oy
 CAM = Cam()
 
+BLEND = False   # E022: set True to alpha composite translucent shapes (see Pen._tr)
+
 class Pen:
     """Draws in 1080x1920 design units onto a 2x canvas; optional camera and local transform."""
     def __init__(s, img, cam=True):
@@ -88,25 +90,48 @@ class Pen:
         if s.cam: x = CX + (x - CX) * CAM.s + CAM.ox; y = CY + (y - CY) * CAM.s + CAM.oy
         return x * SS, y * SS
     def w(s, v): return max(1, int(round(v * s.k() * SS)))
+    # E022: ImageDraw on an RGBA layer REPLACES pixels with a translucent fill instead of blending over them, so a
+    # translucent shape punched holes in whatever was drawn before (shadows, water over ice, niches in a wall).
+    # With BLEND on, translucent shapes are drawn on a small scratch image and alpha composited over the layer.
+    def _tr(s, fill):
+        return BLEND and fill is not None and isinstance(fill, tuple) and len(fill) == 4 and fill[3] < 255
+    def _comp(s, pts2, pad, draw):
+        xs = [p[0] for p in pts2]; ys = [p[1] for p in pts2]
+        x0 = max(0, int(min(xs) - pad - 2)); y0 = max(0, int(min(ys) - pad - 2))
+        x1 = min(s.img.width, int(max(xs) + pad + 3)); y1 = min(s.img.height, int(max(ys) + pad + 3))
+        if x1 <= x0 or y1 <= y0: return
+        tmp = Image.new('RGBA', (x1 - x0, y1 - y0), (0, 0, 0, 0)); d2 = ImageDraw.Draw(tmp, 'RGBA')
+        draw(d2, -x0, -y0)
+        s.img.alpha_composite(tmp, (x0, y0))
     def line(s, pts, fill, width, caps=True):
         P2 = [s.xy(*p) for p in pts]
         wd = s.w(width)
-        s.d.line(P2, fill=fill, width=wd, joint='curve')
-        if caps:
-            r = wd / 2
-            for x, y in (P2[0], P2[-1]):
-                s.d.ellipse([x - r, y - r, x + r, y + r], fill=fill)
+        def dr(d, ox, oy):
+            Q = [(x + ox, y + oy) for x, y in P2]
+            d.line(Q, fill=fill, width=wd, joint='curve')
+            if caps:
+                r = wd / 2
+                for x, y in (Q[0], Q[-1]):
+                    d.ellipse([x - r, y - r, x + r, y + r], fill=fill)
+        if s._tr(fill): s._comp(P2, wd, dr)
+        else: dr(s.d, 0, 0)
     def poly(s, pts, fill=None, outline=None, width=0):
         P2 = [s.xy(*p) for p in pts]
-        s.d.polygon(P2, fill=fill)
+        if s._tr(fill) and len(P2) > 2: s._comp(P2, 0, lambda d, ox, oy: d.polygon([(x + ox, y + oy) for x, y in P2], fill=fill))
+        else: s.d.polygon(P2, fill=fill)
         if outline and width:
             s.d.line(P2 + [P2[0]], fill=outline, width=s.w(width), joint='curve')
     def circ(s, x, y, r, fill=None, outline=None, width=0):
         X, Y = s.xy(x, y); R = r * s.k() * SS
         if R < 0.5: return
+        if s._tr(fill) and not outline:
+            s._comp([(X - R, Y - R), (X + R, Y + R)], 0, lambda d, ox, oy: d.ellipse([X - R + ox, Y - R + oy, X + R + ox, Y + R + oy], fill=fill)); return
         s.d.ellipse([X - R, Y - R, X + R, Y + R], fill=fill, outline=outline, width=s.w(width) if width else 0)
     def ell(s, x, y, rx, ry, fill=None, outline=None, width=0):
         X, Y = s.xy(x, y); kk = s.k() * SS
+        if s._tr(fill) and not outline:
+            s._comp([(X - rx * kk, Y - ry * kk), (X + rx * kk, Y + ry * kk)], 0,
+                    lambda d, ox, oy: d.ellipse([X - rx * kk + ox, Y - ry * kk + oy, X + rx * kk + ox, Y + ry * kk + oy], fill=fill)); return
         s.d.ellipse([X - rx * kk, Y - ry * kk, X + rx * kk, Y + ry * kk], fill=fill, outline=outline, width=s.w(width) if width else 0)
     def rect(s, x0, y0, x1, y1, fill=None, outline=None, width=0, r=0):
         X0, Y0 = s.xy(x0, y0); X1, Y1 = s.xy(x1, y1)
@@ -114,6 +139,11 @@ class Pen:
         if Y1 < Y0: Y0, Y1 = Y1, Y0
         if X1 - X0 < 1 or Y1 - Y0 < 1: return
         rr = min(r * s.k() * SS, (X1 - X0) / 2, (Y1 - Y0) / 2)
+        if s._tr(fill) and not outline:
+            X0c, Y0c = max(-4, X0), max(-4, Y0); X1c, Y1c = min(s.img.width + 4, X1), min(s.img.height + 4, Y1)
+            if X1c > X0c and Y1c > Y0c:
+                s._comp([(X0c, Y0c), (X1c, Y1c)], 0, lambda d, ox, oy: d.rounded_rectangle([X0c + ox, Y0c + oy, X1c + ox, Y1c + oy], rr, fill=fill))
+            return
         s.d.rounded_rectangle([X0, Y0, X1, Y1], rr, fill=fill, outline=outline, width=s.w(width) if width else 0)
     def arc(s, x, y, r, a0, a1, fill, width):
         X, Y = s.xy(x, y); R = r * s.k() * SS

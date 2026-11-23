@@ -924,6 +924,8 @@ _GIVEH = (236, 230, 214)
 OUT.update({
     'pkeeper': dict(tunic=(70, 98, 150), sleeve=(70, 98, 150), long_sleeve=True, hose=(56, 72, 112), trousers=True, boot=_GIVEH,
                     hat='feltcap', cap=(132, 100, 66), sash=(150, 58, 44), vest=(118, 92, 62), glasses=True),
+    'pkeeper_s': dict(tunic=(70, 98, 150), sleeve=(70, 98, 150), hose=(56, 72, 112), trousers=True, boot=_GIVEH,
+                    hat='feltcap', cap=(132, 100, 66), sash=(150, 58, 44), vest=(118, 92, 62), glasses=True),   # summer: sleeves rolled up
     'yakh1':   dict(tunic=(226, 220, 204), sleeve=(226, 220, 204), long_sleeve=True, hose=(52, 66, 104), trousers=True, boot=_GIVEH,
                     hat='feltcap', cap=(216, 204, 176), sash=(64, 96, 72), skin=(206, 160, 118), beard=(34, 28, 24), beard_style='full'),
     'yakh2':   dict(tunic=(98, 124, 164), sleeve=(98, 124, 164), long_sleeve=True, hose=(84, 74, 62), trousers=True, boot=(200, 186, 160),

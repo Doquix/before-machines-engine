@@ -1242,7 +1242,7 @@ def ice_pool(pn, x0, x1, y_far, y_near, skew=0.0, water=1.0, ice=0.0, stars=None
     if ice > 0:
         # frost grows from the rim inward: inset polygon shrinks as ice -> 1
         e = clamp(ice)
-        pn.poly(q, fill=lerpc(ICE, (150, 170, 196), 0.35 * night) + (int(120 + 135 * e),))
+        pn.poly(q, fill=lerpc(ICE, (76, 104, 146), 0.55 * night) + (int(120 + 135 * e),))
         cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4; cy = (y_far + y_near) / 2
         if e < 1:
             hole = [(lerp(px, cx, e), lerp(py, cy, e)) for px, py in q]
@@ -1267,11 +1267,11 @@ def ice_pool(pn, x0, x1, y_far, y_near, skew=0.0, water=1.0, ice=0.0, stars=None
         for i in range(1, nx):
             u = i / nx
             a = (lerp(q[0][0], q[1][0], u), y_far); b = (lerp(q[3][0], q[2][0], u), y_near)
-            pn.line([a, (lerp(a[0], b[0], clamp(crack * 1.5)), lerp(a[1], b[1], clamp(crack * 1.5)))], ICE_D, 2.2, caps=False)
+            pn.line([a, (lerp(a[0], b[0], clamp(crack * 1.5)), lerp(a[1], b[1], clamp(crack * 1.5)))], (70, 110, 150), 3.4, caps=False)
         for j in range(1, ny):
             v = j / ny; yy = lerp(y_near, y_far, v)
             xa = lerp(q[3][0], q[0][0], v); xb = lerp(q[2][0], q[1][0], v)
-            pn.line([(xa, yy), (lerp(xa, xb, clamp(crack * 1.5 - 0.3)), yy)], ICE_D, 2.2, caps=False)
+            pn.line([(xa, yy), (lerp(xa, xb, clamp(crack * 1.5 - 0.3)), yy)], (70, 110, 150), 3.4, caps=False)
     pn.poly(q, outline=INK, width=2.4)
     return dict(c=((q[0][0] + q[2][0]) / 2, (y_far + y_near) / 2), q=q)
 

@@ -225,3 +225,63 @@ def env_downs():
     d = ImageDraw.Draw(im)
     d.rectangle([0, 1250, W, H], fill=(110, 130, 84))
     return grade(im, blur=3.5, sat=0.8)
+
+# ---------------- E022 Persian yakhchal: central plateau desert (Yazd) ----------------
+def _ykmount(im, base, col, seed, amp=70):
+    hill_layer(im, base, amp, col, seed, freqs=(0.7, 1.9, 4.2, 9.0))
+
+def _ykstars(im, seed, n=420, band=True):
+    d = ImageDraw.Draw(im, 'RGBA'); rnd = random.Random(seed)
+    if band:   # faint Milky Way band across the sky
+        lay = Image.new('RGBA', im.size, (0, 0, 0, 0)); dl = ImageDraw.Draw(lay)
+        for i in range(60):
+            u = i / 60; x = -100 + u * (W + 200); y = 150 + u * 520 + rnd.uniform(-40, 40)
+            r = rnd.uniform(70, 140); dl.ellipse([x - r, y - r * .5, x + r, y + r * .5], fill=(150, 160, 200, 18))
+        im.alpha_composite(lay.filter(ImageFilter.GaussianBlur(30)))
+    for _ in range(n):
+        x, y = rnd.uniform(0, W), rnd.uniform(0, 1000) ** 1.0; r = rnd.choice((0.8, 1, 1, 1.4, 2.0))
+        a = int(rnd.uniform(120, 255) * (1 - y / 1300))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(236, 238, 255, a))
+
+def env_ykday():
+    """Winter day on the plateau: pale sky, blue grey mountains far off, flat ochre plain."""
+    im = sky((150, 178, 206), (236, 226, 204), (40, 26, 0), 0.55)
+    clouds(im, 41, (250, 248, 240, 90), n=4, y0=250, y1=600)
+    _ykmount(im, 1000, (150, 156, 170), 5, 80)
+    _ykmount(im, 1060, (176, 164, 140), 9, 26)
+    d = ImageDraw.Draw(im); d.rectangle([0, 1100, W, H], fill=(198, 172, 128))
+    rnd = random.Random(2)
+    for _ in range(120):
+        x, y = rnd.uniform(0, W), rnd.uniform(1110, 1900); d.ellipse([x - 30, y - 3, x + 30, y + 3], fill=(184, 158, 116))
+    return grade(im, blur=3.5, sat=0.8)
+
+def env_yknight():
+    """Clear winter night: deep blue sky full of stars, dark mountains, dim plain."""
+    im = sky((8, 12, 30), (36, 48, 82), (10, 14, 30), 0.7)
+    _ykstars(im, 7)
+    _ykmount(im, 1000, (22, 26, 44), 5, 80)
+    _ykmount(im, 1060, (34, 38, 56), 9, 26)
+    d = ImageDraw.Draw(im); d.rectangle([0, 1100, W, H], fill=(44, 46, 62))
+    return grade(im, blur=1.2, sat=1.0, bright=1.0, cap=True)
+
+def env_yknightsky():
+    """Sky only, for the tilt up into the stars (no horizon)."""
+    im = sky((6, 10, 26), (24, 32, 62), None, 0.7)
+    _ykstars(im, 13, n=650)
+    return grade(im, blur=0.8, sat=1.0, bright=1.0, cap=True)
+
+def env_ykdawn():
+    """Winter dawn: cold blue above, warm band at the horizon, for harvesting the ice."""
+    im = sky((70, 96, 140), (236, 186, 140), (70, 40, 10), 0.6)
+    _ykmount(im, 1000, (96, 98, 122), 5, 80)
+    _ykmount(im, 1060, (130, 116, 110), 9, 26)
+    d = ImageDraw.Draw(im); d.rectangle([0, 1100, W, H], fill=(160, 134, 110))
+    return grade(im, blur=3.5, sat=0.85)
+
+def env_yksummer():
+    """Midsummer: white hot sky, washed out mountains, bright plain."""
+    im = sky((196, 206, 214), (248, 232, 196), (60, 40, 0), 0.5)
+    _ykmount(im, 1000, (204, 196, 186), 5, 80)
+    _ykmount(im, 1060, (214, 192, 150), 9, 26)
+    d = ImageDraw.Draw(im); d.rectangle([0, 1100, W, H], fill=(226, 196, 140))
+    return grade(im, blur=4, sat=0.85, bright=1.02)
