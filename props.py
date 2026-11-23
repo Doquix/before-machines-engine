@@ -1054,3 +1054,378 @@ def scorpio_pt(name, k=1.0, yaw=-8.0, pitch=16.0, draw=0.0, H0=122.0, aim=0.0):
     p = (px * ca - pz * sa - 30, py, px * sa + pz * ca - 8 + H0)
     v = Proj(yaw, pitch, CM_U).v(p)
     return v[0] * k, v[1] * k
+
+
+# ======================================================================================================
+# E022 Persian yakhchal (BM-P045 to BM-P053): domed ice house, shade wall, ice pool, qanat, ice blocks,
+# straw, tools, sherbet bowl, night sky radiation diagram. All sizes in metres times s (design px per metre).
+# ======================================================================================================
+ADOBE = (204, 170, 122); ADOBE_D = (150, 116, 78); ADOBE_L = (230, 204, 158)
+ICE = (220, 238, 246); ICE_D = (150, 192, 214); ICE_L = (248, 252, 255)
+WATER = (64, 104, 136); WATER_L = (120, 160, 186); STRAW = (218, 188, 110); STRAW_D = (170, 136, 64)
+GLAZE = (44, 104, 150); GLAZE_L = (120, 176, 206); SHERBET = (214, 120, 96)
+
+def _mud_texture(pn, pts_box, seed, n=40, col=None):
+    """Light plaster marks (short strokes) inside an axis box (x0, y0, x1, y1)."""
+    x0, y0, x1, y1 = pts_box; rnd = random.Random(seed); c = col or ADOBE_D
+    for _ in range(n):
+        x, y = rnd.uniform(x0, x1), rnd.uniform(y0, y1); L_ = rnd.uniform(3, 9)
+        pn.line([(x, y), (x + L_, y + rnd.uniform(-1.5, 1.5))], c + (90,), 1.3, caps=False)
+
+def yakhchal_dome(pn, x, y, s, H=16.0, R=10.5, steps=17, door=True, vent=True, seed=5, lit=1.0, night=0.0):
+    """Domed ice house, Meybod type (BM-P045): stepped conical mud brick dome over the ice pit. (x, y) = ground centre.
+    Light from screen right: the left flank is in shade. night 0..1 cools and darkens the mud."""
+    col = lerpc(ADOBE, (70, 74, 96), 0.7 * night); cd = lerpc(ADOBE_D, (40, 42, 60), 0.7 * night); cl = lerpc(ADOBE_L, (120, 124, 146), 0.7 * night)
+    prof = []
+    for i in range(steps + 1):
+        h = H * i / steps
+        r = R * (1 - (h / H) ** 1.7) ** 0.95 if i < steps else R * 0.07
+        prof.append((h, max(r, R * 0.07)))
+    # silhouette: vertical riser then inward step
+    right, left = [], []
+    for i in range(steps):
+        h0, r0 = prof[i]; h1, r1 = prof[i + 1]
+        hr = h0 + (h1 - h0) * 0.9
+        rr = lerp(r0, r1, 0.55)
+        right += [(x + r0 * s, y - h0 * s), (x + rr * s, y - hr * s), (x + r1 * s, y - hr * s)]
+        left += [(x - r0 * s, y - h0 * s), (x - rr * s, y - hr * s), (x - r1 * s, y - hr * s)]
+    top_y = y - H * s
+    sil = right + [(x + R * 0.07 * s, top_y), (x - R * 0.07 * s, top_y)] + left[::-1]
+    pn.poly(sil, fill=col)
+    # shade flank (left 45 percent) and lit rim on the right
+    shd = [(x - R * 0.1 * s, y)] + [(x - R * 0.1 * s * (1 - i / steps), y - prof[i][0] * s) for i in range(steps + 1)] + left[::-1]
+    pn.poly([(px, py) for px, py in shd], fill=cd + (150,))
+    # step ledges: light top edge and dark undercut
+    for i in range(1, steps):
+        h0, r0 = prof[i]; hr = prof[i - 1][0] + (h0 - prof[i - 1][0]) * 0.9
+        yy = y - hr * s
+        pn.line([(x - r0 * s, yy), (x + r0 * s, yy)], cl, max(1.4, 0.06 * s), caps=False)
+        pn.line([(x - r0 * s, yy + 0.12 * s), (x + r0 * s, yy + 0.12 * s)], cd + (160,), max(1.0, 0.05 * s), caps=False)
+    _mud_texture(pn, (x - R * s * 0.8, y - H * s * 0.7, x + R * s * 0.8, y - 0.3 * s), seed, n=int(30 + s * 2), col=cd)
+    if vent:   # small vent cap at the apex (hole covered against rain, reconstruction of the cap shape)
+        pn.rect(x - 0.45 * s, top_y - 0.7 * s, x + 0.45 * s, top_y + 0.05 * s, fill=col, outline=INK, width=2.2)
+        pn.rect(x - 0.62 * s, top_y - 0.85 * s, x + 0.62 * s, top_y - 0.62 * s, fill=cl, outline=INK, width=2.0)
+    if door:   # arched door at ground level
+        dw, dh = 1.1 * s, 2.3 * s; dx = x + 1.6 * s
+        pts = [(dx - dw / 2, y)] + [(dx - dw / 2 * math.cos(math.radians(a)), y - dh + dw / 2 - dw / 2 * math.sin(math.radians(a))) for a in range(0, 181, 15)] + [(dx + dw / 2, y)]
+        pn.poly(pts, fill=(36, 26, 20), outline=INK, width=2.4)
+    pn.poly(sil, outline=INK, width=3.4)
+    pn.line([(x - R * s * 1.08, y), (x + R * s * 1.08, y)], INK, 3.0)
+    return dict(top=(x, top_y), door=(x + 1.6 * s, y), r=R * s)
+
+def yakhchal_section(pn, x, y, s, H=16.0, R=10.5, pit=6.0, pit_r=6.5, fill=1.0, layers=7, straw=True, stairs=True,
+                     cold=0.0, label=None, seed=3):
+    """Cutaway of the domed ice house and its pit (BM-P045, BM-P049). fill 0..1 of the pit filled with ice blocks,
+    each course capped by a straw layer. cold 0..1 tints the air inside blue. label(pn, name, pt) for callouts."""
+    # ground mass around the pit
+    pn.rect(x - R * 1.5 * s, y, x + R * 1.5 * s, y + (pit + 1.6) * s, fill=(176, 146, 104))
+    for i in range(14):
+        rnd = random.Random(seed + i)
+        pn.line([(x - R * 1.5 * s + rnd.uniform(0, 3 * R * s), y + rnd.uniform(0.3, pit + 1.4) * s), (x - R * 1.5 * s + rnd.uniform(0, 3 * R * s), y + rnd.uniform(0.3, pit + 1.4) * s)],
+                (150, 120, 84, 80), 1.2, caps=False)
+    # pit (bowl with brick lining)
+    pit_pts = [(x - pit_r * s, y)] + [(x - pit_r * s * math.cos(math.radians(a)) * (0.86 + 0.14 * math.cos(math.radians(a)) ** 2),
+                                       y + pit * s * math.sin(math.radians(a))) for a in range(0, 181, 10)] + [(x + pit_r * s, y)]
+    pn.poly(pit_pts, fill=(52, 44, 40), outline=INK, width=3.0)
+    # ice courses
+    if fill > 0:
+        top_d = pit * (1 - fill)
+        n = layers; ch = pit / n
+        for i in range(n):
+            d0 = pit - (i + 1) * ch; d1 = pit - i * ch
+            if d1 <= top_d + 1e-6: break
+            d0 = max(d0, top_d)
+            for d_ in (d1,):
+                pass
+            # half width at that depth (inside the bowl)
+            def hw(dd):
+                a = math.asin(clamp(dd / pit, 0, 1)); return pit_r * math.cos(a) * (0.86 + 0.14 * math.cos(a) ** 2) - 0.25
+            w0, w1 = hw(d0), hw(d1)
+            # blocks
+            nb = max(2, int((w0 * 2) / 1.3))
+            for b in range(nb):
+                bx0 = x + (-w0 + b * 2 * w0 / nb + 0.06) * s; bx1 = x + (-w0 + (b + 1) * 2 * w0 / nb - 0.06) * s
+                pn.rect(bx0, y + (d0 + 0.08) * s, bx1, y + (d1 - (0.22 if straw else 0.06)) * s, fill=ICE, outline=ICE_D, width=1.4)
+                pn.line([(bx0 + 0.15 * s, y + (d0 + 0.2) * s), (bx1 - 0.25 * s, y + (d0 + 0.2) * s)], ICE_L, 1.6, caps=False)
+            if straw:
+                pn.rect(x - w1 * s, y + (d1 - 0.2) * s, x + w1 * s, y + d1 * s, fill=STRAW)
+                rnd = random.Random(i * 7 + seed)
+                for _ in range(int(w1 * 3)):
+                    sx_ = x + rnd.uniform(-w1, w1) * s
+                    pn.line([(sx_, y + (d1 - 0.18) * s), (sx_ + rnd.uniform(-0.4, 0.4) * s, y + (d1 - 0.04) * s)], STRAW_D, 1.1, caps=False)
+        if straw and fill >= 0.999:   # thick straw blanket on top
+            pn.rect(x - pit_r * 0.98 * s, y - 0.5 * s, x + pit_r * 0.98 * s, y + 0.05 * s, fill=STRAW, outline=STRAW_D, width=1.4)
+    # stairs down the south side (right)
+    if stairs:
+        for i in range(8):
+            sx0 = x + (pit_r - 0.2 - i * 0.55) * s; sy0 = y + i * (pit * 0.8 / 8) * s
+            pn.line([(sx0, sy0), (sx0 - 0.55 * s, sy0), (sx0 - 0.55 * s, sy0 + pit * 0.8 / 8 * s)], (110, 88, 64), 2.2, caps=False)
+    # dome shell in section: thick at the base (about 2 m), thin at the top (about 0.5 m)
+    steps = 10; outer, inner = [], []
+    for i in range(steps + 1):
+        h = H * i / steps; r = max(R * (1 - (h / H) ** 1.7) ** 0.95, R * 0.07)
+        t_ = lerp(2.2, 0.5, h / H); outer.append((r, h)); inner.append((max(r - t_, 0.25), h))
+    air = [(x + r * s, y - h * s) for r, h in inner] + [(x - r * s, y - h * s) for r, h in inner[::-1]]
+    pn.poly(air, fill=lerpc((60, 50, 44), (70, 110, 150), cold) + (235,))
+    for sd in (-1, 1):
+        band = [(x + sd * r * s, y - h * s) for r, h in outer] + [(x + sd * r * s, y - h * s) for r, h in inner[::-1]]
+        pn.poly(band, fill=ADOBE if sd > 0 else lerpc(ADOBE, ADOBE_D, 0.5), outline=INK, width=2.6)
+        for i in range(1, steps):     # brick course lines in the cut face
+            ro, h = outer[i]; ri, _ = inner[i]
+            pn.line([(x + sd * ro * s, y - h * s), (x + sd * ri * s, y - h * s)], ADOBE_D, 1.4, caps=False)
+    pn.rect(x - 0.3 * s, y - (H + 0.6) * s, x + 0.3 * s, y - H * s + 2, fill=ADOBE, outline=INK, width=2)
+    pn.line([(x - R * 1.5 * s, y), (x - pit_r * s, y)], INK, 3); pn.line([(x + pit_r * s, y), (x + R * 1.5 * s, y)], INK, 3)
+    return dict(pit=(x, y + pit * 0.6 * s), vent=(x, y - H * s), wall=(x + R * 0.8 * s, y - 2 * s), top_ice=(x, y + pit * (1 - fill) * s))
+
+def shade_wall(pn, x0, x1, y, s, h=10.0, niches=True, buttress=False, seed=7, night=0.0, top_rough=True):
+    """Shade wall (BM-P046): long mud brick wall running east to west, here in front elevation (south face toward the
+    viewer when niches show). Height up to about 10 m; in the Yazd region the face carries shallow arched niches."""
+    col = lerpc(ADOBE, (66, 70, 92), 0.72 * night); cd = lerpc(ADOBE_D, (36, 38, 56), 0.72 * night); cl = lerpc(ADOBE_L, (110, 114, 136), 0.72 * night)
+    rnd = random.Random(seed)
+    top = [(x0, y - h * s)]
+    nx = max(4, int((x1 - x0) / (0.9 * s)))
+    for i in range(1, nx):
+        top.append((x0 + (x1 - x0) * i / nx, y - h * s + (rnd.uniform(-0.12, 0.12) * s if top_rough else 0)))
+    top.append((x1, y - h * s))
+    pn.poly([(x0, y)] + top + [(x1, y)], fill=col)
+    pn.line(top, cl, max(1.6, 0.12 * s), caps=False)          # lit coping
+    pn.rect(x0, y - 0.9 * s, x1, y, fill=cd + (90,))           # damp base band
+    # brick courses (faint), offset joints
+    for j in range(int(h / 0.5)):
+        yy = y - j * 0.5 * s
+        if s < 6 and j % 2: continue
+        pn.line([(x0, yy), (x1, yy)], cd + (60,), 1.0, caps=False)
+    if niches:
+        pitch = 3.2; w = 2.2; nh = h * 0.55
+        n = int((x1 - x0) / (pitch * s))
+        off = ((x1 - x0) - n * pitch * s) / 2
+        for i in range(n):
+            cx = x0 + off + (i + 0.5) * pitch * s; by = y - 1.4 * s
+            pts = [(cx - w / 2 * s, by)] + [(cx - w / 2 * s * math.cos(math.radians(a)), by - nh * s + w / 2 * s - w / 2 * s * math.sin(math.radians(a))) for a in range(0, 181, 15)] + [(cx + w / 2 * s, by)]
+            pn.poly(pts, fill=cd + (120,))
+            pn.line(pts[1:-1], cd, max(1.2, 0.06 * s), caps=False)
+            pn.line([(cx + w / 2 * s - 1, by), (cx + w / 2 * s - 1, by - nh * s + w / 2 * s)], cl + (150,), 1.4, caps=False)
+    if buttress:
+        for bx in (x0 + 0.15 * (x1 - x0), x1 - 0.15 * (x1 - x0)):
+            pn.poly([(bx - 0.6 * s, y), (bx - 0.4 * s, y - h * 0.7 * s), (bx + 0.4 * s, y - h * 0.7 * s), (bx + 0.6 * s, y)], fill=cl, outline=INK, width=2)
+    _mud_texture(pn, (x0, y - h * s, x1, y - 0.2 * s), seed, n=int((x1 - x0) / 8), col=cd)
+    pn.poly([(x0, y)] + top + [(x1, y)], outline=INK, width=3.2)
+    return dict(top=y - h * s)
+
+def wall_end_section(pn, x, y, s, h=10.0, base=2.0, topw=0.6, f=1, night=0.0):
+    """Shade wall seen end on (BM-P046): thick base tapering to a thin top. f=1 puts the south face on the left."""
+    col = lerpc(ADOBE, (66, 70, 92), 0.72 * night); cd = lerpc(ADOBE_D, (36, 38, 56), 0.72 * night)
+    pts = [(x - base / 2 * s, y), (x - topw / 2 * s, y - h * s), (x + topw / 2 * s, y - h * s), (x + base / 2 * s, y)]
+    pn.poly(pts, fill=col, outline=INK, width=3)
+    pn.poly([pts[0], pts[1], (x, y - h * s), (x, y)] if f > 0 else [(x, y), (x, y - h * s), pts[2], pts[3]], fill=cd + (120,))
+
+def ice_pool(pn, x0, x1, y_far, y_near, skew=0.0, water=1.0, ice=0.0, stars=None, t=0.0, seed=2, night=1.0, crack=0.0):
+    """Ice making pool, yakhband (BM-P047), seen from above at an angle: long rectangular shallow basin with a mud
+    brick rim. water 0..1 shows the basin flooded (night sky reflection), ice 0..1 grows frost from the edges to a
+    full sheet. crack 0..1 breaks the sheet into blocks for harvesting."""
+    rim = 0.06 * (x1 - x0) / 10
+    q = [(x0 + skew, y_far), (x1 + skew, y_far), (x1, y_near), (x0, y_near)]
+    pn.poly([(q[0][0] - 10, q[0][1] - 8), (q[1][0] + 10, q[1][1] - 8), (q[2][0] + 14, q[2][1] + 12), (q[3][0] - 14, q[3][1] + 12)],
+            fill=lerpc(ADOBE, (70, 74, 96), 0.7 * night), outline=INK, width=2.6)
+    base = lerpc((150, 124, 92), (40, 40, 56), 0.7 * night)
+    pn.poly(q, fill=base, outline=INK, width=2.4)
+    if water > 0:
+        wc = lerpc(WATER_L, (34, 48, 74), night)
+        pn.poly(q, fill=wc + (int(235 * water),))
+        if stars:
+            rnd = random.Random(seed)
+            for _ in range(stars):
+                u, v = rnd.random(), rnd.random()
+                px = lerp(lerp(q[3][0], q[2][0], u), lerp(q[0][0], q[1][0], u), v); py = lerp(y_near, y_far, v)
+                tw_ = 0.6 + 0.4 * math.sin(t * 3 + u * 40)
+                pn.circ(px, py, 1.4 + tw_, fill=(230, 236, 250, int(150 * water * (1 - ice * 0.8))))
+    if ice > 0:
+        # frost grows from the rim inward: inset polygon shrinks as ice -> 1
+        e = clamp(ice)
+        pn.poly(q, fill=lerpc(ICE, (150, 170, 196), 0.35 * night) + (int(120 + 135 * e),))
+        cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4; cy = (y_far + y_near) / 2
+        if e < 1:
+            hole = [(lerp(px, cx, e), lerp(py, cy, e)) for px, py in q]
+            pn.poly(hole, fill=lerpc(WATER_L, (34, 48, 74), night))
+            if stars:
+                rnd2 = random.Random(seed + 3)
+                for _ in range(int(stars * (1 - e) ** 2)):
+                    u, v = rnd2.uniform(0.15, 0.85), rnd2.uniform(0.2, 0.8)
+                    px = lerp(lerp(hole[3][0], hole[2][0], u), lerp(hole[0][0], hole[1][0], u), v); py = lerp(hole[3][1], hole[0][1], v)
+                    pn.circ(px, py, 1.8, fill=(230, 236, 250, 200))
+        rnd = random.Random(seed + 9)
+        for _ in range(int(40 * e)):   # feather crystals growing in from the edges
+            side = rnd.randrange(4); a, b = q[side], q[(side + 1) % 4]; u = rnd.random()
+            px, py = lerp(a[0], b[0], u), lerp(a[1], b[1], u)
+            L_ = rnd.uniform(0.04, 0.22) * e
+            ex, ey = lerp(px, cx, L_), lerp(py, cy, L_)
+            pn.line([(px, py), (ex, ey)], ICE_L + (200,), 1.4, caps=False)
+            mx, my = lerp(px, ex, 0.5), lerp(py, ey, 0.5)
+            pn.line([(mx, my), (mx + (ey - py) * 0.2, my - (ex - px) * 0.2)], ICE_L + (160,), 1.0, caps=False)
+    if crack > 0:
+        nx = 6; ny = 2
+        for i in range(1, nx):
+            u = i / nx
+            a = (lerp(q[0][0], q[1][0], u), y_far); b = (lerp(q[3][0], q[2][0], u), y_near)
+            pn.line([a, (lerp(a[0], b[0], clamp(crack * 1.5)), lerp(a[1], b[1], clamp(crack * 1.5)))], ICE_D, 2.2, caps=False)
+        for j in range(1, ny):
+            v = j / ny; yy = lerp(y_near, y_far, v)
+            xa = lerp(q[3][0], q[0][0], v); xb = lerp(q[2][0], q[1][0], v)
+            pn.line([(xa, yy), (lerp(xa, xb, clamp(crack * 1.5 - 0.3)), yy)], ICE_D, 2.2, caps=False)
+    pn.poly(q, outline=INK, width=2.4)
+    return dict(c=((q[0][0] + q[2][0]) / 2, (y_far + y_near) / 2), q=q)
+
+def pool_layers_section(pn, x0, x1, y, s, layers=0.0, pour=0.0, max_layers=6, ruler=True, night=1.0):
+    """Section through the pool (BM-P047 diagram): each night about 5 to 10 cm of water is let in and freezes; the
+    stack grows to about 50 cm. layers = frozen layer count (float), pour 0..1 shows the newest water on top."""
+    cm = s / 100.0                      # s = px per metre
+    depth = 60 * cm
+    pn.rect(x0 - 30, y, x1 + 30, y + depth + 30, fill=lerpc((168, 138, 98), (64, 60, 72), 0.5 * night))
+    pn.rect(x0, y, x1, y + depth, fill=lerpc((120, 98, 72), (30, 30, 42), 0.5 * night), outline=INK, width=2.6)
+    lay_h = 50 * cm / max_layers
+    nfull = int(layers); frac = layers - nfull
+    for i in range(min(nfull + (1 if frac > 0 else 0), max_layers)):
+        hh = lay_h * (1 if i < nfull else frac)
+        yb = y + depth - i * lay_h
+        pn.rect(x0 + 2, yb - hh, x1 - 2, yb, fill=lerpc(ICE, ICE_D, 0.15 * (i % 2)), outline=ICE_D, width=1.4)
+        pn.line([(x0 + 8, yb - hh + 3), (x1 - 8, yb - hh + 3)], ICE_L, 1.6, caps=False)
+    if pour > 0 and layers < max_layers:
+        yb = y + depth - nfull * lay_h
+        pn.rect(x0 + 2, yb - lay_h * pour, x1 - 2, yb, fill=WATER + (200,))
+    if ruler:
+        rx = x1 + 46
+        pn.line([(rx, y + depth), (rx, y + depth - 50 * cm)], INK, 3)
+        for c in range(0, 51, 10):
+            yy = y + depth - c * cm
+            pn.line([(rx - 8, yy), (rx + 8, yy)], INK, 2.4, caps=False)
+            pn.text(rx + 16, yy, '%d' % c, 22, INK, 'Bold', 'lm')
+        pn.text(rx + 16, y + depth - 50 * cm - 26, 'cm', 20, MUTED, 'Bold', 'lm')
+    return dict(top=y + depth - layers * lay_h)
+
+def qanat_section(pn, x0, x1, y_ground, s_v=1.0, shafts=6, flow=0.0, t=0.0, outlet=True, hill=300.0):
+    """Qanat (BM-P048) in section: the mother well reaches the water table under the hills (left); a gently falling
+    tunnel carries the water out to daylight on the plain (right), where the ground has dropped faster than the
+    tunnel. Vertical access shafts ringed by spoil mounds. Vertical scale exaggerated (diagram)."""
+    W_ = x1 - x0
+    gx = lambda u: x0 + u * W_
+    gy = lambda u: y_ground - hill * (1 - clamp(u / 0.85)) ** 1.6
+    ground = [(gx(u / 60), gy(u / 60)) for u in range(61)]
+    bot = y_ground + 70
+    pn.poly(ground + [(x1, bot), (x0, bot)], fill=(186, 156, 112), outline=INK, width=2.6)
+    t0 = (gx(0.08), y_ground - hill * 0.45); t1 = (gx(0.86), y_ground - 6)
+    aq = [(x0, t0[1] - 30), (gx(0.3), t0[1] + 10), (gx(0.3), t0[1] + 60), (x0, t0[1] + 80)]
+    pn.poly(aq, fill=(92, 132, 160, 150))
+    pn.text(gx(0.13), t0[1] + 46, 'WATER TABLE', 20, (30, 50, 70), 'Black', 'mm', True)
+    pn.line([t0, t1], (40, 32, 26), 13, caps=False)
+    if flow > 0:
+        n = 16
+        for i in range(n):
+            u = ((i / n) + t * 0.25) % 1.0
+            if u > flow: continue
+            px, py = lerp(t0[0], t1[0], u), lerp(t0[1], t1[1], u)
+            pn.line([(px - 8, py - 0.3), (px + 8, py + 0.3)], (120, 176, 220), 4, caps=False)
+    for i in range(shafts):
+        u = 0.08 + i * (0.7 / max(1, shafts - 1))
+        sx = gx(u); top = gy(u); tb = lerp(t0[1], t1[1], (sx - t0[0]) / (t1[0] - t0[0]))
+        pn.line([(sx, top), (sx, tb)], (40, 32, 26), 7, caps=False)
+        pn.ell(sx - 15, top - 2, 13, 7, fill=(168, 138, 96), outline=INK, width=2)
+        pn.ell(sx + 15, top - 2, 13, 7, fill=(168, 138, 96), outline=INK, width=2)
+    if outlet:
+        pn.poly([(t1[0], y_ground - 10), (x1, y_ground - 10), (x1, y_ground), (t1[0], y_ground)], fill=(90, 140, 180), outline=INK, width=2)
+    return dict(outlet=(t1[0], y_ground - 6), mouth=t0)
+
+def ice_block(pn, cx, cy, w, h, ang=0.0, straw=0.0, seed=1, alpha=255):
+    """Ice block cut from the pool (BM-P049): about 50 cm thick; slightly cloudy, with layer lines from the nightly
+    pours, chipped edges, highlight on the lit side; optional straw clinging to it."""
+    a = math.radians(ang)
+    def R_(px, py): return (cx + px * math.cos(a) - py * math.sin(a), cy + px * math.sin(a) + py * math.cos(a))
+    rnd = random.Random(seed)
+    top = [R_(-w / 2, -h / 2), R_(-w / 2 + w * 0.12, -h / 2 - h * 0.28), R_(w / 2 + w * 0.12, -h / 2 - h * 0.28), R_(w / 2, -h / 2)]
+    side = [R_(w / 2, -h / 2), R_(w / 2 + w * 0.12, -h / 2 - h * 0.28), R_(w / 2 + w * 0.12, h / 2 - h * 0.28), R_(w / 2, h / 2)]
+    front = [R_(-w / 2, -h / 2), R_(w / 2, -h / 2), R_(w / 2, h / 2), R_(-w / 2, h / 2)]
+    pn.poly(front, fill=ICE + (alpha,), outline=INK, width=2.4)
+    pn.poly(top, fill=ICE_L + (alpha,), outline=INK, width=2.0)
+    pn.poly(side, fill=ICE_D + (alpha,), outline=INK, width=2.0)
+    for j in range(1, 5):   # pour layers
+        yy = -h / 2 + h * j / 5
+        pn.line([R_(-w / 2 + 3, yy), R_(w / 2 - 3, yy)], ICE_D + (150,), 1.2, caps=False)
+    for _ in range(3):
+        px, py = rnd.uniform(-w / 2.6, w / 2.6), rnd.uniform(-h / 3, h / 3)
+        pn.line([R_(px, py), R_(px + w * 0.12, py - h * 0.12)], ICE_L, 1.6, caps=False)
+    if straw > 0:
+        for _ in range(int(10 * straw)):
+            px = rnd.uniform(-w / 2, w / 2 + w * 0.1)
+            pn.line([R_(px, -h / 2 - h * 0.1), R_(px + rnd.uniform(-8, 8), -h / 2 - h * 0.1 + rnd.uniform(-6, 2))], STRAW_D, 1.6, caps=False)
+    return dict(L=R_(-w / 2, 0), Rr=R_(w / 2 + w * 0.06, -h * 0.1))
+
+def kolang(pn, hx, hy, ang, L=135.0, k=1.0):
+    """Pick (kolang, BM-P051): wooden haft about 90 cm with a two pointed iron head. Handle end at (hx, hy), ang in
+    degrees (0 = pointing right). Returns grip points (rear hand near the end, front hand 40 percent up) and head."""
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    L *= k; head = (hx + ux * L, hy + uy * L)
+    pn.line([(hx, hy), head], INK, 9 * k); pn.line([(hx, hy), head], WOOD, 6 * k)
+    pn.line([(hx + nx * 1.4 * k, hy + ny * 1.4 * k), (head[0] + nx * 1.4 * k, head[1] + ny * 1.4 * k)], light(WOOD, 0.3), 1.4 * k, caps=False)
+    hl = 42 * k
+    def hp(v, w):   # point along the head: v sideways (-1..1), curved back toward the handle at the tips
+        return (head[0] + nx * hl * v - ux * 9 * k * v * v + ux * w, head[1] + ny * hl * v - uy * 9 * k * v * v + uy * w)
+    upper = [hp(v / 10, 5 * k * (1 - abs(v / 10)) ** 0.6) for v in range(-10, 11)]
+    lower = [hp(v / 10, -5 * k * (1 - abs(v / 10)) ** 0.6) for v in range(10, -11, -1)]
+    pn.poly(upper + lower, fill=IRON, outline=INK, width=2.4 * k)
+    pn.line(upper[11:20], light(IRON, 0.45), 1.4 * k, caps=False)
+    pn.rect(head[0] - 6 * k, head[1] - 6 * k, head[0] + 6 * k, head[1] + 6 * k, fill=shade(IRON, 0.25), outline=INK, width=1.6 * k)
+    p1, p2 = upper[-1], upper[0]
+    return dict(rear=(hx + ux * 10 * k, hy + uy * 10 * k), front=(hx + ux * L * 0.42, hy + uy * L * 0.42), tip=p1, tip2=p2)
+
+def bil(pn, hx, hy, ang, L=170.0, k=1.0):
+    """Spade (bil, BM-P051): long straight wooden handle, flat iron blade with a step for the foot. Handle top at
+    (hx, hy); ang the shaft direction. Returns grips (top hand at the end, lower hand 45 percent down) and blade."""
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    L *= k; b0 = (hx + ux * L, hy + uy * L)
+    pn.line([(hx, hy), b0], INK, 9 * k); pn.line([(hx, hy), b0], WOOD, 6 * k)
+    pn.line([(hx + nx * 1.4 * k, hy + ny * 1.4 * k), (b0[0] + nx * 1.4 * k, b0[1] + ny * 1.4 * k)], light(WOOD, 0.3), 1.4 * k, caps=False)
+    bw, bl = 15 * k, 34 * k
+    blade = [(b0[0] + nx * bw, b0[1] + ny * bw), (b0[0] - nx * bw, b0[1] - ny * bw),
+             (b0[0] - nx * bw * 0.85 + ux * bl, b0[1] - ny * bw * 0.85 + uy * bl), (b0[0] + ux * (bl + 6 * k), b0[1] + uy * (bl + 6 * k)),
+             (b0[0] + nx * bw * 0.85 + ux * bl, b0[1] + ny * bw * 0.85 + uy * bl)]
+    pn.poly(blade, fill=IRON, outline=INK, width=2.4 * k)
+    pn.line([(b0[0] + nx * bw * 0.6, b0[1] + ny * bw * 0.6), (b0[0] + nx * bw * 0.5 + ux * bl * 0.8, b0[1] + ny * bw * 0.5 + uy * bl * 0.8)], light(IRON, 0.45), 1.4 * k, caps=False)
+    pn.line([(b0[0] + nx * (bw + 9 * k), b0[1] + ny * (bw + 9 * k)), (b0[0] + nx * bw, b0[1] + ny * bw)], WOOD_D, 5 * k)   # foot step
+    return dict(top=(hx + ux * 6 * k, hy + uy * 6 * k), low=(hx + ux * L * 0.45, hy + uy * L * 0.45), blade=b0)
+
+def sherbet_bowl(pn, cx, cy, r=30.0, ice=True, sherbet=SHERBET, spoon=False):
+    """Glazed bowl of sherbet with ice (BM-P053). (cx, cy) = rim centre. Light from the right."""
+    body = [(cx - r, cy)] + [(cx - r * math.cos(math.radians(a)), cy + r * 0.62 * math.sin(math.radians(a))) for a in range(0, 181, 12)] + [(cx + r, cy)]
+    pn.poly(body, fill=GLAZE, outline=INK, width=2.6)
+    pn.poly([(cx - r * 0.3, cy + 2)] + [(cx - r * 0.3 - r * 0.5 * math.cos(math.radians(a)) * 0.0 - r * 0.6 * math.cos(math.radians(a)), cy + r * 0.55 * math.sin(math.radians(a))) for a in range(0, 91, 15)],
+            fill=shade(GLAZE, 0.3))
+    pn.arc(cx + r * 0.2, cy + r * 0.18, r * 0.62, 300, 350, GLAZE_L, 2.4)
+    for a in range(30, 160, 32):   # painted band
+        px = cx - r * 0.8 * math.cos(math.radians(a)); py = cy + r * 0.3 * math.sin(math.radians(a))
+        pn.circ(px, py, r * 0.07, fill=(236, 230, 214))
+    pn.rect(cx - r * 0.34, cy + r * 0.6, cx + r * 0.34, cy + r * 0.72, fill=shade(GLAZE, 0.2), outline=INK, width=2)
+    pn.ell(cx, cy, r, r * 0.26, fill=sherbet, outline=INK, width=2.4)
+    pn.ell(cx + r * 0.1, cy - r * 0.02, r * 0.7, r * 0.14, fill=light(sherbet, 0.25))
+    if ice:
+        for dx_, dy_, w_ in ((-0.35, -0.02, 0.28), (0.12, -0.08, 0.32), (0.4, 0.02, 0.22)):
+            ice_block(pn, cx + dx_ * r, cy + dy_ * r - r * 0.06, w_ * r, w_ * r * 0.7, ang=dx_ * 20, seed=int(dx_ * 10 + 5))
+    if spoon:
+        pn.line([(cx + r * 0.3, cy), (cx + r * 1.1, cy - r * 0.7)], (160, 120, 70), 3)
+
+def radiation_arrows(pn, x0, x1, y_from, y_to, p=1.0, n=5, t=0.0, col=(246, 178, 52)):
+    """Night sky radiation diagram: wavy arrows rising from the water straight up into the clear sky."""
+    for i in range(n):
+        x = lerp(x0, x1, (i + 0.5) / n)
+        pp = clamp(p * 1.3 - i * 0.06)
+        if pp <= 0: continue
+        yt = lerp(y_from, y_to, pp)
+        pts = [(x + 9 * math.sin((y_from - yy) / 22.0 + t * 5 + i), yy) for yy in [lerp(y_from, yt, u / 24) for u in range(25)]]
+        pn.line(pts, col, 5, caps=False)
+        hx_, hy_ = pts[-1]
+        pn.poly([(hx_, hy_ - 16), (hx_ - 11, hy_ + 4), (hx_ + 11, hy_ + 4)], fill=col)
+
+def stars(pn, seed, n=80, y0=0, y1=900, t=0.0, x0=0, x1=1080):
+    rnd = random.Random(seed)
+    for i in range(n):
+        x, y = rnd.uniform(x0, x1), rnd.uniform(y0, y1); r = rnd.choice((1.2, 1.6, 2.2, 3.0))
+        tw_ = 0.7 + 0.3 * math.sin(t * rnd.uniform(1, 3) + i)
+        pn.circ(x, y, r, fill=(240, 240, 255, int(220 * tw_)))

@@ -691,7 +691,23 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
             for j in range(4):
                 q_ = lerp2_((nk[0] - ux * 14, nk[1] - uy * 14), hem, 0.08 + j * 0.24)
                 pn.circ(q_[0], q_[1], 1.8, fill=shade(O['tunic'], 0.5))
-        if not O.get('no_belt'):
+        if O.get('vest'):      # E022: sleeveless felt overcoat, open at the front, to the hip (BM-P050)
+            vc = O['vest']
+            for sd in (-1, 1):
+                pts_ = [(nk[0] + nx_ * sd * 8, nk[1] + ny_ * sd * 8), (nk[0] + nx_ * sd * 26 - ux * 2, nk[1] + ny_ * sd * 26 - uy * 2),
+                        (hem[0] + nx_ * sd * 33 + ux * 14, hem[1] + ny_ * sd * 33 + uy * 14), (hem[0] + nx_ * sd * 12 + ux * 12, hem[1] + ny_ * sd * 12 + uy * 12), (hem[0] + nx_ * sd * 12 + ux * 2, hem[1] + ny_ * sd * 12 + uy * 2)]
+                pn.poly(pts_, fill=vc if sd > 0 else shade(vc, 0.18), outline=INK, width=2.6)
+                for u_ in (0.3, 0.6):
+                    a_ = lerp2_(pts_[0], pts_[3], u_); b_ = lerp2_(pts_[1], pts_[2], u_)
+                    pn.line([lerp2_(a_, b_, 0.2), lerp2_(a_, b_, 0.8)], shade(vc, 0.3), 1.3, caps=False)
+        if O.get('sash'):      # E022: wide cloth sash wound at the waist, knotted, ends hanging (BM-P050)
+            sc_ = O['sash']
+            for w_, c_ in ((15, INK), (11, sc_)):
+                pn.line([(belt[0] - nx_ * 23, belt[1] - ny_ * 23), (belt[0] + nx_ * 23, belt[1] + ny_ * 23)], c_, w_, caps=False)
+            pn.line([(belt[0] - nx_ * 22, belt[1] - ny_ * 22 - 2), (belt[0] + nx_ * 22, belt[1] + ny_ * 22 - 2)], light(sc_, 0.3), 1.6, caps=False)
+            kx_, ky_ = belt[0] - nx_ * 10 * f, belt[1] - ny_ * 10 * f
+            pn.poly([(kx_ - 3, ky_), (kx_ + 3, ky_), (kx_ + 5 - ux * 22, ky_ - uy * 22), (kx_ - 1 - ux * 20, ky_ - uy * 20)], fill=shade(sc_, 0.12), outline=INK, width=2)
+        if not O.get('no_belt') and not O.get('sash'):
             bc_ = O.get('belt_col', (70, 46, 30))
             pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], INK, 7)
             pn.line([(belt[0] - nx_ * 21, belt[1] - ny_ * 21), (belt[0] + nx_ * 21, belt[1] + ny_ * 21)], bc_, 4)
@@ -867,6 +883,14 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         for i in range(9):
             xx = hx - r + i * r / 4
             pn.line([(xx, hy - r * .78 + 4), (xx + 4, hy - r * .78 + 18)], lerpc(O['fur'], INK, .3), 2, caps=False)
+    elif hat == 'feltcap':   # E022: rounded felt skull cap (kolah namadi), worn by Persian labourers (BM-P050)
+        c = O.get('cap', (132, 100, 66)); cy = hy - r * 0.5
+        dome = [(hx - r - 2, cy + 6)] + [(hx - (r + 2) * math.cos(math.radians(a)), cy + 6 - (r * 0.78) * math.sin(math.radians(a))) for a in range(15, 166, 15)] + [(hx + r + 2, cy + 6)]
+        pn.poly(dome, fill=c, outline=INK, width=3)
+        pn.poly([(hx + r * 0.15, cy - r * 0.72), (hx + r * 0.7, cy - r * 0.5), (hx + r + 1, cy + 4), (hx + r * 0.3, cy + 4)], fill=shade(c, 0.0))
+        pn.poly([(hx - r * 0.95, cy + 4), (hx - r * 0.75, cy - r * 0.42), (hx - r * 0.3, cy - r * 0.7), (hx - r * 0.2, cy + 4)], fill=shade(c, 0.2))
+        pn.line([(hx - r - 3, cy + 6), (hx + r + 3, cy + 6)], shade(c, 0.35), 5)
+        pn.line([(hx - r * 0.55, cy - r * 0.42), (hx + r * 0.1, cy - r * 0.62)], light(c, 0.35), 1.6, caps=False)
     if held and not arms_front: held(pn, J)
     pn.pop()
     SKIN = _skin0
@@ -892,4 +916,19 @@ OUT.update({
                     skin=(240, 220, 196), belt_col=(90, 60, 36), fibula=True),
     'kmod':    dict(tunic=(92, 118, 150), sleeve=(92, 118, 150), long_sleeve=True, collar=True, hose=(62, 82, 120), trousers=True,
                     boot=(236, 234, 228), sneaker=True, hat=None, hair=(92, 70, 50), glasses=True, belt_col=(80, 56, 36)),
+})
+
+# E022 Persian yakhchal: ice house workers (BM-P050) and the Keeper in Persian dress. Blue cotton shirt and loose
+# trousers, felt skull cap, cotton givehs (white shoes), wide sash; a sleeveless felt overcoat on some.
+_GIVEH = (236, 230, 214)
+OUT.update({
+    'pkeeper': dict(tunic=(70, 98, 150), sleeve=(70, 98, 150), long_sleeve=True, hose=(56, 72, 112), trousers=True, boot=_GIVEH,
+                    hat='feltcap', cap=(132, 100, 66), sash=(150, 58, 44), vest=(118, 92, 62), glasses=True),
+    'yakh1':   dict(tunic=(226, 220, 204), sleeve=(226, 220, 204), long_sleeve=True, hose=(52, 66, 104), trousers=True, boot=_GIVEH,
+                    hat='feltcap', cap=(216, 204, 176), sash=(64, 96, 72), skin=(206, 160, 118), beard=(34, 28, 24), beard_style='full'),
+    'yakh2':   dict(tunic=(98, 124, 164), sleeve=(98, 124, 164), long_sleeve=True, hose=(84, 74, 62), trousers=True, boot=(200, 186, 160),
+                    hat='feltcap', cap=(92, 70, 48), sash=(196, 168, 112), vest=(86, 68, 48), skin=(222, 182, 140),
+                    beard=(168, 164, 156), beard_style='mustache'),
+    'yakh3':   dict(tunic=(150, 112, 80), sleeve=(150, 112, 80), long_sleeve=True, hose=(62, 84, 128), trousers=True, boot=_GIVEH,
+                    hat='feltcap', cap=(70, 56, 44), sash=(120, 44, 40), skin=(190, 146, 108), beard=(28, 22, 20), beard_style='stubble'),
 })
