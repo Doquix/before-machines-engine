@@ -1429,3 +1429,123 @@ def stars(pn, seed, n=80, y0=0, y1=900, t=0.0, x0=0, x1=1080):
         x, y = rnd.uniform(x0, x1), rnd.uniform(y0, y1); r = rnd.choice((1.2, 1.6, 2.2, 3.0))
         tw_ = 0.7 + 0.3 * math.sin(t * rnd.uniform(1, 3) + i)
         pn.circ(x, y, r, fill=(240, 240, 255, int(220 * tw_)))
+
+def _ice_arrive_np(X, Y, x0, y0, x1, y1, seed):
+    W_, H_ = x1 - x0, y1 - y0
+    sx, sy = x0 + W_ * 0.62, y0 + H_ * 0.38; D = min(W_, H_) * 0.55
+    de = np.minimum(np.minimum(X - x0, x1 - X), np.minimum(Y - y0, y1 - Y))
+    ds = np.hypot(X - sx, Y - sy) * 1.1
+    n = 0.16 * np.sin(X * 0.011 + seed) * np.cos(Y * 0.009 - seed) + 0.03 * np.sin(X * 0.037 + Y * 0.031)
+    return np.clip(np.minimum(de, ds) / D + n, 0, 1.2)
+
+_ICEF = {}
+def ice_fill_image(freeze, x0, y0, x1, y1, seed=5):
+    """Smooth night water and clear ice as a full frame RGB image (drawn under the vector frost layer)."""
+    key = (x0, y0, x1, y1, seed)
+    if key not in _ICEF:
+        Y, X = np.mgrid[0:H:4, 0:W:4].astype(np.float32)
+        A = _ice_arrive_np(X, Y, x0, y0, x1, y1, seed)
+        g = (Y / H)[..., None]
+        water = np.array((8, 14, 34), np.float32) * (1 - g) + np.array((24, 40, 78), np.float32) * g
+        ice = water * 0.45 + np.array((64, 110, 150), np.float32) * 0.55
+        # gentle tone variation inside the ice (thickness)
+        v = (0.5 + 0.5 * np.sin(X * 0.006 + 1.3) * np.cos(Y * 0.004 + 0.4))[..., None]
+        ice = ice * (0.9 + 0.2 * v)
+        _ICEF[key] = (A, water, ice)
+    A, water, ice = _ICEF[key]
+    F_ = freeze * 1.2
+    m = np.clip((F_ - A) / 0.05, 0, 1)[..., None]
+    rim = np.clip(1 - np.abs(F_ - A - 0.02) / 0.02, 0, 1)[..., None] * 0.6
+    img = water * (1 - m) + ice * m
+    img = img * (1 - rim) + np.array((220, 240, 252), np.float32) * rim
+    return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).resize((W, H), Image.BILINEAR)
+
+def ice_surface(pn, x0, y0, x1, y1, freeze=1.0, t=0.0, seed=3, glint=None, stars=170, cell=30, fill=True):
+    """E022 hook (BM-P047 close up): water freezing at night, seen from just above. Dark water full of star
+    reflections; clear dark ice spreads in from the edges, laced with feather (dendrite) frost crystals that grow with
+    the front and stay as texture, trapped air bubbles in rows, hairline fractures, and a glint of light that sweeps
+    across. Night ice stays dark and see through, which is what reads as real ice. freeze 0..1. Needs lib.BLEND on."""
+    rnd = random.Random(seed)
+    W_, H_ = x1 - x0, y1 - y0
+    if fill:
+        for i in range(12):
+            yy0 = y0 + H_ * i / 12
+            pn.rect(x0, yy0, x1, yy0 + H_ / 12 + 1, fill=lerpc((8, 14, 34), (24, 40, 78), i / 11))
+    seeds = [(x0 + W_ * 0.62, y0 + H_ * 0.38)]
+    D = min(W_, H_) * 0.55
+    def arrive(px, py):
+        de = min(px - x0, x1 - px, py - y0, y1 - py)
+        ds = min(math.hypot(px - sx, py - sy) for sx, sy in seeds) * 1.1
+        n = 0.16 * math.sin(px * 0.011 + seed) * math.cos(py * 0.009 - seed) + 0.03 * math.sin(px * 0.037 + py * 0.031)
+        return clamp(min(de, ds) / D + n, 0, 1.2)
+    F_ = freeze * 1.2
+    # clear ice: slightly lighter, bluer than the water, opaque so overlaps never stack
+    nx, ny = (int(W_ / cell) + 2, int(H_ / cell) + 2) if fill else (0, 0)
+    for j in range(ny):
+        for i in range(nx):
+            px, py = x0 + i * cell, y0 + j * cell
+            a = arrive(px, py)
+            if F_ > a:
+                age = clamp((F_ - a) / 0.3)
+                base_ = lerpc((8, 14, 34), (24, 40, 78), (py - y0) / H_)
+                pn.circ(px, py, cell * 0.9, fill=lerpc(base_, (64, 110, 150), 0.35 + 0.3 * age))
+    # star reflections: bright in open water, softened under the ice
+    for i in range(stars):
+        sx, sy = rnd.uniform(x0, x1), rnd.uniform(y0, y1); r = rnd.choice((1.2, 1.6, 2.2, 3.0))
+        tw_ = 0.6 + 0.4 * math.sin(t * rnd.uniform(1, 3) + i)
+        iced = F_ > arrive(sx, sy)
+        pn.circ(sx, sy, r * (0.8 if iced else 1.0), fill=(230, 236, 255, int((120 if iced else 220) * tw_)))
+    # milky depth patches inside older ice
+    r2 = random.Random(seed + 1)
+    for _ in range(22):
+        px, py = r2.uniform(x0, x1), r2.uniform(y0, y1)
+        if F_ > arrive(px, py) + 0.2:
+            pn.ell(px, py, r2.uniform(70, 150), r2.uniform(18, 40), fill=(180, 214, 236, 34))
+    # feather crystals: each grows from its root once the ice reaches it and stays as frost texture
+    r3 = random.Random(seed + 2)
+    for k in range(150):
+        px, py = r3.uniform(x0, x1), r3.uniform(y0, y1)
+        a = arrive(px, py)
+        a0 = r3.uniform(0, 6.28); Lf = r3.uniform(50, 150)
+        if F_ <= a: continue
+        g = eo3(clamp((F_ - a) / 0.18))
+        L_ = Lf * g
+        ex, ey = px + math.cos(a0) * L_, py + math.sin(a0) * L_
+        hot = (F_ - a) < 0.12                      # just formed: brighter
+        al = 240 if hot else 170
+        pn.line([(px, py), (ex, ey)], (236, 248, 255, al), 2.8 if hot else 2.0, caps=False)
+        nb = 6
+        for qi in range(1, nb):
+            q = qi / nb
+            mx, my = lerp(px, ex, q), lerp(py, ey, q); bl = L_ * 0.32 * (1 - q * 0.6)
+            for sd in (-1, 1):
+                b = a0 + sd * 1.0
+                pn.line([(mx, my), (mx + math.cos(b) * bl, my + math.sin(b) * bl)], (214, 238, 252, al - 40), 1.5, caps=False)
+    # growth front: a thin bright rim where water is turning to ice right now (the fill image draws it when fill=False)
+    r6 = random.Random(seed + 6)
+    for _ in range(500 if fill else 0):
+        px, py = r6.uniform(x0, x1), r6.uniform(y0, y1)
+        a = arrive(px, py)
+        if 0 < F_ - a < 0.04: pn.circ(px, py, 2.4, fill=(240, 250, 255, 200))
+    # trapped air bubbles in short rows and hairline fractures, only in mature ice
+    r4 = random.Random(seed + 3)
+    for _ in range(30):
+        bx, by = r4.uniform(x0, x1), r4.uniform(y0, y1); ang = r4.uniform(-0.6, 0.6); nb_ = r4.randint(2, 5); rr = [r4.uniform(3, 8) for _m in range(nb_)]
+        if F_ > arrive(bx, by) + 0.3:
+            for m in range(nb_):
+                cx_, cy_ = bx + math.cos(ang) * m * 18, by + math.sin(ang) * m * 18
+                pn.ell(cx_, cy_, rr[m], rr[m] * 0.8, fill=(220, 238, 250, 150))
+                pn.circ(cx_ - rr[m] * 0.3, cy_ - rr[m] * 0.3, rr[m] * 0.32, fill=(255, 255, 255, 240))
+    r5 = random.Random(seed + 4)
+    for _ in range(8):
+        px, py = r5.uniform(x0, x1), r5.uniform(y0, y1); a = r5.uniform(0, 6.28); steps_ = [r5.uniform(-0.6, 0.6) for _s in range(6)]
+        if F_ > arrive(px, py) + 0.45:
+            pts = [(px, py)]
+            for da in steps_:
+                a += da; px += math.cos(a) * 46; py += math.sin(a) * 46; pts.append((px, py))
+            pn.line([(p[0] + 2, p[1] + 2) for p in pts], (255, 255, 255, 150), 1.4, caps=False)
+            pn.line(pts, (150, 196, 226, 220), 2.4, caps=False)
+    if glint is not None and 0 <= glint <= 1:
+        gx = lerp(x0 - W_ * 0.6, x1 + W_ * 0.3, glint)
+        for wdt, al in ((200, 26), (100, 46), (34, 110)):
+            pn.poly([(gx, y0), (gx + wdt, y0), (gx + wdt - H_ * 0.45, y1), (gx - H_ * 0.45, y1)], fill=(255, 255, 255, al))

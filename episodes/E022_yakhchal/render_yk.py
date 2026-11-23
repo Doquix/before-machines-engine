@@ -109,10 +109,12 @@ POOL1 = dict(x0=-60, x1=1140, yf=520, yn=1340, skew=90)
 def frost_at(t, t0):
     return clamp(0.18 + 0.82 * eo3(P(t, t0, 2.0)))
 def sc_pool_open(base, pn, t, loop=False):
-    base.paste(Image.new('RGBA', (W, H), (14, 18, 34, 255)))
     t0 = T['s21'] if loop else 0.0
-    PR.ice_pool(pn, POOL1['x0'], POOL1['x1'], POOL1['yf'], POOL1['yn'], skew=POOL1['skew'], water=1.0,
-                ice=0.04 + 0.6 * eo3(P(t, t0, 2.4)), stars=140, t=t, night=1.0, seed=4)
+    # the first frame already has crystals racing in from the edges; frozen solid by "frozen", glint on "frozen"
+    fr = lerp(0.24, 0.96, eo3(P(t, t0, (T['night0'] + 0.3) if not loop else 1.6)))
+    tg = T['frozen'] if not loop else T['night21']
+    base.paste(bg_cam(PR.ice_fill_image(fr, -40, -40, 1120, 1960, 5), 1.0))
+    PR.ice_surface(pn, -40, -40, 1120, 1960, freeze=fr, t=t, seed=5, fill=False, glint=P(t, tg - 0.1, 0.7) if t > tg - 0.1 else None)
 def cam_pool_open(t, sc_, ox, oy): return camfocus(lerp(1.08, 1.0, eio(P(t, 0, 2.6))) * sc_, 540, 930, 540, 930, ox, oy)
 def sc_loop(base, pn, t): sc_pool_open(base, pn, t, loop=True)
 def cam_loop(t, sc_, ox, oy): return camfocus(lerp(1.0, 1.08, eio(P(t, T['s21'], 1.8))) * sc_, 540, 930, 540, 930, ox, oy)
