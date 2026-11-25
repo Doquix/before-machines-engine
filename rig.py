@@ -41,6 +41,27 @@ def ik(sx, sy, tx, ty, l1, l2, f, bend=1):
     hx, hy = sx + dx / D * D2, sy + dy / D * D2
     return (ex, ey), (hx, hy)
 
+DEPTH_IK = False   # E023: set True so held arms bend into depth like a real arm (see ik_depth)
+
+def ik_depth(sx, sy, tx, ty, l1, l2, out, reach=0.92):
+    """Two bone IK that lets the arm use depth, the way a real arm does (E023, after the user's skeleton note). When the
+    hand is closer to the shoulder than a nearly straight arm, the missing length goes toward the viewer instead of
+    pushing the elbow sideways: the target gets a depth z so the 3D shoulder to hand distance is reach * (l1 + l2), the
+    elbow is solved in 3D with its pole pointing DOWN (and a little outward, out = +1 or -1 in screen x), and the
+    result is projected back. Upper arm hangs from the shoulder, elbow near the waist, forearm foreshortened forward."""
+    dx, dy = tx - sx, ty - sy; D = math.hypot(dx, dy); Lf = l1 + l2
+    if D >= reach * Lf - 1e-6:
+        return None
+    z = math.sqrt(max(0.0, (reach * Lf) ** 2 - D * D))
+    T = (dx, dy, z); Tn = math.sqrt(dx * dx + dy * dy + z * z); t = (dx / Tn, dy / Tn, z / Tn)
+    P = (0.28 * out, 1.0, 0.0)
+    pd = P[0] * t[0] + P[1] * t[1] + P[2] * t[2]
+    pp = (P[0] - pd * t[0], P[1] - pd * t[1], P[2] - pd * t[2]); pn_ = math.sqrt(sum(c * c for c in pp)) or 1
+    pp = tuple(c / pn_ for c in pp)
+    a = (l1 * l1 + Tn * Tn - l2 * l2) / (2 * Tn); r = math.sqrt(max(0.0, l1 * l1 - a * a))
+    e = tuple(a * t[i] + r * pp[i] for i in range(3))
+    return (sx + e[0], sy + e[1]), (tx, ty)
+
 def joints(p, f=1, legs=1.0, hands=None):
     th, sh = L['th'] * legs, L['sh'] * legs
     J = {}
@@ -68,6 +89,11 @@ def joints(p, f=1, legs=1.0, hands=None):
             if side in hands and hands[side] is not None:
                 # natural elbows: hang down when there is a choice, otherwise bend outward on their own side
                 out_ = f if side == 'F' else -f
+                if DEPTH_IK:
+                    r_ = ik_depth(*J['sh' + side], *hands[side], L['ua'], L['fa'], out_)
+                    if r_ is not None:
+                        J['el' + side], J['ha' + side] = r_
+                        continue
                 e1, h1 = ik(*J['sh' + side], *hands[side], L['ua'], L['fa'], out_)
                 e2, h2 = ik(*J['sh' + side], *hands[side], L['ua'], L['fa'], -out_)
                 if abs(e1[1] - e2[1]) > 10:

@@ -6,6 +6,8 @@ lib.BLEND = True
 from lib import *
 from rig import *
 import env, al, props as PR
+import rig
+rig.DEPTH_IK = True
 CAM.drift = 0; CAM.set(0)
 def page():
     im = env.get('parch').convert('RGBA'); lay = new_layer(); return im, lay, Pen(lay, cam=False)
@@ -56,4 +58,14 @@ figure(pn, 990, 1600, 1.2, -1, pose('idle'), 'gaulr3', 'neutral')
 lab(pn, 220, 1650, 'CAESAR (P061)', 22); lab(pn, 660, 1650, 'VERCINGETORIX (P062)', 22); lab(pn, 980, 1650, 'gaulr3', 20)
 flatten(im, lay); p2 = im.convert('RGB')
 out = Image.new('RGB', (2160, 1920)); out.paste(p1, (0, 0)); out.paste(p2, (1080, 0))
-out.save('e023_period_props.png'); print('ok')
+out.save('e023_period_props.png')
+# before and after: the same holds with the old flat solver and the depth solver
+im, lay, pn = page()
+lab(pn, 540, 60, 'ARMS: FLAT SOLVER (LEFT) VS DEPTH SOLVER (RIGHT)', 30)
+for row, fn in enumerate((lambda x, y: al.verc_surrender(pn, x, y, 1.6, lay=0.0), lambda x, y: al.legionary_basket(pn, x, y, 1.6),
+                          lambda x, y: al.gaul_charge(pn, x, y, 1.6, 'gaulr1'))):
+    y = 620 + row * 600
+    pn.line([(30, y), (1050, y)], INK, 3)
+    rig.DEPTH_IK = False; fn(270, y)
+    rig.DEPTH_IK = True; fn(810, y)
+flatten(im, lay); im.convert('RGB').save('e023_arm_fix.png'); print('ok')
