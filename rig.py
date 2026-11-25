@@ -41,7 +41,7 @@ def ik(sx, sy, tx, ty, l1, l2, f, bend=1):
     hx, hy = sx + dx / D * D2, sy + dy / D * D2
     return (ex, ey), (hx, hy)
 
-DEPTH_IK = False   # E023: set True so held arms bend into depth like a real arm (see ik_depth)
+DEPTH_IK = True    # E023 user rule: arms bend at real joints (shoulder, elbow) into depth, never sideways like ">" (see ik_depth)
 
 def ik_depth(sx, sy, tx, ty, l1, l2, out, reach=0.92):
     """Two bone IK that lets the arm use depth, the way a real arm does (E023, after the user's skeleton note). When the

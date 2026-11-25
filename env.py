@@ -285,3 +285,36 @@ def env_yksummer():
     _ykmount(im, 1060, (214, 192, 150), 9, 26)
     d = ImageDraw.Draw(im); d.rectangle([0, 1100, W, H], fill=(226, 196, 140))
     return grade(im, blur=4, sat=0.85, bright=1.02)
+
+# ---------------- E023 Alesia, Burgundy, late summer 52 BC ----------------
+def env_alday():
+    """Late summer day in the Auxois hills: soft blue sky, rolling green and gold hills, a hazy far ridge."""
+    im = sky((132, 168, 204), (230, 226, 206), (40, 30, 0), 0.5)
+    clouds(im, 23, (252, 250, 244, 120), n=6, y0=220, y1=700)
+    hill_layer(im, 960, 60, (128, 146, 150), 3, freqs=(0.5, 1.2, 2.4, 4.0))
+    hill_layer(im, 1040, 50, (128, 146, 96), 7, freqs=(0.5, 1.2, 2.4, 4.0))
+    hill_layer(im, 1110, 30, (150, 156, 90), 11, freqs=(0.5, 1.2, 2.4, 4.0))
+    d = ImageDraw.Draw(im); d.rectangle([0, 1160, W, H], fill=(140, 150, 86))
+    return grade(im, blur=3.5, sat=0.8)
+
+def env_alnight():
+    """Moonlit night over the hills: deep blue, stars, a moon low on the right, black hill shapes."""
+    im = sky((10, 16, 36), (40, 56, 90), (20, 24, 40), 0.7)
+    _ykstars(im, 29, n=260, band=False)
+    dm = ImageDraw.Draw(im, 'RGBA')
+    dm.ellipse([780, 300, 880, 400], fill=(236, 232, 210, 255))
+    lay = Image.new('RGBA', im.size, (0, 0, 0, 0)); dl = ImageDraw.Draw(lay); dl.ellipse([700, 220, 960, 480], fill=(220, 220, 200, 50))
+    im.alpha_composite(lay.filter(ImageFilter.GaussianBlur(40)))
+    hill_layer(im, 980, 60, (26, 32, 50), 3, freqs=(0.5, 1.2, 2.4, 4.0))
+    hill_layer(im, 1060, 45, (32, 40, 52), 7, freqs=(0.5, 1.2, 2.4, 4.0))
+    d = ImageDraw.Draw(im); d.rectangle([0, 1120, W, H], fill=(34, 42, 50))
+    return grade(im, blur=1.2, sat=1.0, bright=1.0, cap=True)
+
+def env_aldusk():
+    """Battle at dusk: smoky orange sky, dark hills, haze."""
+    im = sky((90, 70, 76), (232, 150, 96), (90, 40, 10), 0.6)
+    clouds(im, 31, (120, 90, 90, 110), n=7, y0=200, y1=800)
+    hill_layer(im, 980, 60, (96, 74, 78), 3, freqs=(0.5, 1.2, 2.4, 4.0))
+    hill_layer(im, 1060, 45, (88, 80, 62), 7, freqs=(0.5, 1.2, 2.4, 4.0))
+    d = ImageDraw.Draw(im); d.rectangle([0, 1120, W, H], fill=(98, 96, 62))
+    return grade(im, blur=3.0, sat=0.85)
