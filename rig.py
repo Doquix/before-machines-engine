@@ -460,7 +460,9 @@ def lion(pn, x, y, s):
 def _ell_pts(cx, cy, rx, ry, a0, a1, n=18):
     return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
-def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3):
+def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3, style=None):
+    if style == 'celtic':
+        return celtic_shield(pn, sx, sy, col, f, seed=seed)
     """Mid Republican scutum after Polybius 6.23: curved oval board covered in hide, wooden spine, iron rim at the
     top and bottom edges, iron boss. Light from the upper left; the right side turns away into shade."""
     L = lod(pn, 2 * ry)
@@ -488,6 +490,24 @@ def scutum(pn, sx, sy, col, f=1, rx=30, ry=58, seed=3):
     if L >= 2:
         scratches(pn, sx - 10, sy - 26, ry, seed)
         scratches(pn, sx + 8, sy + 28, ry, seed + 4, n=2)
+
+def celtic_shield(pn, sx, sy, col, f=1, rx=27, ry=62, seed=3):
+    """E023 (BM-P064): La Tene Gallic shield: tall flat oval board of planks covered in hide, a wooden spine (spina) down
+    the middle swelling into a spindle shaped boss over the grip, with an iron band boss across it; painted. Flatter than
+    the Roman scutum, so less curvature shading. Held by a horizontal grip behind the boss."""
+    pn.ell(sx + f * 5, sy + 6, rx, ry, fill=(20, 14, 10, 60))
+    pn.ell(sx, sy, rx, ry, fill=col, outline=INK, width=3.4)
+    pn.poly(_ell_pts(sx, sy, rx - 2, ry - 2, -70, 70) + _ell_pts(sx + rx * 0.5, sy, rx * 0.4, ry * 0.9, 70, -70), fill=shade(col, 0.18))
+    # painted curvilinear motif (simplified La Tene scrolls)
+    for sd in (-1, 1):
+        pn.arc(sx + sd * rx * 0.45, sy + sd * ry * 0.35, rx * 0.35, 200 if sd > 0 else 20, 340 if sd > 0 else 160, light(col, 0.5), 3)
+        pn.arc(sx - sd * rx * 0.4, sy + sd * ry * 0.55, rx * 0.25, 20 if sd > 0 else 200, 200 if sd > 0 else 380, light(col, 0.5), 3)
+    # spine and spindle boss
+    pn.line([(sx, sy - ry + 8), (sx, sy + ry - 8)], shade(col, 0.45), 5, caps=False)
+    pn.line([(sx - 1.6, sy - ry + 9), (sx - 1.6, sy + ry - 9)], light(col, 0.3), 1.4, caps=False)
+    pn.poly([(sx, sy - 24), (sx + 8, sy - 6), (sx + 8, sy + 6), (sx, sy + 24), (sx - 8, sy + 6), (sx - 8, sy - 6)], fill=shade(col, 0.2), outline=INK, width=2.4)
+    pn.rect(sx - 12, sy - 4, sx + 12, sy + 4, fill=IRON, outline=INK, width=2)
+    for xx in (-9, 9): pn.circ(sx + xx, sy, 1.6, fill=light(IRON, 0.5))
 
 def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 0), blink=0.0, legs=1.0,
            hands=None, held=None, back=None, arms_front=None, alpha=255, shadow=True, grip=None, shield=True,
@@ -648,6 +668,13 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
                 pn.line([(nk[0] + nx_ * sd * 20, nk[1] + ny_ * sd * 20), (c_[0] + nx_ * sd * 13 + ux * 13, c_[1] + ny_ * sd * 13 + uy * 13)], (90, 60, 36), 3.4)
             pn.poly(sq, fill=(196, 146, 66), outline=INK, width=2.8)
             pn.circ(c_[0], c_[1], 4, fill=(150, 104, 44))
+        if O.get('muscle'):    # E023 (BM-P061): muscled cuirass: pectoral arcs, abdominal line, lit edge
+            mc = shade(O['tunic'], 0.35)
+            for sd in (-1, 1):
+                c0 = (lerp(nk[0], pl[0], 0.22) + nx_ * sd * 10, lerp(nk[1], pl[1], 0.22) + ny_ * sd * 10)
+                pn.arc(c0[0], c0[1], 11, 20, 160, mc, 2.6)
+            pn.line([(lerp(nk[0], pl[0], 0.36), lerp(nk[1], pl[1], 0.36)), (lerp(nk[0], pl[0], 0.8), lerp(nk[1], pl[1], 0.8))], mc, 2, caps=False)
+            pn.arc(lerp(nk[0], pl[0], 0.6), lerp(nk[1], pl[1], 0.6), 14, 30, 150, mc, 2)
         if O.get('cross'):     # red cross of St George, worn by the English army in France (ordinance of 1385)
             cc = O['cross']; c_ = (lerp(nk[0], pl[0], 0.42), lerp(nk[1], pl[1], 0.42))
             pn.line([(nk[0] - ux * 8, nk[1] - uy * 8), (lerp(nk[0], pl[0], 0.8), lerp(nk[1], pl[1], 0.8))], cc, 8, caps=False)
@@ -718,7 +745,7 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         sh_, el_ = J['shB'], J['elB']
         limb(pn, [sh_, (lerp(sh_[0], el_[0], 0.38), lerp(sh_[1], el_[1], 0.38))], O['sleeve'], 12)
         sx_, sy_ = J['haB']
-        scutum(pn, sx_, sy_, O['scutum'], f)
+        scutum(pn, sx_, sy_, O['scutum'], f, style=O.get('shield_style'))
     if mid: mid(pn, J)
     if arms_front:
         if held: held(pn, J)          # the prop sits under the hands
@@ -742,6 +769,11 @@ def figure(pn, x, y, k, f=1, p='idle', out='keeper', expr='neutral', look=(0.6, 
         hx_, hy_ = J['ha' + s]
         if not LINE_LIMBS: pn.circ(hx_, hy_, 5.2, fill=BONE, outline=INK, width=2.4)
         elif not (hands and s in hands): line_hand(pn, J['ha' + s], J['el' + s], f if s == 'F' else -f)
+    if O.get('torc'):      # E023 (BM-P062): twisted gold neck ring with knobbed terminals, open at the front
+        nk_ = J['neck']
+        pn.arc(nk_[0], nk_[1] - 2, 17, 20, 160, INK, 8); pn.arc(nk_[0], nk_[1] - 2, 17, 20, 160, (214, 170, 70), 5)
+        for a_ in (20, 160):
+            pn.circ(nk_[0] + 17 * math.cos(math.radians(a_)), nk_[1] - 2 + 17 * math.sin(math.radians(a_)), 4.2, fill=(230, 190, 90), outline=INK, width=1.6)
     # head and headwear
     hx, hy = J['head']; r = L['head']
     hat = O['hat']
@@ -933,4 +965,21 @@ OUT.update({
                     beard=(168, 164, 156), beard_style='mustache'),
     'yakh3':   dict(tunic=(150, 112, 80), sleeve=(150, 112, 80), long_sleeve=True, hose=(62, 84, 128), trousers=True, boot=_GIVEH,
                     hat='feltcap', cap=(70, 56, 44), sash=(120, 44, 40), skin=(190, 146, 108), beard=(28, 22, 20), beard_style='stubble'),
+})
+
+# E023 Caesar's double walls at Alesia, 52 BC. Legionaries reuse BM-P037/BM-P038 (Montefortino, mail) with the Republican
+# scutum (BM-P065); Gauls reuse BM-P039 with the La Tene shield (BM-P064); Caesar (BM-P061) and Vercingetorix (BM-P062).
+OUT.update({
+    'rkeep23': dict(OUT['rkeep21']),
+    'rleg23a': dict(OUT['rcrew21'], scutum=(150, 58, 44)),
+    'rleg23b': dict(OUT['rcrew21'], tunic=(150, 58, 44), sleeve=(150, 58, 44), skin=(190, 146, 108), beard=None, beard_style=None, scutum=(132, 54, 40)),
+    'rleg23c': dict(OUT['rcrew21'], skin=(232, 196, 160), beard=(120, 80, 46), beard_style='short'),
+    'caesar23': dict(tunic=(190, 142, 70), sleeve=(186, 60, 48), hose=BONE, boot=(96, 66, 40), hat=None, hair=(70, 52, 38),
+                     ptery=(236, 226, 200), skirt=(186, 60, 48), muscle=True, cloak=(176, 40, 36), skin=(222, 184, 146)),
+    'verc23': dict(OUT['gaul1'], lorica=True, torc=True, cloak=(60, 80, 120), hair=(176, 120, 64), beard=(176, 120, 64), beard_style='walrus',
+                   scutum=(150, 60, 44), shield_style='celtic', skin=(238, 210, 178)),
+    'gaulr1': dict(OUT['gaul1'], scutum=(170, 140, 80), shield_style='celtic'),
+    'gaulr2': dict(OUT['gaul2'], scutum=(60, 90, 120), shield_style='celtic'),
+    'gaulr3': dict(OUT['gaul3'], scutum=(140, 50, 40), shield_style='celtic', torc=True),
+    'gcav23': dict(OUT['gaul2'], cloak=(110, 50, 40), torc=True),
 })

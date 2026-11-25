@@ -1549,3 +1549,444 @@ def ice_surface(pn, x0, y0, x1, y1, freeze=1.0, t=0.0, seed=3, glint=None, stars
         gx = lerp(x0 - W_ * 0.6, x1 + W_ * 0.3, glint)
         for wdt, al in ((200, 26), (100, 46), (34, 110)):
             pn.poly([(gx, y0), (gx + wdt, y0), (gx + wdt - H_ * 0.45, y1), (gx - H_ * 0.45, y1)], fill=(255, 255, 255, al))
+
+
+# ===== horse, copied from the e018-mongol-bow branch (BM-P012) with a Celtic horned saddle option for E023 =====
+# ---------------- the steppe horse (BM-P012), side view, facing f ----------------
+HORSE = (152, 108, 68); HORSE_D = (116, 80, 50); MANE = (54, 40, 30); HOOF = (60, 48, 40)
+SADDLE = (150, 52, 40); SADDLE_D = (60, 34, 26); FELT = (196, 180, 146)
+
+def smooth(pts, closed=True, n=5):
+    """Catmull Rom resample of a control polygon, for organic outlines (horse, cloth)."""
+    P_ = list(pts); m = len(P_); out = []
+    rng = range(m) if closed else range(m - 1)
+    for i in rng:
+        p0 = P_[(i - 1) % m] if closed or i > 0 else P_[0]
+        p1 = P_[i]; p2 = P_[(i + 1) % m]
+        p3 = P_[(i + 2) % m] if closed or i + 2 < m else P_[-1]
+        for j in range(n):
+            t = j / n; t2 = t * t; t3 = t2 * t
+            out.append(tuple(0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2
+                                    + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3) for k in (0, 1)))
+    if not closed: out.append(P_[-1])
+    return out
+
+def _taper(pn, pts, w0, w1, col, outline=2.6):
+    """Tapered limb through a polyline: width w0 at the start to w1 at the end, rounded joints."""
+    L_ = len(pts)
+    left, right = [], []
+    for i, (x, y) in enumerate(pts):
+        a = pts[max(0, i - 1)]; b = pts[min(L_ - 1, i + 1)]
+        tx, ty = b[0] - a[0], b[1] - a[1]; Ln = math.hypot(tx, ty) or 1
+        nx, ny = -ty / Ln, tx / Ln
+        w = lerp(w0, w1, i / (L_ - 1)) / 2
+        left.append((x + nx * w, y + ny * w)); right.append((x - nx * w, y - ny * w))
+    pn.poly(left + right[::-1], fill=col, outline=INK, width=outline)
+
+def _seg_pts(p0, angs, lens, f):
+    pts = [p0]
+    for a, l in zip(angs, lens):
+        r = math.radians(a); x, y = pts[-1]
+        pts.append((x + f * math.sin(r) * l, y + math.cos(r) * l))
+    return pts
+
+def horse(pn, x, y, k, f=1, ph=0.0, gallop=1.0, saddle=True, rider_far=None, rider_near=None, col=HORSE, hl_saddle=0.0,
+          stirrup=True, reins_to=None, head_a=0.0, stirrup_at=None, saddle_type='steppe'):
+    """Small Mongol steppe horse (about 13 hands, about 130 cm at the withers) in a gallop (gallop 0 stands square).
+    Wooden frame saddle with a high narrow pommel and lower cantle over a felt pad, short iron stirrups, bridle with bit.
+    rider_far / rider_near(pn) draw between the layers. Returns the seat and stirrup points (world)."""
+    pn.push(x, y, k)
+    g = gallop
+    w2 = 2 * math.pi
+    bob = -9 * g * (0.5 + 0.5 * math.sin(w2 * ph - 0.4))
+    pitch = math.radians(5 * g * math.sin(w2 * ph + 0.9))
+    def R(px, py, cx=0.0, cy=-160.0):
+        dx, dy = px - cx, py - cy
+        ca, sa = math.cos(pitch), math.sin(pitch)
+        X_ = cx + dx * ca - dy * sa; Y_ = cy + dx * sa + dy * ca + bob
+        return (X_ * f, Y_)
+    cd = shade(col, 0.24)
+    def leg(kind, o, colr):
+        u = w2 * (ph + o)
+        sw = math.sin(u) * g                      # + forward reach, - pushed back
+        fold = g * max(0.0, math.cos(u)) ** 1.5   # folding while it swings forward
+        if kind == 'hind':
+            p0 = R(-78, -150)
+            angs = [24 + 26 * sw, -24 - 34 * fold + 14 * sw, 6 + 40 * fold + 10 * sw, 24 + 30 * fold]
+            pts = _seg_pts(p0, angs, (50, 50, 46, 16), f)
+            ws = (46, 24, 14, 13)
+        else:
+            p0 = R(74, -146)
+            angs = [-8 + 30 * sw, 2 + 26 * sw + 70 * fold, 2 + 26 * sw + 40 * fold, 26 + 20 * fold]
+            pts = _seg_pts(p0, angs, (34, 52, 44, 16), f)
+            ws = (40, 22, 13, 13)
+        # ground contact: lift the whole leg so the hoof never sinks below the ground
+        _taper(pn, pts[:3], ws[0], ws[1], colr)
+        _taper(pn, pts[1:4], ws[1], ws[2], colr)
+        _taper(pn, pts[3:5], ws[2], ws[3], colr, 2.2)
+        hx3, hy3 = pts[-1]; a_ = math.radians(angs[-1])
+        pn.poly([(hx3 - 7, hy3 - 3), (hx3 + 7, hy3 - 3), (hx3 + 9, hy3 + 8), (hx3 - 9, hy3 + 8)], fill=HOOF, outline=INK, width=2)
+        pn.circ(pts[3][0], pts[3][1], ws[2] * 0.62, fill=colr)     # fetlock
+        return pts[-1]
+    # far legs
+    leg('hind', 0.0, cd); leg('fore', 0.42, cd)
+    if rider_far: rider_far(pn)
+    # tail: long, flowing back in the gallop
+    sw_ = math.sin(w2 * ph) * 8 * g
+    tail = smooth([R(-112, -196), R(-150, -188 + sw_ - 20 * g), R(-186, -150 + sw_ - 30 * g), R(-200, -104 + sw_ - 30 * g),
+                   R(-176, -112 + sw_ - 20 * g), R(-150, -150), R(-120, -176)], True, 5)
+    pn.poly(tail, fill=MANE, outline=INK, width=2.6)
+    # body, neck and head in one smooth outline
+    ha = head_a + 6 * g * math.sin(w2 * ph + 2.0)
+    def Hd(px, py):   # head and upper neck nod about the neck base
+        a = math.radians(ha); cx, cy = 60, -200
+        dx, dy = px - cx, py - cy
+        return R(cx + dx * math.cos(a) - dy * math.sin(a), cy + dx * math.sin(a) + dy * math.cos(a))
+    outline_ = [R(-118, -196), R(-92, -212), R(-50, -210), R(-6, -200), R(40, -208), Hd(70, -222), Hd(98, -250), Hd(124, -282),
+                Hd(140, -290), Hd(156, -280), Hd(184, -246), Hd(204, -226), Hd(210, -208), Hd(198, -198), Hd(174, -202),
+                Hd(150, -214), Hd(134, -236), Hd(124, -222), R(112, -186), R(110, -154), R(98, -118), R(60, -102), R(0, -98),
+                R(-56, -104), R(-96, -124), R(-124, -160)]
+    body = smooth(outline_, True, 6)
+    pn.poly(body, fill=col, outline=INK, width=3)
+    # shading: belly and under the neck, lit back line
+    pn.poly(smooth([R(-96, -132), R(-56, -116), R(0, -110), R(60, -114), R(94, -126), R(60, -130), R(0, -126), R(-56, -130)], True, 4),
+            fill=shade(col, 0.16))
+    pn.line(smooth([R(-84, -204), R(-40, -204), R(0, -194), R(36, -200)], False, 5), light(col, 0.3), 2.6, caps=False)
+    pn.line(smooth([R(-70, -190), R(-96, -170), R(-104, -140)], False, 4), shade(col, 0.2), 2.2, caps=False)   # hip line
+    pn.line(smooth([R(92, -190), R(84, -160), R(88, -134)], False, 4), shade(col, 0.2), 2.2, caps=False)       # shoulder
+    # ear, eye, nostril, mouth
+    pn.poly([Hd(128, -286), Hd(128, -310), Hd(142, -290)], fill=col, outline=INK, width=2.4)
+    pn.circ(*Hd(160, -262), 4.2, fill=INK); pn.circ(*Hd(158.5, -263.5), 1.3, fill=WHITE)
+    pn.ell(*Hd(201, -220), 3.2, 2.2, fill=shade(col, 0.55))
+    pn.line([Hd(196, -205), Hd(206, -207)], INK, 2, caps=False)
+    # mane: thick, upright, dark
+    mn = []
+    for i in range(9):
+        t_ = i / 8
+        bx, by = lerp(44, 128, t_), lerp(-208, -286, t_) - 6 * math.sin(t_ * math.pi)
+        mn.append(Hd(bx - 4, by - 14 - 4 * (i % 2)))
+    pn.poly([Hd(40, -204)] + mn + [Hd(134, -284), Hd(120, -262), Hd(82, -226)], fill=MANE, outline=INK, width=2.4)
+    pn.poly([Hd(126, -288), Hd(146, -296), Hd(140, -280)], fill=MANE, outline=INK, width=2)                  # forelock
+    # bridle and bit
+    pn.line([Hd(134, -282), Hd(150, -246), Hd(196, -212)], SADDLE_D, 3.2, caps=False)
+    pn.line([Hd(150, -246), Hd(178, -240)], SADDLE_D, 3.2, caps=False)
+    pn.circ(*Hd(196, -212), 3.6, fill=IRON, outline=INK, width=1.4)
+    seat = R(8, -216)
+    if saddle and saddle_type == 'horned':
+        # E023 (BM-P060): Celtic four horned saddle on a cloth: two horns at the front leaning out over the thighs, two at
+        # the back; no stirrups (not used in Europe until centuries later)
+        sc = lerpc((120, 84, 52), AMBER, hl_saddle) if hl_saddle else (120, 84, 52)
+        pn.poly(smooth([R(-50, -204), R(54, -208), R(60, -166), R(-54, -162)], True, 3), fill=(150, 60, 44), outline=INK, width=2.4)
+        pn.line([R(-48, -170), R(56, -172)], (220, 190, 120), 3, caps=False)                                   # cloth border
+        pn.line([R(30, -172), R(36, -110)], SADDLE_D, 6, caps=False)                                           # girth
+        pn.poly(smooth([R(-36, -206), R(40, -208), R(44, -196), R(-38, -194)], True, 3), fill=sc, outline=INK, width=2.4)
+        for hx_, lean in ((34, 10), (-30, -10)):
+            pn.poly([R(hx_ - 6, -206), R(hx_ + lean - 4, -236), R(hx_ + lean + 6, -238), R(hx_ + 8, -206)], fill=sc, outline=INK, width=2.4)
+            pn.circ(*R(hx_ + lean + 1, -238), 4.4, fill=(196, 150, 72), outline=INK, width=1.4)
+        pn.line([R(-20, -214), R(26, -214)], shade(sc, 0.4), 4, caps=False)
+    elif saddle:
+        sc = lerpc(SADDLE, AMBER, hl_saddle) if hl_saddle else SADDLE
+        pn.poly(smooth([R(-44, -204), R(50, -208), R(56, -170), R(-48, -166)], True, 3), fill=FELT, outline=INK, width=2.4)
+        pn.line([R(32, -172), R(38, -110)], SADDLE_D, 6, caps=False)                                           # girth
+        pn.poly([R(-30, -210), R(38, -212), R(42, -200), R(-32, -198)], fill=sc, outline=INK, width=2.4)      # side bars
+        pn.poly([R(28, -208), R(32, -242), R(44, -244), R(46, -208)], fill=sc, outline=INK, width=2.4)        # high pommel
+        pn.poly([R(-32, -206), R(-34, -228), R(-22, -230), R(-18, -208)], fill=sc, outline=INK, width=2.4)    # lower cantle
+        pn.line([R(-20, -216), R(30, -216)], shade(sc, 0.4), 4, caps=False)
+    if reins_to is not None:
+        rt = ((reins_to[0] - x) / k, (reins_to[1] - y) / k)
+        pn.line([Hd(196, -212), Hd(150, -228), rt], SADDLE_D, 2.4, caps=False)
+    # near legs over the body
+    leg('hind', 0.10, col); leg('fore', 0.55, col)
+    st_ = None
+    if saddle and stirrup and saddle_type != 'horned':
+        st_ = R(22, -156) if stirrup_at is None else (stirrup_at[0], stirrup_at[1] + 4)
+        pn.line([R(6, -208), st_], SADDLE_D, 3.2, caps=False)
+        pn.poly([(st_[0] - 9, st_[1]), (st_[0] + 9, st_[1]), (st_[0] + 6, st_[1] + 11), (st_[0] - 6, st_[1] + 11)], outline=INK, width=3)
+        pn.line([(st_[0] - 8, st_[1] + 11), (st_[0] + 8, st_[1] + 11)], IRON, 4, caps=False)
+    if rider_near: rider_near(pn)
+    pn.pop()
+    sx, sy = seat
+    return dict(seat=(x + sx * k, y + sy * k), stirrup=(x + st_[0] * k, y + st_[1] * k) if st_ else None, bob=bob)
+
+
+
+# ======================================================================================================
+# E023 Caesar's double walls at Alesia, 52 BC (BM-P054 to BM-P059, BM-P063): the siege line in section and elevation,
+# timber towers, cippi, lilia, stimuli, dolabra, wicker basket, folding camp stool. Sizes in metres times s (px per m),
+# Roman foot (pes) = 0.296 m. Light from screen right.
+# ======================================================================================================
+PES = 0.296
+EARTH = (150, 116, 78); EARTH_D = (112, 84, 54); EARTH_L = (186, 152, 106); TURF = (104, 124, 64)
+TIMBER = (132, 94, 58); TIMBER_D = (92, 64, 38); TIMBER_L = (176, 136, 90)
+WICKER = (170, 130, 76); WICKER_D = (120, 88, 50)
+BRUSH = (96, 104, 58)
+
+def _grain(pn, a, b, col, n=2, seed=0):
+    rnd = random.Random(seed)
+    for i in range(n):
+        o = rnd.uniform(-0.3, 0.3)
+        pn.line([(lerp(a[0], b[0], 0.1) + o * 4, lerp(a[1], b[1], 0.1)), (lerp(a[0], b[0], 0.9) + o * 4, lerp(a[1], b[1], 0.9))], col, 1.1, caps=False)
+
+def post(pn, x0, y0, x1, y1, w, col=TIMBER, seed=0):
+    """Squared timber between two points, two tones, grain."""
+    ang = math.atan2(y1 - y0, x1 - x0); nx, ny = -math.sin(ang) * w / 2, math.cos(ang) * w / 2
+    pn.poly([(x0 + nx, y0 + ny), (x1 + nx, y1 + ny), (x1 - nx, y1 - ny), (x0 - nx, y0 - ny)], fill=col, outline=INK, width=2.2)
+    pn.poly([(x0 + nx * 0.2, y0 + ny * 0.2), (x1 + nx * 0.2, y1 + ny * 0.2), (x1 - nx, y1 - ny), (x0 - nx, y0 - ny)], fill=light(col, 0.18))
+    _grain(pn, (x0, y0), (x1, y1), shade(col, 0.3), 1, seed)
+
+def cervus(pn, x, y, s, ang=-35, L=2.2, seed=0):
+    """Cervus: a big forked branch, sharpened, set at the foot of the breastwork pointing out like antlers (Caesar 7.72)."""
+    rnd = random.Random(seed); a = math.radians(ang)
+    ex, ey = x + math.cos(a) * L * s, y + math.sin(a) * L * s
+    pn.line([(x, y), (ex, ey)], INK, max(3, 0.16 * s)); pn.line([(x, y), (ex, ey)], TIMBER_D, max(2, 0.1 * s))
+    for q in (0.45, 0.7):
+        mx, my = lerp(x, ex, q), lerp(y, ey, q)
+        for sd in (-1, 1):
+            b = a + sd * rnd.uniform(0.4, 0.7); bl = L * s * rnd.uniform(0.2, 0.32)
+            pn.line([(mx, my), (mx + math.cos(b) * bl, my + math.sin(b) * bl)], INK, max(2.4, 0.1 * s))
+            pn.line([(mx, my), (mx + math.cos(b) * bl, my + math.sin(b) * bl)], TIMBER_D, max(1.4, 0.06 * s))
+
+def breastwork(pn, x0, x1, y, s, h=1.5, merlon=0.9, gap=0.6, night=0.0):
+    """Lorica and pinnae (Caesar 7.72): a wicker breastwork on top of the rampart with battlements (merlons of hurdles)."""
+    col = lerpc(WICKER, (60, 60, 80), 0.6 * night); cd = lerpc(WICKER_D, (40, 40, 56), 0.6 * night)
+    pn.rect(x0, y - h * 0.55 * s, x1, y, fill=col, outline=INK, width=2.4)
+    x = x0
+    while x < x1 - 0.1 * s:
+        xe = min(x1, x + merlon * s)
+        pn.rect(x, y - h * s, xe, y - h * 0.55 * s + 1, fill=col, outline=INK, width=2.4)
+        x = xe + gap * s
+    # weave: horizontal withies with uprights (stakes) showing
+    for j in range(1, int(h / 0.18)):
+        yy = y - j * 0.18 * s
+        pn.line([(x0 + 2, yy), (x1 - 2, yy)], cd, max(1, 0.05 * s), caps=False)
+    for i in range(int((x1 - x0) / (0.35 * s)) + 1):
+        xx = x0 + i * 0.35 * s
+        pn.line([(xx, y - 0.04 * s), (xx, y - h * 0.55 * s)], shade(col, 0.35), max(1, 0.05 * s), caps=False)
+
+def roman_tower(pn, x, y, s, h=6.0, w=3.0, night=0.0, seed=0):
+    """Timber tower on the rampart (Caesar 7.72: towers every 80 feet). Four posts, cross braces, a fighting platform with
+    a plank and wicker parapet, a pent roof of boards; ladder inside. (x, y) = base centre on the rampart top.
+    Reconstruction after the MuseoParc Alesia rebuilt section (VERIFY proportions)."""
+    col = lerpc(TIMBER, (60, 60, 80), 0.6 * night)
+    for px in (-w / 2, w / 2):
+        post(pn, x + px * s, y, x + px * s * 0.94, y - h * s, max(4, 0.26 * s), col, seed)
+    for k_ in range(2):
+        y0, y1 = y - k_ * h * 0.42 * s, y - (k_ + 1) * h * 0.42 * s
+        pn.line([(x - w / 2 * s, y0), (x + w / 2 * s, y1)], shade(col, 0.2), max(2, 0.14 * s))
+        pn.line([(x + w / 2 * s, y0), (x - w / 2 * s, y1)], shade(col, 0.3), max(2, 0.14 * s))
+        post(pn, x - w / 2 * s, y1, x + w / 2 * s, y1, max(3, 0.18 * s), col, seed + k_)
+    # platform parapet
+    py = y - h * s
+    pn.rect(x - (w / 2 + 0.25) * s, py - 1.1 * s, x + (w / 2 + 0.25) * s, py + 0.15 * s, fill=lerpc(WICKER, (60, 60, 80), 0.6 * night), outline=INK, width=2.4)
+    for j in range(1, 6):
+        yy = py - 1.1 * s + j * 0.2 * s
+        pn.line([(x - (w / 2 + 0.2) * s, yy), (x + (w / 2 + 0.2) * s, yy)], WICKER_D, max(1, 0.05 * s), caps=False)
+    # roof
+    pn.poly([(x - (w / 2 + 0.5) * s, py - 2.0 * s), (x + (w / 2 + 0.5) * s, py - 2.4 * s), (x + (w / 2 + 0.5) * s, py - 2.1 * s), (x - (w / 2 + 0.5) * s, py - 1.75 * s)],
+            fill=shade(col, 0.1), outline=INK, width=2.4)
+    for px in (-w / 2, w / 2):
+        pn.line([(x + px * s, py - 1.1 * s), (x + px * s, py - 1.95 * s - (0.2 * s if px > 0 else 0))], INK, max(2, 0.12 * s))
+    return dict(top=(x, py - 1.1 * s))
+
+def siege_line_elevation(pn, x0, x1, y, s, rampart=12 * PES, tower_every=80 * PES, night=0.0, build=1.0, towers=True, cervi=True, seed=1):
+    """The line seen from outside: earth and turf rampart about 12 feet high, wicker breastwork with battlements, cervi at
+    the foot of the breastwork, timber towers about every 80 feet. build 0..1 raises it (earth, then breastwork, then towers)."""
+    re_ = clamp(build * 3); bw = clamp(build * 3 - 1); tw = clamp(build * 3 - 2)
+    hh = rampart * s * re_
+    col = lerpc(EARTH, (50, 50, 66), 0.6 * night); cd = lerpc(EARTH_D, (34, 34, 48), 0.6 * night); tf = lerpc(TURF, (40, 50, 50), 0.6 * night)
+    if hh > 1:
+        pn.poly([(x0, y), (x0, y - hh), (x1, y - hh), (x1, y)], fill=col, outline=INK, width=2.6)
+        rnd = random.Random(seed)
+        for j in range(int(rampart / 0.3)):      # cut turf courses (Caesar's rampart of earth and turf)
+            yy = y - j * 0.3 * s * re_
+            if yy < y - hh: break
+            pn.line([(x0, yy), (x1, yy)], cd, max(1, 0.05 * s), caps=False)
+            off = (j % 2) * 0.35 * s
+            for xx in range(int(x0 + off), int(x1), int(max(8, 0.7 * s))):
+                pn.line([(xx, yy), (xx, max(y - hh, yy - 0.3 * s * re_))], cd, max(1, 0.04 * s), caps=False)
+        pn.rect(x0, y - hh - 0.12 * s, x1, y - hh + 0.04 * s, fill=tf)
+    top = y - hh
+    if cervi and bw > 0:
+        for i, xx in enumerate(range(int(x0 + 0.6 * s), int(x1), int(max(20, 1.6 * s)))):
+            cervus(pn, xx, top - 0.1 * s, s * bw, ang=-150 + (i % 3) * 8, L=1.8, seed=i)
+    if bw > 0:
+        breastwork(pn, x0, x1, top, s, h=1.5 * bw, night=night)
+    if towers and tw > 0:
+        n = int((x1 - x0) / (tower_every * s)) + 1
+        for i in range(n):
+            tx = x0 + (i + 0.5) * tower_every * s
+            if tx > x1: break
+            roman_tower(pn, tx, top, s, h=6.0 * tw, night=night, seed=i)
+    return dict(top=top)
+
+def cippus(pn, x, y, s, seed=0, night=0.0):
+    """Cippus (Caesar 7.73): tree trunk or stout branch with its side branches stripped and sharpened, sunk in a trench
+    5 feet deep in rows of five, tied together at the base so they could not be pulled up. (x, y) = trench floor."""
+    rnd = random.Random(seed); col = lerpc(TIMBER_D, (40, 40, 56), 0.5 * night)
+    h = rnd.uniform(1.9, 2.3) * s
+    tip = (x + rnd.uniform(-0.2, 0.2) * s, y - h)
+    pn.line([(x, y), tip], INK, max(3, 0.16 * s)); pn.line([(x, y), tip], col, max(2, 0.1 * s))
+    for q in (0.55, 0.72, 0.86):
+        mx, my = lerp(x, tip[0], q), lerp(y, tip[1], q)
+        for sd in (-1, 1):
+            bl = (1 - q) * h * rnd.uniform(0.6, 0.9)
+            ex, ey = mx + sd * bl * 0.7, my - bl * 0.7
+            pn.line([(mx, my), (ex, ey)], INK, max(2.4, 0.1 * s)); pn.line([(mx, my), (ex, ey)], col, max(1.4, 0.06 * s))
+            pn.poly([(ex, ey), (ex - sd * 0.04 * s, ey + 0.1 * s), (ex + sd * 0.02 * s, ey + 0.08 * s)], fill=TIMBER_L)
+    pn.poly([(tip[0], tip[1] - 0.15 * s), (tip[0] - 0.05 * s, tip[1] + 0.05 * s), (tip[0] + 0.05 * s, tip[1] + 0.05 * s)], fill=TIMBER_L, outline=INK, width=1.6)
+
+def lilium(pn, x, y, s, cover=1.0, cut=True, night=0.0):
+    """Lilium (Caesar 7.73): pit about 3 feet deep, narrowing toward the bottom, a sharpened stake as thick as a thigh set in
+    it, its point standing only about four fingers above the ground; the mouth covered with brushwood. Laid out in eight
+    rows, three feet apart. (x, y) = ground at the pit centre; cut=True shows it in section."""
+    d = 3 * PES * s; w0 = 0.9 * s; w1 = 0.3 * s
+    g = lerpc(EARTH, (50, 50, 66), 0.6 * night)
+    if cut:
+        pn.poly([(x - w0 / 2, y), (x + w0 / 2, y), (x + w1 / 2, y + d), (x - w1 / 2, y + d)], fill=(46, 34, 26), outline=INK, width=2.4)
+        stake_top = y - 4 * 0.019 * s
+        pn.poly([(x - 0.09 * s, y + d), (x + 0.09 * s, y + d), (x + 0.07 * s, stake_top + 0.2 * s), (x, stake_top), (x - 0.07 * s, stake_top + 0.2 * s)],
+                fill=TIMBER, outline=INK, width=2)
+        pn.line([(x - 0.03 * s, y + d - 0.05 * s), (x - 0.03 * s, stake_top + 0.25 * s)], light(TIMBER, 0.25), 1.2, caps=False)
+    if cover > 0:   # brushwood laid over the mouth
+        rnd = random.Random(int(x))
+        for i in range(int(10 * cover)):
+            a = rnd.uniform(-0.25, 0.25); L_ = rnd.uniform(0.6, 1.1) * s; cx_ = x + rnd.uniform(-0.25, 0.25) * s
+            pn.line([(cx_ - math.cos(a) * L_ / 2, y - 0.03 * s - math.sin(a) * L_ / 2), (cx_ + math.cos(a) * L_ / 2, y - 0.03 * s + math.sin(a) * L_ / 2)],
+                    lerpc(BRUSH, (40, 46, 40), 0.6 * night), max(1.6, 0.05 * s), caps=False)
+
+def stimulus(pn, x, y, s, cut=True, night=0.0, hook=1.0):
+    """Stimulus (Caesar 7.73): a wooden peg about a foot long with an iron hook (barbed spike) fixed in its top, driven
+    fully into the ground so only the hook shows. Iron hooks of this kind were found in the excavations at Alesia.
+    (x, y) = ground level."""
+    L_ = 1 * PES * s
+    if cut:
+        pn.poly([(x - 0.045 * s, y), (x + 0.045 * s, y), (x + 0.03 * s, y + L_), (x, y + L_ + 0.05 * s), (x - 0.03 * s, y + L_)],
+                fill=TIMBER, outline=INK, width=2)
+    hx, hy = x, y - 0.12 * s * hook
+    pn.line([(x, y + 0.02 * s), (hx, hy)], INK, max(3, 0.05 * s)); pn.line([(x, y + 0.02 * s), (hx, hy)], IRON, max(2, 0.03 * s))
+    pn.line([(hx, hy), (hx + 0.045 * s, hy + 0.04 * s)], INK, max(2.6, 0.04 * s)); pn.line([(hx, hy), (hx + 0.045 * s, hy + 0.04 * s)], IRON, max(1.6, 0.025 * s))
+
+def siege_line_section(pn, x_r, y, s, night=0.0, show=1.0, labels=None, water=True, traps=1.0, seed=2):
+    """The inner line in section, outside (toward the town) on the LEFT, the Roman side on the RIGHT (Caesar 7.72 to 7.73):
+    rampart with breastwork and a tower at x_r; two ditches 15 feet wide and deep in front (the inner one filled with water
+    where the ground allowed); then trenches of cippi, eight rows of lilia, and stimuli scattered furthest out. The single
+    20 foot ditch, about 400 feet further toward the town, is left off (shown in its own beat). Distances compressed:
+    SIMPLIFIED. labels(name, (x, y)) is called for each part. traps 0..1 reveals the traps from the wall outward."""
+    col = lerpc(EARTH, (50, 50, 66), 0.6 * night); cd = lerpc(EARTH_D, (34, 34, 48), 0.6 * night)
+    D15 = 15 * PES * s; W15 = 15 * PES * s
+    # ground block
+    xL = x_r - 46 * s
+    pn.rect(xL - 10 * s, y, x_r + 12 * s, y + D15 + 2.5 * s, fill=col)
+    pn.line([(xL - 10 * s, y), (x_r + 12 * s, y)], INK, 3, caps=False)
+    # rampart (agger) with breastwork and tower
+    rh = 12 * PES * s
+    pn.poly([(x_r - 2.2 * s, y), (x_r - 0.3 * s, y - rh), (x_r + 3.4 * s, y - rh), (x_r + 5.4 * s, y)], fill=col, outline=INK, width=2.6)
+    for j in range(1, int(rh / (0.3 * s))):
+        yy = y - j * 0.3 * s
+        pn.line([(x_r - 2.2 * s + (0.3 * s) * j * 1.9 / 12 * 1.0 * 0 + j * 0.3 * s * 1.9 / (12 * PES) * 0.33, yy), (x_r + 5.4 * s - j * 0.3 * s * 0.55, yy)], cd, 1.1, caps=False)
+    breastwork(pn, x_r - 0.3 * s, x_r + 0.4 * s, y - rh, s, h=1.5, merlon=0.7, gap=0.3, night=night)
+    cervus(pn, x_r - 0.2 * s, y - rh - 0.15 * s, s, ang=-160, L=1.8, seed=seed)
+    roman_tower(pn, x_r + 1.8 * s, y - rh, s, h=5.0, w=2.4, night=night, seed=seed)
+    if labels: labels('RAMPART', (x_r + 1.6 * s, y + 1.0 * s)); labels('TOWER', (x_r - 2.6 * s, y - rh - 5.0 * s))
+    # two ditches 15 feet wide and deep
+    xs = []
+    for i in range(2):
+        cx = x_r - 2.6 * s - W15 / 2 - i * (W15 + 1.2 * s)
+        xs.append(cx)
+        pn.poly([(cx - W15 / 2, y), (cx + W15 / 2, y), (cx + 0.35 * s, y + D15), (cx - 0.35 * s, y + D15)], fill=(52, 40, 30), outline=INK, width=2.4)
+        if water and i == 0:
+            wl = y + D15 * 0.35; ww = (W15 / 2) * 0.65
+            pn.poly([(cx - ww, wl), (cx + ww, wl), (cx + 0.35 * s, y + D15), (cx - 0.35 * s, y + D15)], fill=lerpc((70, 120, 160), (40, 60, 90), night))
+            pn.line([(cx - ww, wl), (cx + ww, wl)], (150, 196, 226), 2, caps=False)
+    if labels: labels('TWO DITCHES, 15 FT', (lerp(xs[0], xs[1], 0.5), y + D15 + 1.2 * s))
+    # traps, from the wall outward (to the left): cippi trench, lilia, stimuli
+    xt = xs[1] - W15 / 2 - 1.2 * s
+    tr = clamp(traps * 3)
+    if tr > 0:
+        tw_ = 4.0 * s; td = 5 * PES * s
+        pn.poly([(xt - tw_, y), (xt, y), (xt, y + td), (xt - tw_, y + td)], fill=(70, 54, 40), outline=INK, width=2)
+        n = max(1, int(5 * tr))
+        for i in range(n):
+            cippus(pn, xt - tw_ * (i + 0.5) / 5, y + td, s * 0.85, seed=i, night=night)
+        if labels: labels('CIPPI, 5 ROWS', (xt - tw_ / 2, y + td + 1.2 * s))
+        xt -= tw_ + 1.0 * s
+    lr = clamp(traps * 3 - 1)
+    if lr > 0:
+        n = max(1, int(8 * lr))
+        for i in range(n):
+            lilium(pn, xt - (i + 0.5) * 3 * PES * s * 1.0, y, s * 0.9, cover=1.0, night=night)
+        if labels: labels('LILIA, 8 ROWS', (xt - 8 * 3 * PES * s * 0.5, y + 2.0 * s))
+        xt -= 8 * 3 * PES * s * 1.0 + 1.0 * s
+    sr = clamp(traps * 3 - 2)
+    if sr > 0:
+        n = max(1, int(7 * sr))
+        for i in range(n):
+            stimulus(pn, xt - (i + 0.5) * 0.5 * s, y, s * 1.4, night=night)
+        if labels: labels('STIMULI', (xt - 1.8 * s, y + 1.6 * s))
+    return dict(rampart=(x_r, y - rh), ditch=(xs[0], y + D15 * 0.5))
+
+def dolabra(pn, hx, hy, ang, L=100.0, k=1.0, flip=False):
+    """Dolabra (BM-P059): Roman legionary's entrenching tool, axe blade on one side of the head and a pick on the other,
+    haft about 60 to 70 cm (drawn as 100 rig units). Handle end at (hx, hy), ang the haft direction. Returns grips."""
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    L *= k; head = (hx + ux * L, hy + uy * L)
+    pn.line([(hx, hy), head], INK, 9 * k); pn.line([(hx, hy), head], WOOD, 6 * k)
+    pn.line([(hx + nx * 1.4 * k, hy + ny * 1.4 * k), (head[0] + nx * 1.4 * k, head[1] + ny * 1.4 * k)], light(WOOD, 0.3), 1.4 * k, caps=False)
+    # axe blade (one side): flares to a curved edge
+    sg = -1 if flip else 1
+    p = lambda u, v: (head[0] + ux * u * k + nx * v * sg * k, head[1] + uy * u * k + ny * v * sg * k)
+    axe = [p(-6, 4), p(6, 4), p(14, 30), p(4, 36), p(-14, 34), p(-10, 28)]
+    pn.poly(axe, fill=IRON, outline=INK, width=2.2 * k)
+    pn.line([p(12, 30), p(-12, 33)], light(IRON, 0.5), 1.4 * k, caps=False)
+    # pick (other side): tapers to a point, curving slightly down toward the handle
+    pick = [p(-5, -4), p(5, -4), p(0, -36), p(-4, -34)]
+    pn.poly(pick, fill=IRON, outline=INK, width=2.2 * k)
+    pn.rect(head[0] - 6 * k, head[1] - 6 * k, head[0] + 6 * k, head[1] + 6 * k, fill=shade(IRON, 0.25), outline=INK, width=1.6 * k)
+    return dict(rear=(hx + ux * 8 * k, hy + uy * 8 * k), front=(hx + ux * L * 0.45, hy + uy * L * 0.45), pick=p(0, -36), blade=p(4, 36))
+
+def wicker_basket(pn, cx, cy, w=40.0, h=30.0, earth=1.0):
+    """Wicker basket for carrying spoil (Josephus lists a basket in the legionary's kit). (cx, cy) = centre of the rim."""
+    pn.poly([(cx - w / 2, cy), (cx + w / 2, cy), (cx + w * 0.38, cy + h), (cx - w * 0.38, cy + h)], fill=WICKER, outline=INK, width=2.4)
+    for j in range(1, 5):
+        yy = cy + h * j / 5; ww = lerp(w / 2, w * 0.38, j / 5)
+        pn.line([(cx - ww, yy), (cx + ww, yy)], WICKER_D, 1.4, caps=False)
+    for i in range(-3, 4):
+        pn.line([(cx + i * w / 8, cy), (cx + i * w / 8 * 0.76, cy + h)], shade(WICKER, 0.25), 1.2, caps=False)
+    if earth > 0:
+        pn.poly([(cx - w / 2 + 3, cy + 1), (cx - w / 4, cy - 8 * earth), (cx + w / 6, cy - 10 * earth), (cx + w / 2 - 3, cy + 1)], fill=EARTH, outline=INK, width=2)
+
+def camp_stool(pn, x, y, k=1.0, col=(160, 120, 70)):
+    """Sella castrensis: folding camp stool with crossed legs and a leather seat. (x, y) = ground centre."""
+    pn.push(x, y, k)
+    for sd in (-1, 1):
+        pn.line([(-24 * sd, 0), (22 * sd, -46)], INK, 7); pn.line([(-24 * sd, 0), (22 * sd, -46)], col, 4.5)
+    pn.line([(-28, -48), (28, -48)], INK, 9); pn.line([(-28, -48), (28, -48)], (120, 60, 40), 6)
+    pn.circ(0, -23, 3, fill=(196, 150, 72), outline=INK, width=1.4)
+    pn.pop()
+    return (x, y - 48 * k)
+
+def gallic_sword(pn, x, y, ang, L=110.0, k=1.0, sheath=False):
+    """La Tene long sword (BM-P062): long straight double edged blade with a rounded or blunt point, short grip, small
+    pommel; drawn bare or sheathed (iron scabbard with a chape)."""
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    L *= k; tip = (x + ux * L, y + uy * L)
+    if sheath:
+        pn.line([(x + ux * 22 * k, y + uy * 22 * k), tip], INK, 10 * k); pn.line([(x + ux * 22 * k, y + uy * 22 * k), tip], (96, 98, 104), 7 * k)
+        pn.circ(tip[0], tip[1], 5 * k, fill=(160, 120, 70), outline=INK, width=1.6)
+    else:
+        pn.poly([(x + ux * 22 * k + nx * 4 * k, y + uy * 22 * k + ny * 4 * k), (tip[0] + nx * 3 * k - ux * 6 * k, tip[1] + ny * 3 * k - uy * 6 * k), tip,
+                 (tip[0] - nx * 3 * k - ux * 6 * k, tip[1] - ny * 3 * k - uy * 6 * k), (x + ux * 22 * k - nx * 4 * k, y + uy * 22 * k - ny * 4 * k)],
+                fill=(186, 190, 196), outline=INK, width=2 * k)
+        pn.line([(x + ux * 24 * k, y + uy * 24 * k), (tip[0] - ux * 8 * k, tip[1] - uy * 8 * k)], (140, 144, 150), 1.2 * k, caps=False)
+    pn.line([(x + nx * 7 * k + ux * 20 * k, y + ny * 7 * k + uy * 20 * k), (x - nx * 7 * k + ux * 20 * k, y - ny * 7 * k + uy * 20 * k)], INK, 5 * k)
+    pn.line([(x, y), (x + ux * 20 * k, y + uy * 20 * k)], INK, 6 * k); pn.line([(x, y), (x + ux * 20 * k, y + uy * 20 * k)], (120, 84, 52), 4 * k)
+    pn.circ(x, y, 4.5 * k, fill=(196, 150, 72), outline=INK, width=1.4)
+    return dict(grip=(x + ux * 10 * k, y + uy * 10 * k), tip=tip)
+
+def spear(pn, x, y, ang, L=230.0, k=1.0):
+    """Gallic spear (lancea): ash shaft, long leaf shaped iron head. Butt at (x, y)."""
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    L *= k; tip = (x + ux * L, y + uy * L); hb = (x + ux * (L - 40 * k), y + uy * (L - 40 * k))
+    pn.line([(x, y), hb], INK, 7 * k); pn.line([(x, y), hb], WOOD, 4.5 * k)
+    pn.poly([(hb[0] + nx * 6 * k, hb[1] + ny * 6 * k), tip, (hb[0] - nx * 6 * k, hb[1] - ny * 6 * k), (hb[0] - ux * 6 * k, hb[1] - uy * 6 * k)], fill=IRON, outline=INK, width=2 * k)
+    return tip
