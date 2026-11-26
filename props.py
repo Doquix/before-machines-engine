@@ -151,9 +151,16 @@ def merlons(pn, y, x0=-40, x1=1120, mw=120, gap=70, h=90, col=(146, 140, 128), s
         for xx in range(int(x0) + off, int(x1), 100):
             pn.line([(xx, yy), (xx, yy + 52)], lerpc(col, INK, .3), 2.2, caps=False)
 
-def tag(pn, x, y, text, sz=46, t=1.0, rot_=-3, fill=PARCH, col=INK, sub=None, string_to=None):
-    """Sticker tag: tilted parchment card with border; pops via t in 0..1 (eoback)."""
+# User rule (2026-11-26): tags and stamps sit level and centred across the frame. TAG_LEVEL ignores any rot_ an
+# episode passes; TAG_CENTER puts every tag and stamp on the frame's centre line (x = 540), keeping its height.
+TAG_LEVEL = True
+TAG_CENTER = True
+
+def tag(pn, x, y, text, sz=46, t=1.0, rot_=0, fill=PARCH, col=INK, sub=None, string_to=None):
+    """Sticker tag: level parchment card with border; pops via t in 0..1 (eoback)."""
     if t <= 0.01: return
+    if TAG_LEVEL: rot_ = 0
+    if TAG_CENTER: x = W / 2
     w = max(pn.tw(text, sz, 'Black', True), (pn.tw(sub, sz * 0.42, 'Bold') + len(sub) * 2) if sub else 0) + 56; h = sz * 1.5 + (sz * 0.62 if sub else 0)
     if string_to:
         pn.line([(x, y), string_to], INK, 3)
@@ -172,9 +179,11 @@ def tag(pn, x, y, text, sz=46, t=1.0, rot_=-3, fill=PARCH, col=INK, sub=None, st
         pn.text(-math.sin(a) * sy, math.cos(a) * sy, sub, sz * 0.42, MUTED, 'Bold', 'mm', sp=2)
     pn.pop()
 
-def stamp(pn, x, y, text, t, sz=120, col=RUST, rot_=-8):
+def stamp(pn, x, y, text, t, sz=120, col=RUST, rot_=0):
     """Solid stamp slammed from 2.6x to 1x over 0.12 s (t = seconds since slam start)."""
     if t < 0: return
+    if TAG_LEVEL: rot_ = 0
+    if TAG_CENTER: x = W / 2
     s = lerp(2.6, 1.0, ei3(clamp(t / 0.12))) if t < 0.12 else 1.0
     a_ = clamp(t / 0.05)
     w = pn.tw(text, sz, 'Black', True) + 90; h = sz * 1.42

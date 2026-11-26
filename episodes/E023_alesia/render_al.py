@@ -259,7 +259,7 @@ def sc_dig(base, pn, t):
     al.legionary_dig(pn, 400, GROUND, 2.9, 'rleg23c', sw=sw, t=t)
     if t >= T['strike']:
         particles(pn, 'dust', 700, GROUND + 10, t, T['strike'], 1.0, seed=3, ground=GROUND + 40)
-    tag(pn, 760, 400, '20 FT WIDE', 56, pop(t, T['ditch'] + 0.1), rot_=3, sub='STRAIGHT SIDES')
+    tag(pn, 760, 290, '20 FT WIDE', 56, pop(t, T['ditch'] + 0.1), rot_=3, sub='STRAIGHT SIDES')
 def cam_dig(t, sc_, ox, oy): return camfocus(sc_, 540, 900, 540, 900, ox, oy)
 
 # Shot 8 (WS): the rampart rises in turf courses as a soldier brings earth
@@ -270,7 +270,7 @@ def sc_rampart(base, pn, t):
     PR.siege_line_elevation(pn, -60, 1140, 1250, 60, build=b, towers=False, cervi=False)
     x = lerp(-80, 420, eio(P(t, T['s7'], 1.6)))
     al.legionary_basket(pn, x, 1330, 2.3, walk=(t - T['s7']) * 1.4, t=t)
-    tag(pn, 760, 420, '~12 FT', 64, pop(t, T['twelve']), rot_=-3, sub='EARTH AND TURF')
+    tag(pn, 760, 290, '~12 FT', 64, pop(t, T['twelve']), rot_=-3, sub='EARTH AND TURF')
 
 # Shot 9 (EWS, pan): towers rise along the line
 def sc_towers(base, pn, t):
