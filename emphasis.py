@@ -55,3 +55,65 @@ def ghost_rim(pn, cx, cy, r, s, col=RUST, width=6.0, n=18, t=0.0):
     for i in range(n):
         a0 = 2 * math.pi * i / n + ph; a1 = a0 + math.pi / n
         pn.line([(cx + rr * math.cos(a0), cy + rr * math.sin(a0)), (cx + rr * math.cos(a1), cy + rr * math.sin(a1))], col, width)
+
+# ---------------- colour and symbol language (locked by the user from E024) ----------------
+# Each meaning has a colour AND a shape, so it still reads for colour blind viewers. At most three of these colours on
+# screen at once. Every mark pops on at its word and pops off (pop_env); none stays up after its moment.
+RED = (214, 52, 44)        # danger, missing, exposed, wrong, myth
+YELLOW = (250, 204, 40)    # covered, correct, success, proven, approved
+BLUE = (84, 118, 158)      # estimate, hedge, uncertain (about, likely, disputed, sources suggest)
+NEUTRAL = (255, 252, 244)  # look here, direction, reference (always with an ink outline)
+STAMP_COL = dict(PROVEN=YELLOW, MYTH=RED, LIKELY=BLUE, DISPUTED=BLUE, VERIFY=BLUE)
+
+def missing(pn, cx, cy, r, s, t=0.0, width=5.0):
+    """RED dashed ring: something that should be there is not (the open side)."""
+    ghost_rim(pn, cx, cy, r, s, col=RED, width=width, t=t)
+
+def covered(pn, cx, cy, r, u, s=1.0, width=None):
+    """YELLOW solid ring that closes (u 0..1 sweeps it shut): protected, correct, done. s is the pop scale.
+    Line weight scales with the ring (about 8 percent of its radius, never under 8 px) and sits on a heavy ink
+    outline, because yellow on bronze has little contrast."""
+    if s <= 0.01 or u <= 0: return
+    width = max(8.0, r * 0.08) if width is None else width
+    rr = r * s; n = max(2, int(40 * u))
+    pts = [(cx + rr * math.cos(-math.pi / 2 + 2 * math.pi * u * i / n), cy + rr * math.sin(-math.pi / 2 + 2 * math.pi * i * u / n)) for i in range(n + 1)]
+    pn.line(pts, INK, width + 7); pn.line(pts, YELLOW, width)
+
+def danger(pn, x, y, s, ang, p, t=0.0):
+    """RED three wedge burst at an impact or threat, fanning out toward ang."""
+    burst(pn, x, y, s, ang, p, 'wedges', t=t, col=RED)
+
+def wrong(pn, a, b, u, width=16.0):
+    """RED single bold slash drawn on from a to b (u 0..1): wrong, myth, not this."""
+    if u <= 0: return
+    e = (lerp(a[0], b[0], u), lerp(a[1], b[1], u))
+    pn.line([a, e], INK, width + 6); pn.line([a, e], RED, width)
+
+def hedge(pn, x0, x1, y, s, width=5.0):
+    """BLUE dotted underline with a small tilde: an estimate or a hedge (about, likely)."""
+    if s <= 0.01: return
+    xe = lerp(x0, x1, min(1.0, s)); n = int((xe - x0) / 22)
+    for i in range(n):
+        pn.circ(x0 + 11 + i * 22, y, width * 1.2, fill=BLUE, outline=INK, width=2)
+    if s >= 1: pn.text(x0 - 30, y - 8, '~', 64, BLUE, 'Black')
+
+def look(pn, x0, y0, x1, y1, s, arm=34.0, width=6.0):
+    """NEUTRAL four corner brackets around a part: look here."""
+    if s <= 0.01: return
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    hx, hy = (x1 - x0) / 2 * (1.25 - 0.25 * min(1, s)), (y1 - y0) / 2 * (1.25 - 0.25 * min(1, s))
+    for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+        px, py = cx + sx * hx, cy + sy * hy
+        pts = [(px, py - sy * arm), (px, py), (px - sx * arm, py)]
+        pn.line(pts, INK, width + 4); pn.line(pts, NEUTRAL, width)
+
+def direction(pn, x, y, ang, s, size=1.0, t=0.0):
+    """NEUTRAL three chevrons pointing along ang (degrees), rippling forward: movement, which way."""
+    if s <= 0.01: return
+    a = math.radians(ang); ux, uy = math.cos(a), math.sin(a); nx, ny = -uy, ux
+    for i in range(3):
+        k = size * s; off = (i - 1) * 34 * k + 6 * math.sin(t * 6 - i) * k
+        cx_, cy_ = x + ux * off, y + uy * off
+        pts = [(cx_ - ux * 14 * k + nx * 20 * k, cy_ - uy * 14 * k + ny * 20 * k), (cx_ + ux * 10 * k, cy_ + uy * 10 * k),
+               (cx_ - ux * 14 * k - nx * 20 * k, cy_ - uy * 14 * k - ny * 20 * k)]
+        pn.line(pts, INK, 13 * k); pn.line(pts, NEUTRAL, 8 * k)

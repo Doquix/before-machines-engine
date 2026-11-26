@@ -456,5 +456,5 @@ def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_h
     if open_side > 0:             # his uncovered right side: the missing shield mark (emphasis.ghost_rim)
         import emphasis
         bx, by = P_(44, -26)
-        emphasis.ghost_rim(pn, bx, by, 30, open_side, width=4.0, n=12)
+        emphasis.ghost_rim(pn, bx, by, 30, open_side, col=emphasis.RED, width=4.0, n=12)
     pn.pop()

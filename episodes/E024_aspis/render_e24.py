@@ -110,7 +110,7 @@ def bare_side(pn, x, y, k, a, f=-1):
     """Mark a front on figure's uncovered right side (screen left when facing left)."""
     if a <= 0: return
     pn.push(x, y, k)
-    if BARE_STYLE == 'ghost': EM.ghost_rim(pn, f * 38, -112, 58, a, width=5.0, t=CUR['t'])
+    if BARE_STYLE == 'ghost': EM.missing(pn, f * 38, -112, 58, a, t=CUR['t'])
     else: EM.burst(pn, f * 44, -118, 0.8, 180 if f == -1 else 0, a, t=CUR['t'])
     pn.pop()
 
@@ -207,13 +207,13 @@ def s15(t):
         qbox('subject', N15a.store['fig'][0], N15a.store['fig'][1], N15b.store['fig'][2], N15b.store['fig'][3])
     else: qbox('subject', *K15.store['fig'])
     if 'shield' in K15.store: cx, cy, r = K15.store['shield']; qbox('key', cx - 2 * r, cy - r, cx + 2 * r, cy + r)
-    if lit > 0:     # the overlap halves light up
+    if lit > 0:     # each man's right side, covered by his neighbour's shield: yellow rings close
         lay = new_layer(); pn = Pen(lay, cam=False)
-        for p in (N15a, K15):
-            if 'shield' in p.store:
-                cx, cy, r = p.store['shield']
-                pts = [(cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))) for a in range(-90, 91, 10)]
-                pn.poly(pts, fill=RUST + (int(150 * lit),), outline=RUST, width=5)
+        for j, p in enumerate((K15, N15b)):
+            if 'bare' in p.store:
+                b = p.store['bare']; cx, cy = (b[0] + b[2]) / 2 - (b[2] - b[0]) * 0.1, (b[1] + b[3]) / 2
+                r = (b[3] - b[1]) * 0.55
+                EM.covered(pn, cx, cy, r, eo3(clamp((t - w(20, 2) - 0.12 * j) / 0.35)), EM.pop_env(t, w(20, 2) - 0.05 + 0.12 * j, hold=1.2))
         flatten(im, lay)
     return im
 
@@ -245,6 +245,11 @@ def s12(t):
         p.bare = EM.pop_env(t, w(16, 5) - 0.05, hold=0.75)
     cam = W25.Cam3(0, -70, 700 - 1350, 0, F=3600, horizon=1060)     # low eye (knee height): looking up at the line
     im = shot_world(S12, cam)
+    if 'fig' in m.store and t >= th_ - 0.05:                          # red danger burst where the spear strikes
+        lay0 = new_layer(); pn0 = Pen(lay0, cam=False)
+        bx0 = m.store['fig'][0] + 40; by0 = (m.store['fig'][1] + m.store['fig'][3]) / 2 - 40
+        EM.danger(pn0, bx0, by0, 1.4, 180, EM.pop_env(t, th_ - 0.02, hold=0.35), t)
+        flatten(im, lay0)
     if t >= Fl['t_impact'] and t < Fl['t_impact'] + 0.6:             # dust where he lands
         lay = new_layer(); pn = Pen(lay, cam=False)
         x0, y0 = m.store['fig'][0], m.store['fig'][3]
@@ -315,8 +320,10 @@ def s2(t):
         pn.line([(x0, 1150), (x1, 1150)], INK, 6)
         for xx in (x0, x1): pn.line([(xx, 1125), (xx, 1175)], INK, 6)
         PR.tag(pn, 540, 1080, 'ABOUT 0.9 m', 58, t=pop(t, w(3, 2), 0.35), rot_=-3)
+        EM.hedge(pn, 400, 690, 1150 + 0, EM.pop_env(t, w(3, 2) + 0.3, hold=1.6))
     if t >= w(3, 6):
         PR.tag(pn, 760, 300, 'ABOUT 7 kg', 58, t=pop(t, w(3, 6), 0.3), rot_=4)
+        EM.hedge(pn, 640, 880, 372, EM.pop_env(t, w(3, 6) + 0.25, hold=0.9))
     flatten(im, lay); return im
 
 def s3(t):
@@ -336,8 +343,7 @@ def s3(t):
             pn.line([(cx + 70 * math.cos(a0), cy + 40 * math.sin(a0)), (cx + 70 * math.cos(a1), cy + 40 * math.sin(a1))], INK + (int(255 * gh),), 6)
         x = clamp((t - w(4, 5) - 0.4) / 0.3)
         if x > 0:
-            pn.line([(cx - 110, cy - 90), (cx - 110 + 220 * x, cy - 90 + 180 * x)], RUST, 16)
-            pn.line([(cx + 110, cy - 90), (cx + 110 - 220 * x, cy - 90 + 180 * x)], RUST, 16)
+            EM.wrong(pn, (cx - 120, cy - 100), (cx + 120, cy + 100), x)
     # beats 5 and 6: forearm from the right passes under the porpax, hand reaches the antilabe
     if t >= bs(5):
         u = eo3(clamp((t - w(5, 1) + 0.15) / 0.6))
@@ -353,6 +359,8 @@ def s3(t):
         grip = t >= w(6, 3)
         C.draw_part(pn, 'fist' if grip else 'hand', ha, (ha[0] - 10, ha[1]), 1, O, scale=k)
         M.draw_mesh(pn, FLAT, M.get('porpax'), (cx, cy, 0), M.rot(yaw, math.radians(-4)), scale=sc)
+        EM.look(pn, cx - 60, cy - 110, cx + 60, cy + 110, EM.pop_env(t, w(5, 6) - 0.05, hold=0.8))
+        EM.look(pn, cx - 48 * sc - 50, cy - 100, cx - 48 * sc + 50, cy + 100, EM.pop_env(t, w(6, 5) - 0.05, hold=0.8))
         if t >= w(5, 6):
             PR.callout(pn, cx, cy - 90, cx + 160, 330, 'PORPAX', p=clamp((t - w(5, 6)) / 0.35), sz=50)
         if t >= w(6, 5):
@@ -371,7 +379,7 @@ def s4(t):
     if p > 0:      # the body's centre line, dashed
         for i in range(12):
             ya = 1300 - 900 * (i / 12) * p
-            pn.line([(x, ya), (x, ya - 32 * p)], RUST, 6)
+            pn.line([(x, ya), (x, ya - 32 * p)], INK, 6)
     flatten(im, lay); return im
 
 def s5(t):
@@ -390,13 +398,11 @@ def s5(t):
         qbox('key', *union(*[(st['shield'][0] - st['shield'][2], st['shield'][1] - st['shield'][2], st['shield'][0] + st['shield'][2],
                                st['shield'][1] + st['shield'][2]) for st in stores[:2]]))
     lit = [clamp((t - w(8, 4) - 0.15 * j) / 0.25) for j in range(2)]
-    for j in range(2):
-        if lit[j] > 0 and 'shield' in stores[j]:
-            cx, cy, r = stores[j]['shield']
-            pts = [(cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))) for a in range(-90, 91, 10)]
-            pn.poly(pts, fill=RUST + (int(170 * lit[j]),), outline=RUST, width=6)
+    for j in range(2):          # the next man's right side, now covered by this man's shield
+        fx_, fy_ = xs[j + 1] - 38 * k, y - 112 * k
+        EM.covered(pn, fx_, fy_, 58 * k, eo3(clamp((t - w(8, 4) - 0.15 * j) / 0.35)), EM.pop_env(t, w(8, 4) - 0.05 + 0.15 * j, hold=1.0))
     if t >= w(8, 4):
-        PR.stamp(pn, 860, 170, 'LIKELY', clamp((t - w(8, 4)) / 0.3), sz=70)
+        PR.stamp(pn, 860, 170, 'LIKELY', clamp((t - w(8, 4)) / 0.3), sz=70, col=EM.BLUE)
     flatten(im, lay); return im
 
 def s6(t):
@@ -410,12 +416,9 @@ def s6(t):
     HOP(pn, xa, y, k, -1, out='hop_a', expr='determined', shield_r=64, **flat_hooks(xa, y, k, st))
     qbox('subject', xa - 110 * k, y - 280 * k, xk + 110 * k, 1260)
     if 'shield' in st: qbox('key', st['shield'][0] - st['shield'][2], st['shield'][1] - st['shield'][2] - 80, xk, 1250)
-    if 'shield' in st and t >= w(9, 4) + 0.1:
-        p = pop(t, w(9, 4) + 0.1, 0.4)
-        cx, cy, r = st['shield']
-        fx_, fy_ = xk - 34 * k, y - 112 * k                      # the Keeper's right flank, behind the neighbour's shield
-        a0 = (cx - r * 0.3, cy - r - 150); a1 = (fx_ - 10, fy_ - 30 * k)
-        PR.arrow(pn, a0, (lerp(a0[0], a1[0], p), lerp(a0[1], a1[1], p)), col=RUST, w=16, head=44)
+    if t >= w(9, 4) - 0.05:     # the Keeper's right flank, behind the neighbour's shield: covered
+        fx_, fy_ = xk - 38 * k, y - 112 * k
+        EM.covered(pn, fx_, fy_, 58 * k, eo3(clamp((t - w(9, 4)) / 0.4)), EM.pop_env(t, w(9, 4) - 0.05, hold=1.1))
     flatten(im, lay); return im
 
 STUDY = None
@@ -472,7 +475,7 @@ def s8(t):
     p = pop(t, w(11, 1), 0.35)
     px_, py_ = S_(mx, my)
     if p > 0:
-        pn.circ(px_, py_, 18 * p, fill=RUST, outline=INK, width=4)
+        pn.circ(px_, py_, 18 * p, fill=EM.NEUTRAL, outline=INK, width=5)
         pn.text(px_, py_ - 60, 'MANTINEA', 58 * min(1, p), INK, 'Black')
     qbox('subject', px_ - 170, py_ - 100, px_ + 170, py_ + 20); qbox('key', px_ - 170, py_ - 100, px_ + 170, py_ + 20)
     flatten(im, lay); return im
@@ -498,7 +501,7 @@ def tokens_bg():
 def s9(t):
     im = tokens_bg(); lay = new_layer(); pn = Pen(lay, cam=False)
     s = 1.3; sp = 124 * s; n = 5
-    pn.text(960, 330, 'RIGHT', 48, INK, 'Black'); PR.arrow(pn, (870, 390), (1040, 390), col=INK, w=8, head=26)
+    EM.direction(pn, 540, 400, 0, EM.pop_env(t, w(12, 2) - 0.1, hold=0.9), 1.3, t)
     qbox('subject', 540 - 2.5 * sp - 100, 720 - 160 * s, 540 + 2.5 * sp + 60, 720 + 2 * 150 * s + 40)
     qbox('key', 540 - 2.5 * sp - 100, 720 - 160 * s, 540 + 2.5 * sp + 60, 720 + 40)
     for r in range(3):
@@ -521,6 +524,8 @@ def s10(t):
     qbox('subject', xL - 110 * z, 860 - 50 * z, xR + 40 * z, 860 + 25 * z); qbox('key', xL - 40 * z, 860 - 50 * z, xR, 860 + 25 * z)
     PR.phalanx_token(pn, xL, 860, z, open_side=min(eoback(clamp((t - bs(13) - 0.1) / 0.18)), 1.0 - u), spear=False)
     PR.phalanx_token(pn, xR, 860, z, open_side=0.0, spear=False)       # its shield is drawn over the left man's right side
+    tc = w(13, 1) + 0.8
+    EM.covered(pn, xL + 44 * z, 860 - 26 * z, 30 * z, eo3(clamp((t - tc) / 0.35)), EM.pop_env(t, tc - 0.05, hold=0.9))
     if t >= w(13, 7):
         PR.callout(pn, xR - 60 * z, 860 - 30 * z, 300, 380, "NEIGHBOR'S SHIELD", p=clamp((t - w(13, 7)) / 0.35), sz=44)
     flatten(im, lay); return im
@@ -540,8 +545,7 @@ def s11(t):
                 PR.phalanx_token(pn, x, y, s, spear=(r == 0), up=side,
                                  col_body=(160, 40, 36) if side == 1 else (70, 92, 128))
         ya = y0 - side * 170 * s
-        if u > 0.02:
-            PR.arrow(pn, (540 - 130 * side, ya), (540 - 130 * side + side * 280 * max(u, 0.45), ya), col=RUST, w=14, head=40)
+        EM.direction(pn, 540 + side * 40, ya, 0 if side == 1 else 180, EM.pop_env(t, w(14, 3) - 0.05, hold=1.3), 1.3, t)
     pn.text(540, 160, 'ENEMY', 46, INK, 'Black'); pn.text(540, 1200, 'US', 46, INK, 'Black')
     qbox('subject', 540 - 2.5 * sp - 120, 330 - 200 * s, 540 + 2.5 * sp + 240, 930 + 240 * s)
     qbox('key', 540 - 2.5 * sp - 120, 330 - 200 * s, 540 + 2.5 * sp + 240, 930 + 240 * s)
@@ -554,11 +558,7 @@ def s14(t):
     qbox('subject', x - 60 * k, y - 300 * k, x + 60 * k, y - 170 * k); qbox('key', x - 60 * k, y - 300 * k, x + 60 * k, y - 170 * k)
     p = clamp((t - w(19, 3)) / 0.5)
     if p > 0:
-        hc = y - 232 * k
-        n = 28; r = 60 * k
-        for i in range(int(n * p)):
-            a0 = 2 * math.pi * i / n - math.pi / 2; a1 = a0 + math.pi / n
-            pn.line([(x + r * math.cos(a0), hc + r * math.sin(a0)), (x + r * math.cos(a1), hc + r * math.sin(a1))], RUST, 12)
+        EM.covered(pn, x, y - 232 * k, 60 * k, eo3(p), EM.pop_env(t, w(19, 3) - 0.05, hold=1.0))
     flatten(im, lay); return im
 
 # gate 1: shot spec. cue = the word that must visibly change something; MUST SEE and PROVES are the pass rule
@@ -612,7 +612,10 @@ def captions(im, t):
     d = ImageDraw.Draw(lay)
     font = F('Black', 76, disp=True)
     words = [wd for wd, _ in c['words']]
-    widths = [d.textlength(wd, font=font) for wd in words]; space = d.textlength(' ', font=font)
+    keyc = re.sub(r'[^\w]', '', c['key']).lower()
+    fkey = F('Black', 84, disp=True)
+    widths = [d.textlength(wd, font=fkey if re.sub(r'[^\w]', '', wd).lower() == keyc else font) for wd in words]
+    space = d.textlength(' ', font=font) * 1.15
     lines = [[]]; lw = 0
     for i, ww in enumerate(widths):
         if lines[-1] and lw + space + ww > 960: lines.append([]); lw = 0
@@ -625,8 +628,9 @@ def captions(im, t):
             if t >= wt_:
                 p = pop(t, wt_, 0.18)
                 clean = re.sub(r'[^\w]', '', wd).lower()
-                col = AMBER if clean == re.sub(r'[^\w]', '', c['key']).lower() else WHITE
-                fsz = max(8, int(76 * (0.7 + 0.3 * p)))
+                is_key = clean == re.sub(r'[^\w]', '', c['key']).lower()
+                col = WHITE if is_key else (222, 216, 204)
+                fsz = max(8, int((84 if is_key else 76) * (0.7 + 0.3 * p)))
                 f2 = F('Black', fsz, disp=True)
                 cx = x + widths[i] / 2; cy = y0 + li * 96
                 d.text((cx, cy), wd, font=f2, fill=col, anchor='mm', stroke_width=9, stroke_fill=(20, 14, 10))
