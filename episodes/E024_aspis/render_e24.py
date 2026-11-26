@@ -6,7 +6,7 @@ sys.path.insert(0, ROOT)
 import numpy as np
 from PIL import Image, ImageFilter
 from lib import *
-import rig as R, rig_cutout as C, world25 as W25, mesh3d as M, props as PR, env as E, actions as A
+import rig as R, rig_cutout as C, world25 as W25, mesh3d as M, props as PR, env as E, actions as A, emphasis as EM
 import lib
 PREVIEW = len(sys.argv) > 1 and sys.argv[1] == 'preview'
 if PREVIEW: lib.SS = 1                         # gate 4: cheap preview, no supersampling
@@ -95,10 +95,10 @@ def frame_cam(X, Z, Yt, Yb, st, sb, hy=900.0, F=3600.0, sx=540.0):
     return W25.Cam3(X - (sx - 540) / k, cy, Z - zr, 0.0, F, hy)
 
 def bare_side(pn, x, y, k, a, f=-1):
-    """RUST glow on a front on figure's uncovered right side (screen left when facing left)."""
+    """Emphasis burst on a front on figure's uncovered right side (screen left when facing left), radiating out."""
     if a <= 0: return
     pn.push(x, y, k)
-    pn.ell(f * 34, -112, 22, 52, fill=RUST + (int(150 * a),), outline=RUST + (int(255 * a),), width=4)
+    EM.burst(pn, f * 44, -118, 0.8, 180 if f == -1 else 0, a, t=CUR['t'])
     pn.pop()
 
 def floor(pn, y, col=(206, 190, 156)):
@@ -172,18 +172,13 @@ def shot_world(sc, cam):
 def s1(t):
     K1.kw['expr'] = 'worried' if t >= w(2, 6) else ('neutral' if t < w(2, 0) else 'thinking')
     K1.kw['look'] = (-0.9, 0.5) if t >= w(2, 3) else (0.6, 0)
-    K1.bare = clamp((t - w(2, 6)) / 0.25) * (0.75 + 0.25 * math.sin(t * 9))
+    K1.bare = clamp((t - w(2, 6) + 0.05) / 0.3)
     # push in toward his open side on "open"
     u = eio(clamp((t - w(2, 4)) / 0.9))
     cam = frame_cam(lerp(0, -20, u), 900, -265, -35, lerp(400, 300, u), lerp(1300, 1420, u))
     im = shot_world(S1, cam)
     sh = K1.store.get('shield'); sb = (sh[0] - sh[2], sh[1] - sh[2], sh[0] + sh[2], sh[1] + sh[2]) if sh else None
     qbox('subject', *union(sb, K1.store.get('bare'))); qbox('key', *K1.store['bare'])
-    if t >= w(2, 6) - 0.1:      # arrow to the open side
-        lay = new_layer(); pn = Pen(lay, cam=False)
-        p = pop(t, w(2, 6) - 0.1, 0.35)
-        PR.arrow(pn, (60, 620), (lerp(60, 300, p), lerp(620, 800, p)), col=RUST, w=18, head=48)
-        flatten(im, lay)
     return im
 
 def s15(t):
@@ -234,7 +229,7 @@ def s12(t):
     m.kw['expr'] = 'terrified' if t > tb else 'determined'
     for p in (L12[0], L12[2]):
         p.kw['expr'] = 'worried' if t > tb + 0.3 else 'determined'
-        p.bare = clamp((t - w(16, 5)) / 0.2) * (0.7 + 0.3 * math.sin(t * 10))
+        p.bare = clamp((t - w(16, 5) + 0.05) / 0.3)
     cam = W25.Cam3(0, -70, 700 - 1350, 0, F=3600, horizon=1060)     # low eye (knee height): looking up at the line
     im = shot_world(S12, cam)
     if t >= Fl['t_impact'] and t < Fl['t_impact'] + 0.6:             # dust where he lands
@@ -406,7 +401,6 @@ def s6(t):
         p = pop(t, w(9, 4) + 0.1, 0.4)
         cx, cy, r = st['shield']
         fx_, fy_ = xk - 34 * k, y - 112 * k                      # the Keeper's right flank, behind the neighbour's shield
-        pn.ell(fx_, fy_, 22 * k, 50 * k, fill=RUST + (int(140 * p),), outline=RUST, width=6)
         a0 = (cx - r * 0.3, cy - r - 150); a1 = (fx_ - 10, fy_ - 30 * k)
         PR.arrow(pn, a0, (lerp(a0[0], a1[0], p), lerp(a0[1], a1[1], p)), col=RUST, w=16, head=44)
     flatten(im, lay); return im

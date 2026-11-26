@@ -446,8 +446,6 @@ def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_h
     if spear:
         pn.line([P_(22, 10), P_(22, -150)], (150, 112, 70), 4.5)
         pn.poly([P_(22, -168), P_(17, -150), P_(27, -150)], fill=(112, 116, 124), outline=INK, width=2)
-    if open_side > 0:
-        pn.ell(*P_(30, 0), 22, 30, fill=RUST + (int(200 * open_side),))
     pn.ell(0, 4 * u, 36, 15, fill=col_body, outline=INK, width=3)
     pn.circ(0, 0, 16, fill=col_helm, outline=INK, width=3)
     pn.circ(0, 0, 6, fill=lerpc(col_helm, (255, 250, 236), 0.4))
@@ -455,4 +453,8 @@ def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_h
         pts = [P_(-38 + 65 * math.cos(math.radians(a)), -30 - 16 * math.sin(math.radians(a))) for a in range(0, 181, 10)]
         pn.poly(pts + [P_(-103, -24), P_(27, -24)], fill=(196, 150, 72), outline=INK, width=3)
         pn.line([P_(-103, -26), P_(27, -26)], lerpc((196, 150, 72), INK, .35), 3)
+    if open_side > 0:             # his uncovered right side: an emphasis burst (emphasis.py) pointing out from it
+        import emphasis
+        bx, by = P_(40, 6)
+        emphasis.burst(pn, bx, by, 0.8, 0 if u == 1 else 180, open_side)
     pn.pop()
