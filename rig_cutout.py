@@ -303,10 +303,12 @@ def _leg(pn, J, side, O, f):
 
 def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', look=(0.7, 0), blink=0.0,
             spear_hand=None, spear_ang=None, spear_back=110, shield=True, shield_r=64, shield_dx=0.0, shadow=True,
-            device=None, t=0.0):
+            device=None, t=0.0, shield_fn=None, spear_fn=None, layer='all'):
     """Greek hoplite on the cutout rig. Aspis on the back (left) forearm through the porpax, the hand on the antilabe
     hidden behind it; dory in the front hand, drawn before the hand so the fist wraps the shaft.
-    spear_ang: radians, screen angle of the tip direction measured like props.dory (0 = toward +x)."""
+    spear_ang: radians, screen angle of the tip direction measured like props.dory (0 = toward +x).
+    shield_fn(pn, cx, cy, r, f) and spear_fn(pn, gx, gy, ang, back) -> tip replace the flat props (3D props in the
+    2.5D world). layer: 'all', 'spear' (only the spear, for drawing a whole rank's spears first) or 'body' (no spear)."""
     O = OUT2[out]
     if isinstance(p, str): p = R.POSES[p]
     p = dict(p); p['torso'] = p.get('torso', 0) + 1.0 * math.sin(t * 2.3 + x * 0.011)   # breathing
@@ -320,6 +322,11 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         hands[sS] = (J0['sh' + sS][0] + f * 30, J0['sh' + sS][1] + 34)
     J = R.joints(p, f, hands=hands or None)
     pn.push(x, y, k)
+    if layer == 'spear':
+        if spear_hand is not None:
+            g = J['ha' + sW]; a_ = spear_ang if spear_ang is not None else -math.pi / 2
+            (spear_fn or (lambda pn_, gx, gy, a, b: dory(pn_, gx, gy, a, back=b).get('tip')))(pn, g[0], g[1], a_, spear_back)
+        pn.pop(); return dict(J=J, tip=None)
     if shadow: pn.ell(f * 6, 3, 48, 9, fill=(20, 14, 10, 70))
     # back to front: shield arm (hidden by the shield), legs, body, clothes, armour, spear, spear arm, shield, head
     _arm(pn, J, sS, O, f, hand=None if shield else 'hand')
@@ -331,7 +338,8 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
     tip = None
     if spear_hand is not None:
         g = J['ha' + sW]; a_ = spear_ang if spear_ang is not None else -math.pi / 2
-        res = dory(pn, g[0], g[1], a_, back=spear_back); tip = res.get('tip')
+        if layer != 'body':
+            tip = spear_fn(pn, g[0], g[1], a_, spear_back) if spear_fn else dory(pn, g[0], g[1], a_, back=spear_back).get('tip')
         _arm(pn, J, sW, O, f, hand=None)
         el, ha = J['el' + sW], J['ha' + sW]
         draw_part(pn, 'fist', ha, (ha[0] + (ha[0] - el[0]), ha[1] + (ha[1] - el[1])), f, O)
@@ -340,7 +348,8 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
     if shield:
         el, ha = J['el' + sS], J['ha' + sS]
         cx, cy = lerp(el[0], ha[0], 0.35) + f * shield_dx, lerp(el[1], ha[1], 0.35)
-        aspis(pn, cx, cy, shield_r, f, device=device)
+        if shield_fn: shield_fn(pn, cx, cy, shield_r, f)
+        else: aspis(pn, cx, cy, shield_r, f, device=device)
     # head
     hx, hy = J['head']; r = L['head']
     if O.get('hair') and not O.get('helmet'):

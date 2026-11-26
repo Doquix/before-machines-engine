@@ -115,6 +115,7 @@ EXPR = {
 }
 SMALL_FACE_PX = 58      # head diameter on screen below which subtle expressions fall back to their bold version
 EXTRAS_PX = 80          # extras (sweat, tears, blush, lines) only when the head is at least this big
+FACE_DETAIL_PX = 110    # fine face detail (lash lines, iris rings) only when the head is at least this big
 
 # ---------------- face: facial hair ----------------
 # Styles drawn in the channel's own shapes. The mouth always keeps a patch of bare skin (locked rule: the mouth is
@@ -191,7 +192,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
     if head_px < SMALL_FACE_PX and E['small']:
         E = EXPR[E['small']]
     extras_on = head_px >= EXTRAS_PX
-    detail = head_px >= 110
+    detail = head_px >= FACE_DETAIL_PX
     if E['look'] is not None: look = E['look']
     bt, br, lid, es, ps = E['brow'], E['raise_'], E['lid'], E['es'], E['ps']
     eyes, mouth, ext = E['eyes'], E['mouth'], E['extras'] if extras_on else ()

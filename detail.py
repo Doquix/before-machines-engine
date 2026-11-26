@@ -7,13 +7,18 @@ def onscreen(pn, units):
     """Size in final screen pixels of `units` drawn with the current pen transform and camera."""
     return units * pn.k()
 
+FIXED_DETAIL = False   # True: every detail is drawn at every size (no popping when the camera moves in or out)
+
 def lod(pn, units):
-    """0 = silhouette (under ~120 px), 1 = construction and materials, 2 = full detail (over ~400 px)."""
+    """0 = silhouette (under ~120 px), 1 = construction and materials, 2 = full detail (over ~400 px).
+    With FIXED_DETAIL the answer is always 2, so details never appear or vanish as the camera moves."""
+    if FIXED_DETAIL: return 2
     s = onscreen(pn, units)
     return 0 if s < 120 else (1 if s < 400 else 2)
 
 def thin_ok(pn, width, minpx=1.6):
     """True when a line of `width` units is at least `minpx` screen pixels: thinner lines are noise."""
+    if FIXED_DETAIL: return True
     return width * pn.k() >= minpx
 
 def shade(c, a): return lerpc(c, (20, 14, 10), a)

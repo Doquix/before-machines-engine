@@ -15,6 +15,15 @@ import math, random
 import numpy as np
 from PIL import Image, ImageFilter
 from lib import *
+import detail, rig
+
+MAX_ORBIT = math.radians(15)   # flat figures face the camera; wider orbits give the cards away
+
+def fixed_detail(on=True):
+    """Draw every detail at every distance: no level of detail switching, no small face fallbacks."""
+    detail.FIXED_DETAIL = on
+    rig.SMALL_FACE_PX, rig.EXTRAS_PX, rig.FACE_DETAIL_PX = (0, 0, 0) if on else (58, 80, 110)
+fixed_detail(True)
 
 class Cam3:
     def __init__(c, x=0.0, y=-200.0, z=0.0, yaw=0.0, F=3600.0, horizon=860.0, cx=CX):
@@ -31,6 +40,7 @@ class Cam3:
 def orbit(tx, ty, tz, R, a, F=3600.0, horizon=860.0, eye=None):
     """Camera on a circle of radius R around (tx, tz), angle a (radians, 0 = straight in front), aimed at the target."""
     eye = ty if eye is None else eye
+    a = max(-MAX_ORBIT, min(MAX_ORBIT, a))
     return Cam3(tx + R * math.sin(a), eye, tz - R * math.cos(a), a, F, horizon)
 
 def haze(col, zr, sky, dist=16000.0, amt=0.85):
@@ -55,6 +65,10 @@ class Scene:
         for _ in range(n):
             X, Z = rnd.uniform(x0, x1), z0 * (z1 / z0) ** rnd.random()
             s.items.append(('tuft', Z, dict(X=X, col=col, h=rnd.uniform(10, 22) * size, seed=rnd.random())))
+    def group(s, X, Z, draw):
+        """draw(pn, cam): draws several things that belong together at about depth Z (a rank of soldiers),
+        in its own order (spears first, then bodies), projecting each member itself."""
+        s.items.append(('group', Z, dict(X=X, draw=draw)))
     def card(s, X, Z, draw, Y=0.0, scale=1.0):
         """draw(pn, sx, sy, k): draws a flat cutout whose ground contact point is (sx, sy) at scale k."""
         s.items.append(('card', Z, dict(X=X, Y=Y, draw=draw, scale=scale)))
@@ -64,6 +78,7 @@ class Scene:
             if a <= zr < b: return name
         return 'far'
     def render(s, cam):
+        s.cam = cam
         im = Image.new('RGBA', (W, H)); px = np.zeros((H, W, 4), np.uint8)
         g = np.linspace(0, 1, H)[:, None]
         hy = cam.hy / H
@@ -81,7 +96,7 @@ class Scene:
             X = d['X']; pr = cam.proj(X, d.get('Y', 0.0), Z)
             if pr is None: continue
             order.append((pr[3], kind, d, pr))
-        order.sort(key=lambda o: -o[0])
+        order.sort(key=lambda o: (-round(o[0], 3), o[2].get('X', 0.0) if isinstance(o[2], dict) else 0.0))
         for o in order:
             kind = o[1]; d = o[2]
             if kind == 'ground': s._ground(pens['far'], cam, d); continue
@@ -97,8 +112,10 @@ class Scene:
                 for j in range(3):
                     a = (j - 1) * 0.35 + (d['seed'] - 0.5) * 0.3
                     pn.line([(sx + (j - 1) * 3 * k, sy), (sx + (j - 1) * 3 * k + math.sin(a) * h, sy - math.cos(a) * h)], c, max(0.6, 2.2 * k))
+            elif kind == 'group':
+                s.cur_zr = zr; d['draw'](pn, cam)
             else:
-                d['draw'](pn, sx, sy, k * d['scale'])
+                s.cur_zr = zr; d['draw'](pn, sx, sy, k * d['scale'])
         for name, a, b, blur in sorted(BANDS, key=lambda t: -t[1]):
             small = layers[name].resize((W, H), Image.BOX)
             if blur > 0: small = small.filter(ImageFilter.GaussianBlur(blur))
@@ -138,3 +155,33 @@ class Scene:
         gy = pg[1] if pg else cam.hy
         pts = pts + [(pts[-1][0], gy + 4), (pts[0][0], gy + 4)]
         pn.poly(pts, fill=haze(d['col'], zr, s.bot, dist=70000.0, amt=0.7))
+
+# ---------------- scenery cutouts (flat, placed at depth) ----------------
+def oak(scene, seed=0, size=1.0):
+    """Deciduous oak (the Pelagos oak wood between Mantinea and Tegea, Pausanias 8.11.1): trunk, three canopy tones."""
+    rnd = random.Random(seed)
+    blobs = [(rnd.uniform(-70, 70), rnd.uniform(-330, -210), rnd.uniform(60, 95)) for _ in range(7)]
+    lean = rnd.uniform(-10, 10)
+    def draw(pn, sx, sy, k):
+        k *= size; zr = getattr(scene, 'cur_zr', 3000)
+        hz = lambda c: haze(c, zr, scene.bot, dist=22000.0, amt=0.8)
+        pn.push(sx, sy, k)
+        pn.ell(0, 2, 110, 16, fill=(20, 14, 10, 50))
+        pn.poly([(-12, 0), (-8, -150), (lean - 4, -230), (lean + 6, -230), (9, -150), (13, 0)], fill=hz((96, 72, 50)), outline=INK, width=3)
+        for (x, y, r) in blobs: pn.circ(x, y, r, fill=hz((84, 104, 62)), outline=INK, width=3)
+        for (x, y, r) in blobs: pn.circ(x + r * .18, y - r * .2, r * .72, fill=hz((104, 126, 74)))
+        for (x, y, r) in blobs[:4]: pn.circ(x + r * .3, y - r * .35, r * .34, fill=hz((128, 150, 90)))
+        pn.pop()
+    return draw
+
+def rock(scene, seed=0, size=1.0):
+    rnd = random.Random(seed)
+    n = 9; pts = [(math.cos(math.pi + math.pi * i / (n - 1)) * 40 * rnd.uniform(.8, 1.1), math.sin(math.pi + math.pi * i / (n - 1)) * 26 * rnd.uniform(.7, 1.2)) for i in range(n)]
+    def draw(pn, sx, sy, k):
+        k *= size; zr = getattr(scene, 'cur_zr', 3000)
+        hz = lambda c: haze(c, zr, scene.bot, dist=22000.0, amt=0.8)
+        pn.push(sx, sy, k)
+        pn.poly(pts + [(40, 2), (-40, 2)], fill=hz((150, 146, 136)), outline=INK, width=3)
+        pn.poly([(p[0] * .55 + 10, p[1] * .55 - 4) for p in pts], fill=hz((172, 168, 156)))
+        pn.pop()
+    return draw
