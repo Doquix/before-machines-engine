@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="920" viewBox="0 0 680 920">
+<!-- Before Machines cutout rig parts. One group per part; the group origin is the pivot (red dot), the bone runs down +y. Classes set the outfit colour. Edit shapes freely, keep ids and pivots. -->
+<g id="upper_arm" transform="translate(85.0,60.0)">
+  <path class="skin" d="M -7.50,0.00 L -7.13,-2.32 L -6.07,-4.41 L -4.41,-6.07 L -2.32,-7.13 L -0.00,-7.50 L 2.32,-7.13 L 4.41,-6.07 L 6.07,-4.41 L 7.13,-2.32 L 7.50,-0.00 L 6.50,38.50 L 6.18,40.51 L 5.26,42.32 L 3.82,43.76 L 2.01,44.68 L 0.00,45.00 L -2.01,44.68 L -3.82,43.76 L -5.26,42.32 L -6.18,40.51 L -6.50,38.50 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="skin_sh" d="M -6.50,2.00 L -0.80,4.00 L -0.56,36.50 L -5.50,38.50 Z" fill="#d3c7b4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">upper_arm</text>
+</g>
+<g id="forearm" transform="translate(255.0,60.0)">
+  <path class="skin" d="M -6.50,0.00 L -6.18,-2.01 L -5.26,-3.82 L -3.82,-5.26 L -2.01,-6.18 L -0.00,-6.50 L 2.01,-6.18 L 3.82,-5.26 L 5.26,-3.82 L 6.18,-2.01 L 6.50,-0.00 L 5.50,37.00 L 5.23,38.70 L 4.45,40.23 L 3.23,41.45 L 1.70,42.23 L 0.00,42.50 L -1.70,42.23 L -3.23,41.45 L -4.45,40.23 L -5.23,38.70 L -5.50,37.00 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="skin_sh" d="M -5.50,2.00 L -0.56,4.00 L -0.32,35.00 L -4.50,37.00 Z" fill="#d3c7b4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">forearm</text>
+</g>
+<g id="thigh" transform="translate(425.0,60.0)">
+  <path class="skin" d="M -9.50,0.00 L -9.04,-2.94 L -7.69,-5.58 L -5.58,-7.69 L -2.94,-9.04 L -0.00,-9.50 L 2.94,-9.04 L 5.58,-7.69 L 7.69,-5.58 L 9.04,-2.94 L 9.50,-0.00 L 7.50,37.00 L 7.13,39.32 L 6.07,41.41 L 4.41,43.07 L 2.32,44.13 L 0.00,44.50 L -2.32,44.13 L -4.41,43.07 L -6.07,41.41 L -7.13,39.32 L -7.50,37.00 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="skin_sh" d="M -8.50,2.00 L -1.28,4.00 L -0.80,35.00 L -6.50,37.00 Z" fill="#d3c7b4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">thigh</text>
+</g>
+<g id="shin" transform="translate(595.0,60.0)">
+  <path class="skin" d="M -7.50,0.00 L -7.13,-2.32 L -6.07,-4.41 L -4.41,-6.07 L -2.32,-7.13 L -0.00,-7.50 L 2.32,-7.13 L 4.41,-6.07 L 6.07,-4.41 L 7.13,-2.32 L 7.50,-0.00 L 5.50,35.50 L 5.23,37.20 L 4.45,38.73 L 3.23,39.95 L 1.70,40.73 L 0.00,41.00 L -1.70,40.73 L -3.23,39.95 L -4.45,38.73 L -5.23,37.20 L -5.50,35.50 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="skin_sh" d="M -6.50,2.00 L -0.80,4.00 L -0.32,33.50 L -4.50,35.50 Z" fill="#d3c7b4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">shin</text>
+</g>
+<g id="hand" transform="translate(85.0,290.0)">
+  <path class="skin" d="M 7.20,8.00 L 6.95,10.28 L 6.24,12.40 L 5.09,14.22 L 3.60,15.62 L 1.86,16.50 L 0.00,16.80 L -1.86,16.50 L -3.60,15.62 L -5.09,14.22 L -6.24,12.40 L -6.95,10.28 L -7.20,8.00 L -6.95,5.72 L -6.24,3.60 L -5.09,1.78 L -3.60,0.38 L -1.86,-0.50 L -0.00,-0.80 L 1.86,-0.50 L 3.60,0.38 L 5.09,1.78 L 6.24,3.60 L 6.95,5.72 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="skin" d="M 9.80,3.50 L 9.68,4.69 L 9.32,5.80 L 8.75,6.75 L 8.00,7.48 L 7.13,7.94 L 6.20,8.10 L 5.27,7.94 L 4.40,7.48 L 3.65,6.75 L 3.08,5.80 L 2.72,4.69 L 2.60,3.50 L 2.72,2.31 L 3.08,1.20 L 3.65,0.25 L 4.40,-0.48 L 5.27,-0.94 L 6.20,-1.10 L 7.13,-0.94 L 8.00,-0.48 L 8.75,0.25 L 9.32,1.20 L 9.68,2.31 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">hand</text>
+</g>
+<g id="fist" transform="translate(255.0,290.0)">
+  <path class="skin" d="M 8.20,8.00 L 7.92,9.97 L 7.10,11.80 L 5.80,13.37 L 4.10,14.58 L 2.12,15.34 L 0.00,15.60 L -2.12,15.34 L -4.10,14.58 L -5.80,13.37 L -7.10,11.80 L -7.92,9.97 L -8.20,8.00 L -7.92,6.03 L -7.10,4.20 L -5.80,2.63 L -4.10,1.42 L -2.12,0.66 L -0.00,0.40 L 2.12,0.66 L 4.10,1.42 L 5.80,2.63 L 7.10,4.20 L 7.92,6.03 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="line" d="M -5.50,5.50 L 5.50,5.50" fill="none" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <path class="line" d="M -5.50,9.50 L 5.50,9.50" fill="none" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">fist</text>
+</g>
+<g id="foot" transform="translate(425.0,290.0)">
+  <path class="skin" d="M 16.00,5.00 L 15.59,6.45 L 14.39,7.80 L 12.49,8.96 L 10.00,9.85 L 7.11,10.41 L 4.00,10.60 L 0.89,10.41 L -2.00,9.85 L -4.49,8.96 L -6.39,7.80 L -7.59,6.45 L -8.00,5.00 L -7.59,3.55 L -6.39,2.20 L -4.49,1.04 L -2.00,0.15 L 0.89,-0.41 L 4.00,-0.60 L 7.11,-0.41 L 10.00,0.15 L 12.49,1.04 L 14.39,2.20 L 15.59,3.55 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="line" d="M 9.00,6.00 L 12.00,7.00" fill="none" stroke="#261e16" stroke-width="1.4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">foot</text>
+</g>
+<g id="torso" transform="translate(595.0,290.0)">
+  <path class="skin" d="M -27.00,10.00 L -29.00,22.00 L -23.00,70.00 L -25.00,98.00 L 25.00,98.00 L 23.00,70.00 L 29.00,22.00 L 27.00,10.00 L 8.00,2.00 L -8.00,2.00 Z" fill="#f7ead4" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">torso</text>
+</g>
+<g id="chiton" transform="translate(85.0,520.0)">
+  <path class="cloth" d="M -12.00,3.00 L -31.00,12.00 L -30.00,30.00 L -25.00,64.00 L -29.00,90.00 L -35.00,126.00 L -14.00,130.00 L 0.00,128.00 L 14.00,130.00 L 35.00,126.00 L 29.00,90.00 L 25.00,64.00 L 30.00,30.00 L 31.00,12.00 L 12.00,3.00 L 0.00,9.00 Z" fill="#96362a" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="cloth_sh" d="M -31.00,12.00 L -30.00,30.00 L -25.00,64.00 L -29.00,90.00 L -35.00,126.00 L -24.00,128.00 L -19.00,92.00 L -17.00,64.00 L -21.00,26.00 Z" fill="#813025" stroke-linejoin="round"/>
+  <path class="trim" d="M -35.00,120.00 L -14.00,124.00 L 0.00,122.00 L 14.00,124.00 L 35.00,120.00 L 35.00,126.00 L 14.00,130.00 L 0.00,128.00 L -14.00,130.00 L -35.00,126.00 Z" fill="#261e16" stroke-linejoin="round"/>
+  <path class="fold" d="M -10.00,94.00 L -14.00,124.00" fill="none" stroke="#68281f" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="fold" d="M 6.00,96.00 L 8.00,124.00" fill="none" stroke="#68281f" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="fold" d="M 18.00,92.00 L 24.00,122.00" fill="none" stroke="#68281f" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="belt" d="M -26.00,62.00 L 26.00,62.00 L 26.00,68.00 L -26.00,68.00 Z" fill="#604026" stroke="#261e16" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">chiton</text>
+</g>
+<g id="linothorax" transform="translate(255.0,520.0)">
+  <path class="linen" d="M -32.20,98.00 L -26.47,98.00 L -26.47,118.00 L -32.20,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M -24.87,98.00 L -19.13,98.00 L -19.13,118.00 L -24.87,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M -17.53,98.00 L -11.80,98.00 L -11.80,118.00 L -17.53,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M -10.20,98.00 L -4.47,98.00 L -4.47,118.00 L -10.20,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M -2.87,98.00 L 2.87,98.00 L 2.87,118.00 L -2.87,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M 4.47,98.00 L 10.20,98.00 L 10.20,118.00 L 4.47,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M 11.80,98.00 L 17.53,98.00 L 17.53,118.00 L 11.80,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M 19.13,98.00 L 24.87,98.00 L 24.87,118.00 L 19.13,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M 26.47,98.00 L 32.20,98.00 L 32.20,118.00 L 26.47,118.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M -29.20,86.00 L -23.30,86.00 L -23.30,106.00 L -29.20,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M -21.70,86.00 L -15.80,86.00 L -15.80,106.00 L -21.70,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M -14.20,86.00 L -8.30,86.00 L -8.30,106.00 L -14.20,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M -6.70,86.00 L -0.80,86.00 L -0.80,106.00 L -6.70,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M 0.80,86.00 L 6.70,86.00 L 6.70,106.00 L 0.80,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M 8.30,86.00 L 14.20,86.00 L 14.20,106.00 L 8.30,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M 15.80,86.00 L 21.70,86.00 L 21.70,106.00 L 15.80,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen2" d="M 23.30,86.00 L 29.20,86.00 L 29.20,106.00 L 23.30,106.00 Z" fill="#d6ccb2" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="linen" d="M -30.00,22.00 L -29.00,50.00 L -27.00,88.00 L 27.00,88.00 L 29.00,50.00 L 30.00,22.00 L 18.00,14.00 L -18.00,14.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="linen_sh" d="M -30.00,22.00 L -29.00,50.00 L -27.00,88.00 L -17.00,88.00 L -20.00,50.00 L -22.00,22.00 Z" fill="#c9c2af" stroke-linejoin="round"/>
+  <path class="trim" d="M -27.00,80.00 L 27.00,80.00 L 27.00,86.00 L -27.00,86.00 Z" fill="#261e16" stroke-linejoin="round"/>
+  <path class="trim" d="M -29.50,40.00 L 29.50,40.00 L 29.40,45.00 L -29.40,45.00 Z" fill="#261e16" stroke-linejoin="round"/>
+  <path class="linen" d="M -30.00,10.00 L -12.00,10.00 L -11.00,36.00 L -24.00,38.00 L -31.00,24.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="2.6" stroke-linejoin="round"/>
+  <path class="linen" d="M 30.00,10.00 L 12.00,10.00 L 11.00,36.00 L 24.00,38.00 L 31.00,24.00 Z" fill="#ece4ce" stroke="#261e16" stroke-width="2.6" stroke-linejoin="round"/>
+  <path class="metal" d="M -13.80,33.00 L -14.23,34.60 L -15.40,35.77 L -17.00,36.20 L -18.60,35.77 L -19.77,34.60 L -20.20,33.00 L -19.77,31.40 L -18.60,30.23 L -17.00,29.80 L -15.40,30.23 L -14.23,31.40 Z" fill="#c49648" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <path class="metal" d="M 20.20,33.00 L 19.77,34.60 L 18.60,35.77 L 17.00,36.20 L 15.40,35.77 L 14.23,34.60 L 13.80,33.00 L 14.23,31.40 L 15.40,30.23 L 17.00,29.80 L 18.60,30.23 L 19.77,31.40 Z" fill="#c49648" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <path class="line" d="M -17.00,33.00 L -6.00,45.00" fill="none" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <path class="line" d="M 17.00,33.00 L 6.00,45.00" fill="none" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">linothorax</text>
+</g>
+<g id="sleeve" transform="translate(425.0,520.0)">
+  <path class="cloth" d="M -11.00,-4.00 L 11.00,-4.00 L 12.00,15.00 L -12.00,15.00 Z" fill="#96362a" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="cloth_sh" d="M -11.00,-4.00 L -4.00,-4.00 L -5.00,15.00 L -12.00,15.00 Z" fill="#813025" stroke-linejoin="round"/>
+  <path class="trim" d="M -12.00,12.00 L 12.00,12.00 L 12.00,15.00 L -12.00,15.00 Z" fill="#261e16" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">sleeve</text>
+</g>
+<g id="greave" transform="translate(595.0,520.0)">
+  <path class="metal" d="M -9.50,-3.00 L -6.00,-7.00 L 6.00,-7.00 L 9.50,-3.00 L 9.00,14.00 L 7.00,30.00 L 5.50,34.00 L -5.50,34.00 L -7.00,30.00 L -9.00,14.00 Z" fill="#c49648" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="metal_sh" d="M -9.50,-3.00 L -6.00,-7.00 L -3.00,-6.00 L -4.00,14.00 L -3.00,33.00 L -5.50,34.00 L -7.00,30.00 L -9.00,14.00 Z" fill="#a8803e" stroke-linejoin="round"/>
+  <path class="line" d="M -5.00,1.00 L 0.00,3.00 L 5.00,1.00" fill="none" stroke="#261e16" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="-30" font-size="11" text-anchor="middle" fill="#786955">greave</text>
+</g>
+<g id="pilos" transform="translate(85.0,840.0)">
+  <path class="metal" d="M -49.00,-22.00 L -40.00,-52.00 L -17.00,-80.00 L 17.00,-80.00 L 40.00,-52.00 L 49.00,-22.00 Z" fill="#c49648" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="metal_sh" d="M -49.00,-22.00 L -40.00,-52.00 L -17.00,-80.00 L -6.00,-80.00 L -24.00,-50.00 L -30.00,-22.00 Z" fill="#a8803e" stroke-linejoin="round"/>
+  <path class="metal" d="M -52.00,-26.00 L 52.00,-26.00 L 50.00,-18.00 L -50.00,-18.00 Z" fill="#c49648" stroke="#261e16" stroke-width="2.6" stroke-linejoin="round"/>
+  <path class="metal" d="M 5.00,-82.00 L 4.33,-80.25 L 2.50,-78.97 L 0.00,-78.50 L -2.50,-78.97 L -4.33,-80.25 L -5.00,-82.00 L -4.33,-83.75 L -2.50,-85.03 L -0.00,-85.50 L 2.50,-85.03 L 4.33,-83.75 Z" fill="#c49648" stroke="#261e16" stroke-width="2" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="30" font-size="11" text-anchor="middle" fill="#786955">pilos</text>
+</g>
+<g id="corinthian_up" transform="translate(255.0,840.0)">
+  <path class="crest" d="M -6.00,-94.00 L -9.00,-138.00 L 0.00,-146.00 L 9.00,-138.00 L 6.00,-94.00 Z" fill="#962824" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="crest_sh" d="M -6.00,-94.00 L -9.00,-138.00 L -3.00,-144.00 L -2.00,-94.00 Z" fill="#812420" stroke-linejoin="round"/>
+  <path class="metal" d="M -3.00,-96.00 L 3.00,-96.00 L 4.00,-84.00 L -4.00,-84.00 Z" fill="#c49648" stroke="#261e16" stroke-width="2" stroke-linejoin="round"/>
+  <path class="metal" d="M -50.00,-52.00 L -49.73,-55.76 L -48.91,-59.48 L -47.55,-63.12 L -45.68,-66.64 L -43.30,-70.00 L -40.45,-73.16 L -37.16,-76.09 L -33.46,-78.75 L -29.39,-81.12 L -25.00,-83.18 L -20.34,-84.89 L -15.45,-86.24 L -10.40,-87.21 L -5.23,-87.80 L -0.00,-88.00 L 5.23,-87.80 L 10.40,-87.21 L 15.45,-86.24 L 20.34,-84.89 L 25.00,-83.18 L 29.39,-81.12 L 33.46,-78.75 L 37.16,-76.09 L 40.45,-73.16 L 43.30,-70.00 L 45.68,-66.64 L 47.55,-63.12 L 48.91,-59.48 L 49.73,-55.76 L 50.00,-52.00 L 50.00,-50.00 L 46.00,-36.00 L 34.00,-30.00 L 20.00,-36.00 L 8.00,-36.00 L 4.00,-30.00 L -4.00,-30.00 L -8.00,-36.00 L -20.00,-36.00 L -34.00,-30.00 L -46.00,-36.00 L -50.00,-50.00 Z" fill="#c49648" stroke="#261e16" stroke-width="3.0" stroke-linejoin="round"/>
+  <path class="metal_sh" d="M -49.00,-52.00 L -48.81,-55.05 L -48.26,-58.08 L -47.33,-61.06 L -46.04,-63.97 L -44.41,-66.79 L -42.44,-69.50 L -40.14,-72.08 L -37.54,-74.50 L -34.65,-76.75 L -31.50,-78.81 L -28.11,-80.67 L -24.50,-82.31 L -26.00,-70.00 L -30.00,-50.00 L -46.00,-37.00 L -49.00,-50.00 Z" fill="#a8803e" stroke-linejoin="round"/>
+  <path class="hole" d="M -25.00,-50.00 L -24.81,-51.07 L -24.24,-52.10 L -23.31,-53.06 L -22.07,-53.89 L -20.56,-54.57 L -18.83,-55.08 L -16.95,-55.39 L -15.00,-55.50 L -13.05,-55.39 L -11.17,-55.08 L -9.44,-54.57 L -7.93,-53.89 L -6.69,-53.06 L -5.76,-52.10 L -5.19,-51.07 L -5.00,-50.00 L -5.00,-44.00 L -22.00,-44.00 Z" fill="#5c401e" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="hole" d="M 5.00,-50.00 L 5.19,-51.07 L 5.76,-52.10 L 6.69,-53.06 L 7.93,-53.89 L 9.44,-54.57 L 11.17,-55.08 L 13.05,-55.39 L 15.00,-55.50 L 16.95,-55.39 L 18.83,-55.08 L 20.56,-54.57 L 22.07,-53.89 L 23.31,-53.06 L 24.24,-52.10 L 24.81,-51.07 L 25.00,-50.00 L 22.00,-44.00 L 5.00,-44.00 Z" fill="#5c401e" stroke="#261e16" stroke-width="1.8" stroke-linejoin="round"/>
+  <path class="line" d="M -48.00,-55.00 L 48.00,-55.00" fill="none" stroke="#261e16" stroke-width="1.4" stroke-linejoin="round"/>
+  <circle class="pivot" cx="0" cy="0" r="2.5" fill="#d02020"/>
+  <text class="label" x="0" y="30" font-size="11" text-anchor="middle" fill="#786955">corinthian_up</text>
+</g>
+</svg>
