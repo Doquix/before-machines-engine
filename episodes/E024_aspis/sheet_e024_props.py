@@ -36,9 +36,10 @@ for i, (out, lab) in enumerate(row):
 GY2 = 1060
 x = 150; k = 1.0
 def held(pn_, J):
-    M.draw_mesh(pn_, SHEETCAM, M.get('papyrus'), (x, GY2 - 150 * k, -20 * k), M.rot(math.pi, 0, 0), scale=1.55 * k)
-C.hoplite(pn, x, GY2, k, -1, out='hop_keeper', expr='thinking', look=(0, 0.9), shield=False,
-          hands_in={'F': (-54, -150), 'B': (54, -150)}, held_fn=held)
+    # held open below the chin, turned about 25 degrees so one roll end is nearer: the viewer sees the outside
+    M.draw_mesh(pn_, SHEETCAM, M.get('papyrus'), (x, GY2 - 120 * k, -26 * k), M.rot(math.pi + 0.45, math.radians(-8), 0), scale=1.9 * k)
+C.hoplite(pn, x, GY2, k, -1, out='hop_keeper', expr='thinking', look=(0.3, 0.9), shield=False,
+          hands_in={'F': (-58, -122), 'B': (62, -116)}, held_fn=held)
 pn.text(x, GY2 + 36, 'BOOK ROLL', 20, INK, 'Black')
 pn.rect(300, GY2 - 2, 1050, GY2 + 3, fill=(120, 100, 70))
 M.draw_mesh(pn, SHEETCAM, M.get('aspis'), (450, GY2 - 22, 0), M.rot(0.3, math.radians(-72), 0), scale=1.0)

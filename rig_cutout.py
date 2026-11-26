@@ -347,12 +347,13 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
     if O.get('cloth'): draw_part(pn, 'chiton', nk, pe, f, O)
     if O.get('armour'): draw_part(pn, O['armour'], nk, pe, f, O)
     tip = None
-    if held_fn:        # an object held in both hands in front of the body: object first, then both arms and fists over it
-        held_fn(pn, J)
+    if held_fn:        # a wide object held open in both hands (book roll, map): arms behind it, only the fists wrap its edges
         for sd in (sS, sW):
             _arm(pn, J, sd, O, f, hand=None)
+        held_fn(pn, J)
+        for sd in (sS, sW):
             el, ha = J['el' + sd], J['ha' + sd]
-            draw_part(pn, 'fist', ha, (ha[0] + (ha[0] - el[0]), ha[1] + (ha[1] - el[1])), f, O)
+            draw_part(pn, 'fist', ha, (ha[0] + (ha[0] - el[0]) * .3, ha[1] + 12), f, O)
     elif spear_hand is not None:
         g = J['ha' + sW]; a_ = spear_ang if spear_ang is not None else -math.pi / 2
         if layer != 'body':
