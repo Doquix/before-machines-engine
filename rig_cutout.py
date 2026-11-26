@@ -107,6 +107,11 @@ def _defaults():
         S('hole', _ell(-15, -50, 10, 5.5, 16, 180, 360) + [(-5, -44), (-22, -44)], w=1.8),
         S('hole', _ell(15, -50, 10, 5.5, 16, 180, 360) + [(22, -44), (5, -44)], w=1.8),
         S('line', [(-48, -55), (48, -55)], False, 1.4)]
+    # long hair (Spartans, Xenophon Lac. Pol. 11.3): falls behind the head to the shoulders; pivot at the head centre
+    P['hair_long'] = [S('hair', [(-50, -10), (-46, -36), (-26, -52), (0, -56), (26, -52), (46, -36), (50, -10), (50, 40), (40, 62),
+                                 (22, 66), (-22, 66), (-40, 62), (-50, 40)]),
+                      S('hair_sh', [(-50, -10), (-46, -36), (-30, -48), (-36, -10), (-38, 60), (-50, 40)], w=0),
+                      S('line', [(-30, 30), (-28, 58)], False, 1.4), S('line', [(30, 30), (28, 58)], False, 1.4)]
     # the Keeper's round glasses are part of the face code; hair under a helmet is not drawn
     return P
 
@@ -283,6 +288,11 @@ OUT2 = {
     'hop_b': dict(skin=(214, 172, 132), cloth=(112, 74, 52), trim=(70, 44, 30), linen=(230, 222, 198), linen2=(208, 198, 172),
                   metal=(200, 156, 78), crest=(150, 40, 36), belt=(80, 54, 32), helmet='corinthian_up', armour='linothorax',
                   greaves=True, beard=(90, 66, 44), beard_style='short'),
+    'spartan1': dict(skin=(222, 186, 150), cloth=(160, 40, 36), trim=(90, 24, 20), linen=(232, 224, 200), linen2=(210, 200, 174),
+                     metal=(194, 148, 70), belt=(80, 54, 32), helmet='pilos', armour='linothorax', greaves=True,
+                     beard=(58, 42, 30), beard_style='full', hair=(58, 42, 30), hair_long=True),
+    'spartan2': dict(skin=(206, 166, 128), cloth=(150, 36, 32), trim=(84, 22, 18), belt=(80, 54, 32), helmet=None, armour=None,
+                     greaves=False, beard=(40, 30, 22), beard_style='long', hair=(40, 30, 22), hair_long=True),
     'hop_plain': dict(skin=SKIN, cloth=(206, 192, 158), trim=(120, 96, 64), belt=(96, 64, 38), helmet=None, armour=None,
                       greaves=False, beard=(70, 52, 38), beard_style='short', hair=(70, 52, 38)),
 }
@@ -303,7 +313,7 @@ def _leg(pn, J, side, O, f):
 
 def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', look=(0.7, 0), blink=0.0,
             spear_hand=None, spear_ang=None, spear_back=110, shield=True, shield_r=64, shield_dx=0.0, shadow=True,
-            device=None, t=0.0, shield_fn=None, spear_fn=None, layer='all'):
+            device=None, t=0.0, shield_fn=None, spear_fn=None, layer='all', hands_in=None, held_fn=None):
     """Greek hoplite on the cutout rig. Aspis on the back (left) forearm through the porpax, the hand on the antilabe
     hidden behind it; dory in the front hand, drawn before the hand so the fist wraps the shaft.
     spear_ang: radians, screen angle of the tip direction measured like props.dory (0 = toward +x).
@@ -320,6 +330,7 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         hands[sW] = (J0['sh' + sW][0] + f * spear_hand[0], spear_hand[1])
     if shield:   # shield forearm across the body toward the front, elbow low: the grip that carries the aspis
         hands[sS] = (J0['sh' + sS][0] + f * 30, J0['sh' + sS][1] + 34)
+    if hands_in: hands.update(hands_in)
     J = R.joints(p, f, hands=hands or None)
     pn.push(x, y, k)
     if layer == 'spear':
@@ -329,14 +340,20 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         pn.pop(); return dict(J=J, tip=None)
     if shadow: pn.ell(f * 6, 3, 48, 9, fill=(20, 14, 10, 70))
     # back to front: shield arm (hidden by the shield), legs, body, clothes, armour, spear, spear arm, shield, head
-    _arm(pn, J, sS, O, f, hand=None if shield else 'hand')
+    if not held_fn: _arm(pn, J, sS, O, f, hand=None if shield else 'hand')
     _leg(pn, J, 'B', O, f); _leg(pn, J, 'F', O, f)
     nk, pe = J['neck'], J['pelvis']
     draw_part(pn, 'torso', nk, pe, f, O)
     if O.get('cloth'): draw_part(pn, 'chiton', nk, pe, f, O)
     if O.get('armour'): draw_part(pn, O['armour'], nk, pe, f, O)
     tip = None
-    if spear_hand is not None:
+    if held_fn:        # an object held in both hands in front of the body: object first, then both arms and fists over it
+        held_fn(pn, J)
+        for sd in (sS, sW):
+            _arm(pn, J, sd, O, f, hand=None)
+            el, ha = J['el' + sd], J['ha' + sd]
+            draw_part(pn, 'fist', ha, (ha[0] + (ha[0] - el[0]), ha[1] + (ha[1] - el[1])), f, O)
+    elif spear_hand is not None:
         g = J['ha' + sW]; a_ = spear_ang if spear_ang is not None else -math.pi / 2
         if layer != 'body':
             tip = spear_fn(pn, g[0], g[1], a_, spear_back) if spear_fn else dory(pn, g[0], g[1], a_, back=spear_back).get('tip')
@@ -352,7 +369,9 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         else: aspis(pn, cx, cy, shield_r, f, device=device)
     # head
     hx, hy = J['head']; r = L['head']
-    if O.get('hair') and not O.get('helmet'):
+    if O.get('hair_long'):
+        draw_part(pn, 'hair_long', (hx, hy), None, f, O)
+    elif O.get('hair') and not O.get('helmet'):
         pn.circ(hx - f * 3, hy - 3, r + 3, fill=O['hair'], outline=INK, width=3)
     pn.circ(hx, hy, r, fill=O['skin'], outline=INK, width=3.4)
     if O.get('hair') and not O.get('helmet'):

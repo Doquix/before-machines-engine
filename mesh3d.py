@@ -216,3 +216,63 @@ def dory_for(back):
     key = ('dory', int(round(back)))
     if key not in _CACHE: _CACHE[key] = dory_mesh(grip=float(back))
     return _CACHE[key]
+
+def pilos_mesh(r=48.0, h=66.0, seg=36):
+    """Bronze pilos helmet (BM-P006): conical skull with a brim rib, open underneath. Object space: apex up (-Y),
+    rim at Y 0, centred on the axis. Lathe about Y, built by revolving in XZ."""
+    m = Mesh()
+    prof = [(r + 3, 0.0), (r + 3, -5.0), (r, -6.0), (r * .82, -h * .42), (r * .5, -h * .78), (r * .18, -h * .97), (0.0, -h)]
+    rings = []
+    for (rr, y) in prof:
+        rings.append([m.v(rr * math.cos(2 * math.pi * i / seg), y, rr * math.sin(2 * math.pi * i / seg)) for i in range(seg)] if rr > 0
+                     else [m.v(0, y, 0)] * seg)
+    for j in range(len(rings) - 1):
+        A, B = rings[j], rings[j + 1]
+        for i in range(seg):
+            i2 = (i + 1) % seg
+            q = [A[i], B[i], B[i2], A[i2]]; q2 = []
+            for x in q:
+                if x not in q2: q2.append(x)
+            m.face(q2, 'bronze', [(A[i], A[i2])] if j in (1, 2) else [])
+    # inside of the bowl (dark), two sided, slightly smaller
+    inner = [m.v((r - 2) * math.cos(2 * math.pi * i / seg), 0.0, (r - 2) * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+    top = m.v(0, -h + 6, 0)
+    for i in range(seg):
+        m.face([inner[(i + 1) % seg], inner[i], top], 'leather')
+    m.dot((0, -h - 1, 0), 2.2, 'bronze', (0, -1, 0))
+    return m.done()
+
+def papyrus_mesh(w=70.0, h=52.0, r=6.0, seg=14):
+    """Greek papyrus book roll held open (BM-P070): two rolled ends joined by the open sheet, text in columns.
+    Object space: sheet faces -Z, rolls vertical at X = -w/2 and +w/2, centre at the origin."""
+    m = Mesh()
+    for sx in (-1, 1):
+        cx = sx * w / 2
+        top = [m.v(cx + r * math.cos(2 * math.pi * i / seg), -h / 2, r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+        bot = [m.v(cx + r * math.cos(2 * math.pi * i / seg), h / 2, r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+        for i in range(seg):
+            i2 = (i + 1) % seg
+            m.face([top[i], top[i2], bot[i2], bot[i]], 'papyrus')
+        m.face(top[::-1], 'papyrus_d'); m.face(bot, 'papyrus_d')
+    # open sheet, gently curved toward the reader
+    n = 10; T = []; B = []
+    for i in range(n + 1):
+        u = i / n; x = -w / 2 + w * u; z = -r * 0.9 - 4 * math.sin(math.pi * u)
+        T.append(m.v(x, -h / 2 + 3, z)); B.append(m.v(x, h / 2 - 3, z))
+    for i in range(n):
+        m.face([T[i], T[i + 1], B[i + 1], B[i]], 'papyrus2')
+    for c in range(3):                        # three narrow text columns (strokes, not a transcription)
+        x0 = -w / 2 + 12 + c * (w - 24) / 3
+        for ln in range(9):
+            y = -h / 2 + 9 + ln * 4.2
+            u = (x0 + w / 2) / w
+            z = -r * 0.9 - 4 * math.sin(math.pi * u) - 0.4
+            m.line([(x0, y, z), (x0 + (w - 30) / 3 - 2 - (ln % 3) * 2, y, z)], (70, 56, 40), 0.9, normal=(0, 0, -1))
+    return m.done()
+
+MAT.update({'papyrus': dict(col=(214, 196, 150)), 'papyrus_d': dict(col=(176, 156, 110)), 'papyrus2': dict(col=(228, 214, 172), two=True)})
+_BUILD = {'pilos': pilos_mesh, 'papyrus': papyrus_mesh}
+_get_old = get
+def get(name):
+    if name in _BUILD and name not in _CACHE: _CACHE[name] = _BUILD[name]()
+    return _CACHE[name] if name in _CACHE else _get_old(name)
