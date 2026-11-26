@@ -453,8 +453,8 @@ def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_h
         pts = [P_(-38 + 65 * math.cos(math.radians(a)), -30 - 16 * math.sin(math.radians(a))) for a in range(0, 181, 10)]
         pn.poly(pts + [P_(-103, -24), P_(27, -24)], fill=(196, 150, 72), outline=INK, width=3)
         pn.line([P_(-103, -26), P_(27, -26)], lerpc((196, 150, 72), INK, .35), 3)
-    if open_side > 0:             # his uncovered right side: an emphasis burst (emphasis.py) pointing out from it
+    if open_side > 0:             # his uncovered right side: the missing shield mark (emphasis.ghost_rim)
         import emphasis
-        bx, by = P_(40, 6)
-        emphasis.burst(pn, bx, by, 0.8, 0 if u == 1 else 180, open_side)
+        bx, by = P_(44, -26)
+        emphasis.ghost_rim(pn, bx, by, 30, open_side, width=4.0, n=12)
     pn.pop()

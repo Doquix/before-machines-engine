@@ -94,11 +94,24 @@ def frame_cam(X, Z, Yt, Yb, st, sb, hy=900.0, F=3600.0, sx=540.0):
     cy = Yb - (sb - hy) / k
     return W25.Cam3(X - (sx - 540) / k, cy, Z - zr, 0.0, F, hy)
 
+BARE_STYLE = os.environ.get('BARE_STYLE', 'ghost')
+def ghost_shield(pn, cx, cy, r, a, t=0.0):
+    """The shield that is not there: a dashed aspis outline (rim and bowl) over the uncovered side."""
+    if a <= 0: return
+    rr = r * (0.85 + 0.15 * eoback(min(1.0, a)))
+    pn.circ(cx, cy, rr, fill=RUST + (int(45 * min(1, a)),))
+    n = 22; ph = t * 0.6
+    for i in range(n):
+        a0 = 2 * math.pi * (i / n) + ph; a1 = a0 + math.pi / n
+        for rad, wd in ((rr, 7), (rr * 0.84, 4)):
+            pn.line([(cx + rad * math.cos(a0), cy + rad * math.sin(a0)), (cx + rad * math.cos(a1), cy + rad * math.sin(a1))],
+                    RUST + (int(255 * min(1, a)),), wd)
 def bare_side(pn, x, y, k, a, f=-1):
-    """Emphasis burst on a front on figure's uncovered right side (screen left when facing left), radiating out."""
+    """Mark a front on figure's uncovered right side (screen left when facing left)."""
     if a <= 0: return
     pn.push(x, y, k)
-    EM.burst(pn, f * 44, -118, 0.8, 180 if f == -1 else 0, a, t=CUR['t'])
+    if BARE_STYLE == 'ghost': EM.ghost_rim(pn, f * 38, -112, 58, a, width=5.0, t=CUR['t'])
+    else: EM.burst(pn, f * 44, -118, 0.8, 180 if f == -1 else 0, a, t=CUR['t'])
     pn.pop()
 
 def floor(pn, y, col=(206, 190, 156)):
@@ -172,7 +185,7 @@ def shot_world(sc, cam):
 def s1(t):
     K1.kw['expr'] = 'worried' if t >= w(2, 6) else ('neutral' if t < w(2, 0) else 'thinking')
     K1.kw['look'] = (-0.9, 0.5) if t >= w(2, 3) else (0.6, 0)
-    K1.bare = clamp((t - w(2, 6) + 0.05) / 0.3)
+    K1.bare = EM.pop_env(t, w(2, 6) - 0.05, hold=0.75)
     # push in toward his open side on "open"
     u = eio(clamp((t - w(2, 4)) / 0.9))
     cam = frame_cam(lerp(0, -20, u), 900, -265, -35, lerp(400, 300, u), lerp(1300, 1420, u))
@@ -229,7 +242,7 @@ def s12(t):
     m.kw['expr'] = 'terrified' if t > tb else 'determined'
     for p in (L12[0], L12[2]):
         p.kw['expr'] = 'worried' if t > tb + 0.3 else 'determined'
-        p.bare = clamp((t - w(16, 5) + 0.05) / 0.3)
+        p.bare = EM.pop_env(t, w(16, 5) - 0.05, hold=0.75)
     cam = W25.Cam3(0, -70, 700 - 1350, 0, F=3600, horizon=1060)     # low eye (knee height): looking up at the line
     im = shot_world(S12, cam)
     if t >= Fl['t_impact'] and t < Fl['t_impact'] + 0.6:             # dust where he lands
@@ -494,7 +507,8 @@ def s9(t):
             u = eo3(clamp((t - w(12, 2) + 0.12 - j * 0.13) / 0.4))
             x = 540 + (i - (n - 1) / 2) * sp + u * 60 * s
             y = 720 + r * 150 * s
-            open_ = (1 - u) if r == 0 else 0.0
+            pin = eoback(clamp((t - bs(12) - 0.1) / 0.18))
+            open_ = min(pin, 1 - u) if r == 0 else 0.0
             PR.phalanx_token(pn, x, y, s, open_side=open_, spear=(r == 0))
     flatten(im, lay); return im
 
@@ -505,7 +519,7 @@ def s10(t):
     gap = lerp(150, 100, u)
     xL = 540 - gap * z / 2; xR = 540 + gap * z / 2
     qbox('subject', xL - 110 * z, 860 - 50 * z, xR + 40 * z, 860 + 25 * z); qbox('key', xL - 40 * z, 860 - 50 * z, xR, 860 + 25 * z)
-    PR.phalanx_token(pn, xL, 860, z, open_side=1.0 - 0.6 * u, spear=False)
+    PR.phalanx_token(pn, xL, 860, z, open_side=min(eoback(clamp((t - bs(13) - 0.1) / 0.18)), 1.0 - u), spear=False)
     PR.phalanx_token(pn, xR, 860, z, open_side=0.0, spear=False)       # its shield is drawn over the left man's right side
     if t >= w(13, 7):
         PR.callout(pn, xR - 60 * z, 860 - 30 * z, 300, 380, "NEIGHBOR'S SHIELD", p=clamp((t - w(13, 7)) / 0.35), sz=44)

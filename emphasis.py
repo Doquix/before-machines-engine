@@ -37,3 +37,21 @@ def burst(pn, x, y, s=1.0, ang=180.0, p=1.0, style='wedges', t=0.0, col=RUST, ga
             _wedge(pn, x0, y0, a, L, 3 * k, 18 * ln * k, (255, 250, 236), outline=3.4)
         else:   # lines
             pn.line([(x0, y0), (x0 + math.cos(r) * L, y0 + math.sin(r) * L)], INK, 7 * k)
+
+def pop_env(t, t0, hold=0.7, pin=0.18, pout=0.16):
+    """Scale envelope for a mark that pops on, holds, then pops off: 0 -> overshoot -> 1 ... 1 -> 0."""
+    a = t - t0
+    if a < 0 or a > pin + hold + pout: return 0.0
+    if a < pin: return eoback(a / pin)
+    if a < pin + hold: return 1.0
+    u = (a - pin - hold) / pout
+    return max(0.0, 1.0 + 0.12 * math.sin(math.pi * u) - u * 1.12)   # tiny swell, then gone
+
+def ghost_rim(pn, cx, cy, r, s, col=RUST, width=6.0, n=18, t=0.0):
+    """Minimal missing shield mark: one thin dashed ring the size of the shield that is not there.
+    s is the pop scale from pop_env (0 hides it)."""
+    if s <= 0.01: return
+    rr = r * s; ph = t * 0.5
+    for i in range(n):
+        a0 = 2 * math.pi * i / n + ph; a1 = a0 + math.pi / n
+        pn.line([(cx + rr * math.cos(a0), cy + rr * math.sin(a0)), (cx + rr * math.cos(a1), cy + rr * math.sin(a1))], col, width)
