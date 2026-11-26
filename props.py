@@ -435,22 +435,24 @@ def aspis(pn, cx, cy, r=56, f=1, col=BRZ, device=None):
 def _ell_pts_(cx, cy, rx, ry, a0, a1, n=18):
     return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
-def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_helm=(196, 150, 72), col_body=(160, 40, 36)):
-    """Hoplite seen from straight above, facing up the screen (BM-P068). His left is screen left, so the aspis circle
-    is held upright in front of the body, so from above it reads as a shallow curved bar, set to the screen left so it
-    reaches across the left neighbour; open_side 0..1 lights his uncovered right side in RUST.
+def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_helm=(196, 150, 72), col_body=(160, 40, 36), up=1):
+    """Hoplite seen from straight above (BM-P068). up=1 faces up the screen (his left is screen left), up=-1 faces down
+    (his left is screen right). The aspis is upright in front of the body, so from above it is a shallow curved bar set
+    to his left, reaching across the left neighbour; open_side 0..1 lights his uncovered right side in RUST.
     Units: rig units (1 m about 154). Shoulders about 70 wide, shield about 130 across."""
+    u = up
+    P_ = lambda px, py: (px * u, py * u)
     pn.push(x, y, s)
     if spear:
-        pn.line([(22, 10), (22, -150)], (150, 112, 70), 4.5)
-        pn.poly([(22, -168), (17, -150), (27, -150)], fill=(112, 116, 124), outline=INK, width=2)
+        pn.line([P_(22, 10), P_(22, -150)], (150, 112, 70), 4.5)
+        pn.poly([P_(22, -168), P_(17, -150), P_(27, -150)], fill=(112, 116, 124), outline=INK, width=2)
     if open_side > 0:
-        pn.ell(30, 0, 22, 30, fill=RUST + (int(200 * open_side),))
-    pn.ell(0, 4, 36, 15, fill=col_body, outline=INK, width=3)              # shoulders
-    pn.circ(0, 0, 16, fill=col_helm, outline=INK, width=3)                 # helmet from above
+        pn.ell(*P_(30, 0), 22, 30, fill=RUST + (int(200 * open_side),))
+    pn.ell(0, 4 * u, 36, 15, fill=col_body, outline=INK, width=3)
+    pn.circ(0, 0, 16, fill=col_helm, outline=INK, width=3)
     pn.circ(0, 0, 6, fill=lerpc(col_helm, (255, 250, 236), 0.4))
-    if shield:       # upright dished aspis seen from above: bowl bulging forward, flat rim line behind
-        pts = [(-38 + 65 * math.cos(math.radians(a)), -30 - 16 * math.sin(math.radians(a))) for a in range(0, 181, 10)]
-        pn.poly(pts + [(-103, -24), (27, -24)][::-1][::-1], fill=(196, 150, 72), outline=INK, width=3)
-        pn.line([(-103, -26), (27, -26)], lerpc((196, 150, 72), INK, .35), 3)
+    if shield:
+        pts = [P_(-38 + 65 * math.cos(math.radians(a)), -30 - 16 * math.sin(math.radians(a))) for a in range(0, 181, 10)]
+        pn.poly(pts + [P_(-103, -24), P_(27, -24)], fill=(196, 150, 72), outline=INK, width=3)
+        pn.line([P_(-103, -26), P_(27, -26)], lerpc((196, 150, 72), INK, .35), 3)
     pn.pop()

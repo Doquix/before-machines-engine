@@ -290,7 +290,7 @@ OUT2 = {
                   greaves=True, beard=(90, 66, 44), beard_style='short'),
     'spartan1': dict(skin=(222, 186, 150), cloth=(160, 40, 36), trim=(90, 24, 20), linen=(232, 224, 200), linen2=(210, 200, 174),
                      metal=(194, 148, 70), belt=(80, 54, 32), helmet='pilos', armour='linothorax', greaves=True,
-                     beard=(58, 42, 30), beard_style='full', hair=(58, 42, 30), hair_long=True),
+                     beard=(58, 42, 30), beard_style='short', hair=(58, 42, 30), hair_long=True),
     'spartan2': dict(skin=(206, 166, 128), cloth=(150, 36, 32), trim=(84, 22, 18), belt=(80, 54, 32), helmet=None, armour=None,
                      greaves=False, beard=(40, 30, 22), beard_style='long', hair=(40, 30, 22), hair_long=True),
     'hop_plain': dict(skin=SKIN, cloth=(206, 192, 158), trim=(120, 96, 64), belt=(96, 64, 38), helmet=None, armour=None,

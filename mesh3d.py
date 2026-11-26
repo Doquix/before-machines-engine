@@ -136,11 +136,18 @@ def lathe(m, prof, mat, seg=40, flip=False, crease_rings=()):
                 m.face(q2, mat, cr)
     return rings
 
-def aspis_mesh(r=64.0, depth=17.0, rim=8.0, seg=44):
+def aspis_mesh(r=64.0, depth=17.0, rim=8.0, seg=44, only_porpax=False):
     """Hoplite aspis (BM-P005): bronze faced dished bowl, flat offset rim (antyx), wooden interior, bronze porpax band
     at the centre and an antilabe cord near the rim. Object space: front faces -Z, centre at the origin,
     +X toward the antilabe side. About 0.85 m across at r 64."""
     m = Mesh(); rb = r - rim
+    if only_porpax:     # just the band, to redraw over a forearm passing through it
+        zc = -depth + 3; w = 6.0; n = 9; top = []; bot = []
+        for i in range(n + 1):
+            u = i / n; y = -15 + 30 * u; z = zc + 1 + 9 * math.sin(math.pi * u)
+            top.append(m.v(-w, y, z)); bot.append(m.v(w, y, z))
+        for i in range(n): m.face([top[i], top[i + 1], bot[i + 1], bot[i]], 'bronze2')
+        return m.done()
     front = [(0, -depth), (rb * .3, -depth * .93), (rb * .6, -depth * .7), (rb * .85, -depth * .35), (rb, -1.0), (rb + .01, 0.0), (r, 0.0)]
     lathe(m, front, 'bronze', seg, crease_rings=(4,))
     # rim edge and back of the rim
@@ -152,14 +159,15 @@ def aspis_mesh(r=64.0, depth=17.0, rim=8.0, seg=44):
     for i in range(18):
         a = 2 * math.pi * i / 18
         m.dot((math.cos(a) * (r - rim / 2), math.sin(a) * (r - rim / 2), -0.3), 1.3, 'bronze', (0, 0, -1))
-    # porpax: bronze band arching off the inner face at the centre (the forearm passes under it)
+    # porpax: bronze band at the centre, spanning across the forearm (along Y) so the arm passes under it along +X
+    # toward the antilabe
     zc = -depth + 3; w = 6.0; n = 9
     top = []; bot = []
     for i in range(n + 1):
-        u = i / n; x = -15 + 30 * u; z = zc + 1 + 9 * math.sin(math.pi * u)
-        top.append(m.v(x, -w, z)); bot.append(m.v(x, w, z))
+        u = i / n; y = -15 + 30 * u; z = zc + 1 + 9 * math.sin(math.pi * u)
+        top.append(m.v(-w, y, z)); bot.append(m.v(w, y, z))
     for i in range(n): m.face([top[i], top[i + 1], bot[i + 1], bot[i]], 'bronze2')
-    for x in (-15, 15): m.dot((x, 0, zc + 1.2), 1.6, 'bronze', (0, 0, 1))
+    for y in (-15, 15): m.dot((0, y, zc + 1.2), 1.6, 'bronze', (0, 0, 1))
     # antilabe: cord grip near the rim, fixed at two rings
     xa = rb * .86; za = -depth * .3 + 3
     m.line([(xa, -13, za), (xa + 1, -9, za + 4.5), (xa + 1.5, 0, za + 6), (xa + 1, 9, za + 4.5), (xa, 13, za)], (196, 168, 112), 2.4, normal=(0, 0, 1))
@@ -209,7 +217,7 @@ def dory_mesh(L=370.0, grip=110.0):
 _CACHE = {}
 def get(name):
     if name not in _CACHE:
-        _CACHE[name] = {'aspis': aspis_mesh, 'dory': dory_mesh}[name]()
+        _CACHE[name] = {'aspis': aspis_mesh, 'dory': dory_mesh, 'porpax': lambda: aspis_mesh(only_porpax=True)}[name]()
     return _CACHE[name]
 
 def dory_for(back):
@@ -231,7 +239,7 @@ def pilos_mesh(r=48.0, h=66.0, seg=36):
         A, B = rings[j], rings[j + 1]
         for i in range(seg):
             i2 = (i + 1) % seg
-            q = [A[i], B[i], B[i2], A[i2]]; q2 = []
+            q = [A[i], A[i2], B[i2], B[i]]; q2 = []
             for x in q:
                 if x not in q2: q2.append(x)
             m.face(q2, 'bronze', [(A[i], A[i2])] if j in (1, 2) else [])
@@ -239,7 +247,7 @@ def pilos_mesh(r=48.0, h=66.0, seg=36):
     inner = [m.v((r - 2) * math.cos(2 * math.pi * i / seg), 0.0, (r - 2) * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
     top = m.v(0, -h + 6, 0)
     for i in range(seg):
-        m.face([inner[(i + 1) % seg], inner[i], top], 'leather')
+        m.face([inner[(i + 1) % seg], inner[i], top], 'liner')
     m.dot((0, -h - 1, 0), 2.2, 'bronze', (0, -1, 0))
     return m.done()
 
@@ -279,7 +287,7 @@ def papyrus_mesh(w=70.0, h=52.0, r=6.0, seg=14):
         m.line([(xj, -h / 2 + 4, zs(xj)), (xj, h / 2 - 4, zs(xj))], (176, 154, 108), 1.1, normal=(0, 0, 1), ink=False)
     return m.done()
 
-MAT.update({'papyrus': dict(col=(214, 196, 150)), 'papyrus_d': dict(col=(176, 156, 110)), 'papyrus2': dict(col=(228, 214, 172), two=True)})
+MAT.update({'liner': dict(col=(96, 66, 40)), 'papyrus': dict(col=(214, 196, 150)), 'papyrus_d': dict(col=(176, 156, 110)), 'papyrus2': dict(col=(228, 214, 172), two=True)})
 _BUILD = {'pilos': pilos_mesh, 'papyrus': papyrus_mesh}
 _get_old = get
 def get(name):
