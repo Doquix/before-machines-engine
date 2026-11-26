@@ -70,8 +70,11 @@ FLAT = W25.Cam3(0, 0, -3600, 0, F=3600, horizon=0, cx=0)          # parchment sc
 def flat_hooks(x, y, k, store=None, cam=FLAT):
     wpt = lambda lx, ly, dz: (x + lx * k, y + ly * k, dz * k)
     def shield_fn(pn_, cx, cy, r, f):
-        if store is not None: store['shield'] = (x + cx * k, y + cy * k, r * k)
-        M.draw_mesh(pn_, cam, M.get('aspis'), wpt(cx, cy, -14), M.rot(-f * 0.22, 0, 0 if f == 1 else math.pi), scale=k * r / 64)
+        args = (wpt(cx, cy, -14), M.rot(-f * 0.22, 0, 0 if f == 1 else math.pi), k * r / 64)
+        if store is not None:
+            store['shield'] = (x + cx * k, y + cy * k, r * k)
+            store['shield_draw'] = lambda pen, a=args: M.draw_mesh(pen, cam, M.get('aspis'), a[0], a[1], scale=a[2])
+        M.draw_mesh(pn_, cam, M.get('aspis'), args[0], args[1], scale=args[2])
     def spear_fn(pn_, gx, gy, a, back):
         M.draw_mesh(pn_, cam, M.dory_for(back), wpt(gx, gy, -8), M.rot(0, 0, a), scale=k)
     return dict(shield_fn=shield_fn, spear_fn=spear_fn)
@@ -80,10 +83,12 @@ def world_hooks(cam, X, Z, store=None):
     co, si = math.cos(cam.yaw), math.sin(cam.yaw)
     wpt = lambda lx, ly, dz: (X + lx * co, ly, Z + lx * si + dz)
     def shield_fn(pn_, cx, cy, r, f):
+        args = (wpt(cx, cy, -14), M.rot(-f * 0.22, 0, 0 if f == 1 else math.pi), r / 64)
         if store is not None:
-            p = cam.proj(*wpt(cx, cy, -14))
+            p = cam.proj(*args[0])
             if p: store['shield'] = (p[0], p[1], r * p[2])
-        M.draw_mesh(pn_, cam, M.get('aspis'), wpt(cx, cy, -14), M.rot(-f * 0.22, 0, 0 if f == 1 else math.pi), scale=r / 64)
+            store['shield_draw'] = lambda pen, a=args: M.draw_mesh(pen, cam, M.get('aspis'), a[0], a[1], scale=a[2])
+        M.draw_mesh(pn_, cam, M.get('aspis'), args[0], args[1], scale=args[2])
     def spear_fn(pn_, gx, gy, a, back):
         M.draw_mesh(pn_, cam, M.dory_for(back), wpt(gx, gy, -8), M.rot(0, 0, a))
     return dict(shield_fn=shield_fn, spear_fn=spear_fn)
@@ -207,14 +212,10 @@ def s15(t):
         qbox('subject', N15a.store['fig'][0], N15a.store['fig'][1], N15b.store['fig'][2], N15b.store['fig'][3])
     else: qbox('subject', *K15.store['fig'])
     if 'shield' in K15.store: cx, cy, r = K15.store['shield']; qbox('key', cx - 2 * r, cy - r, cx + 2 * r, cy + r)
-    if lit > 0:     # each man's right side, covered by his neighbour's shield: yellow rings close
-        lay = new_layer(); pn = Pen(lay, cam=False)
-        for j, p in enumerate((K15, N15b)):
-            if 'bare' in p.store:
-                b = p.store['bare']; cx, cy = (b[0] + b[2]) / 2 - (b[2] - b[0]) * 0.1, (b[1] + b[3]) / 2
-                r = (b[3] - b[1]) * 0.55
-                EM.covered(pn, cx, cy, r, eo3(clamp((t - w(20, 2) - 0.12 * j) / 0.35)), EM.pop_env(t, w(20, 2) - 0.05 + 0.12 * j, hold=1.2))
-        flatten(im, lay)
+    for j, p in enumerate((N15a, K15)):     # the shields that cover their neighbours glow
+        if p.store.get('shield_draw'):
+            ov = EM.glow(p.store['shield_draw'], EM.glow_env(t, w(20, 2) - 0.15 + 0.12 * j, hold=1.2))
+            if ov: im.alpha_composite(ov)
     return im
 
 # shot 12: low angle, the line breaks
@@ -398,12 +399,13 @@ def s5(t):
         qbox('key', *union(*[(st['shield'][0] - st['shield'][2], st['shield'][1] - st['shield'][2], st['shield'][0] + st['shield'][2],
                                st['shield'][1] + st['shield'][2]) for st in stores[:2]]))
     lit = [clamp((t - w(8, 4) - 0.15 * j) / 0.25) for j in range(2)]
-    for j in range(2):          # the next man's right side, now covered by this man's shield
-        fx_, fy_ = xs[j + 1] - 38 * k, y - 112 * k
-        EM.covered(pn, fx_, fy_, 58 * k, eo3(clamp((t - w(8, 4) - 0.15 * j) / 0.35)), EM.pop_env(t, w(8, 4) - 0.05 + 0.15 * j, hold=1.0))
-    if t >= w(8, 4):
-        PR.stamp(pn, 860, 170, 'LIKELY', clamp((t - w(8, 4)) / 0.3), sz=70, col=EM.BLUE)
-    flatten(im, lay); return im
+    GL = [(stores[j].get('shield_draw'), EM.glow_env(t, w(8, 4) - 0.15 + 0.15 * j, hold=1.0)) for j in range(2)]
+    flatten(im, lay)
+    for fn, sc_ in GL:          # each shield that covers the next man glows (correct, covered)
+        if fn:
+            ov = EM.glow(fn, sc_)
+            if ov: im.alpha_composite(ov)
+    return im
 
 def s6(t):
     im = parch(); lay = new_layer(); pn = Pen(lay, cam=False)
@@ -416,10 +418,11 @@ def s6(t):
     HOP(pn, xa, y, k, -1, out='hop_a', expr='determined', shield_r=64, **flat_hooks(xa, y, k, st))
     qbox('subject', xa - 110 * k, y - 280 * k, xk + 110 * k, 1260)
     if 'shield' in st: qbox('key', st['shield'][0] - st['shield'][2], st['shield'][1] - st['shield'][2] - 80, xk, 1250)
-    if t >= w(9, 4) - 0.05:     # the Keeper's right flank, behind the neighbour's shield: covered
-        fx_, fy_ = xk - 38 * k, y - 112 * k
-        EM.covered(pn, fx_, fy_, 58 * k, eo3(clamp((t - w(9, 4)) / 0.4)), EM.pop_env(t, w(9, 4) - 0.05, hold=1.1))
-    flatten(im, lay); return im
+    flatten(im, lay)
+    if st.get('shield_draw'):   # the neighbour's shield, which covers the Keeper's right side, glows
+        ov = EM.glow(st['shield_draw'], EM.glow_env(t, w(9, 4) - 0.15, hold=1.1))
+        if ov: im.alpha_composite(ov)
+    return im
 
 STUDY = None
 def study_bg():
@@ -525,10 +528,13 @@ def s10(t):
     PR.phalanx_token(pn, xL, 860, z, open_side=min(eoback(clamp((t - bs(13) - 0.1) / 0.18)), 1.0 - u), spear=False)
     PR.phalanx_token(pn, xR, 860, z, open_side=0.0, spear=False)       # its shield is drawn over the left man's right side
     tc = w(13, 1) + 0.8
-    EM.covered(pn, xL + 44 * z, 860 - 26 * z, 30 * z, eo3(clamp((t - tc) / 0.35)), EM.pop_env(t, tc - 0.05, hold=0.9))
+    GL10 = EM.glow_env(t, tc - 0.15, hold=0.9)
     if t >= w(13, 7):
         PR.callout(pn, xR - 60 * z, 860 - 30 * z, 300, 380, "NEIGHBOR'S SHIELD", p=clamp((t - w(13, 7)) / 0.35), sz=44)
-    flatten(im, lay); return im
+    flatten(im, lay)
+    ov = EM.glow(lambda pen: _tok(pen, xR, 860, z, only_shield=True), GL10)
+    if ov: im.alpha_composite(ov)
+    return im
 
 def s11(t):
     im = tokens_bg(); lay = new_layer(); pn = Pen(lay, cam=False)
@@ -554,12 +560,17 @@ def s11(t):
 def s14(t):
     im = parch(); lay = new_layer(); pn = Pen(lay, cam=False)
     k = 8.4; x = 540; y = 820 + 220 * k
-    HOP(pn, x, y, k, -1, out='spartan1', expr='neutral', shield=False, look=(0.2, 0))
+    HOP(pn, x, y, k, -1, out='spartan1', expr='neutral', shield=False, look=(0.2, 0), blink=0.0)
     qbox('subject', x - 60 * k, y - 300 * k, x + 60 * k, y - 170 * k); qbox('key', x - 60 * k, y - 300 * k, x + 60 * k, y - 170 * k)
     p = clamp((t - w(19, 3)) / 0.5)
     if p > 0:
-        EM.covered(pn, x, y - 232 * k, 60 * k, eo3(p), EM.pop_env(t, w(19, 3) - 0.05, hold=1.0))
-    flatten(im, lay); return im
+        pass
+    flatten(im, lay)
+    O14 = C.OUT2['spartan1']
+    ov = EM.glow(lambda pen: C.draw_part(pen, 'pilos', (x, y - 218.5 * k), None, -1, O14, ang=0.0, scale=k),
+                 EM.glow_env(t, w(19, 3) - 0.15, hold=1.0), line=11, halo=40)
+    if ov: im.alpha_composite(ov)
+    return im
 
 # gate 1: shot spec. cue = the word that must visibly change something; MUST SEE and PROVES are the pass rule
 SPEC = {

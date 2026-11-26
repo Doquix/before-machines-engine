@@ -379,6 +379,7 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         pn.poly([(hx - r * .95, hy - 6), (hx - r * .7, hy - r * .78), (hx, hy - r - 3), (hx + r * .7, hy - r * .78), (hx + r * .95, hy - 6),
                  (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=O['hair'])
     pn.push(hx, hy, r / 36)
+    R.FACE_SKIN = O.get('skin')
     R.face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'), O.get('beard_style'))
     pn.pop()
     if O.get('helmet'):

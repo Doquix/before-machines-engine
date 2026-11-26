@@ -116,6 +116,7 @@ EXPR = {
 SMALL_FACE_PX = 58      # head diameter on screen below which subtle expressions fall back to their bold version
 EXTRAS_PX = 80          # extras (sweat, tears, blush, lines) only when the head is at least this big
 FACE_DETAIL_PX = 110    # fine face detail (lash lines, iris rings) only when the head is at least this big
+FACE_SKIN = None        # skin tone for eyelids and mouth patches (set by the caller for non default skin)
 
 # ---------------- face: facial hair ----------------
 # Styles drawn in the channel's own shapes. The mouth always keeps a patch of bare skin (locked rule: the mouth is
@@ -212,7 +213,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
             lidv = max(lid, blink)
             if lidv > 0.02:
                 yl = ey - ry + 2 * ry * lidv
-                pn.poly([(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)], fill=SKIN)
+                pn.poly([(ex - rx - 1, ey - ry - 2), (ex + rx + 1, ey - ry - 2), (ex + rx + 1, yl), (ex - rx - 1, yl)], fill=FACE_SKIN or SKIN)
                 pn.line([(ex - rx, yl), (ex + rx, yl)], INK, 2.4)
         elif eyes == 'arc':        # closed happy eyes
             pn.arc(ex, ey + 4, 7, 200, 340, INK, 3.2)
@@ -248,7 +249,7 @@ def face(pn, hx, hy, f, expr='neutral', look=(0.6, 0), blink=0.0, glasses=False,
         patch = facial_hair(pn, f, style, beard, r, detail, big_mouth)
         pn.pop()
         if patch:      # bare skin around the mouth so the expression still reads
-            pn.ell(mx, my + (2 if big_mouth else 0), patch[0], patch[1], fill=SKIN)
+            pn.ell(mx, my + (2 if big_mouth else 0), patch[0], patch[1], fill=FACE_SKIN or SKIN)
     if mouth == 'flat': pn.line([(mx - 7, my), (mx + 7, my)], INK, 3.2)
     elif mouth == 'smile': pn.arc(mx, my - 6, 9, 20, 160, INK, 3.2)
     elif mouth == 'frown': pn.arc(mx, my + 7, 8, 200, 340, INK, 3.2)

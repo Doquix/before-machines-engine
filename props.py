@@ -435,7 +435,8 @@ def aspis(pn, cx, cy, r=56, f=1, col=BRZ, device=None):
 def _ell_pts_(cx, cy, rx, ry, a0, a1, n=18):
     return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
-def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_helm=(196, 150, 72), col_body=(160, 40, 36), up=1):
+def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_helm=(196, 150, 72), col_body=(160, 40, 36), up=1,
+                  only_shield=False):
     """Hoplite seen from straight above (BM-P068). up=1 faces up the screen (his left is screen left), up=-1 faces down
     (his left is screen right). The aspis is upright in front of the body, so from above it is a shallow curved bar set
     to his left, reaching across the left neighbour; open_side 0..1 lights his uncovered right side in RUST.
@@ -443,6 +444,9 @@ def phalanx_token(pn, x, y, s=1.0, open_side=0.0, shield=True, spear=True, col_h
     u = up
     P_ = lambda px, py: (px * u, py * u)
     pn.push(x, y, s)
+    if only_shield:          # just the shield bar (for an outline glow)
+        pts = [P_(-38 + 65 * math.cos(math.radians(a)), -30 - 16 * math.sin(math.radians(a))) for a in range(0, 181, 10)]
+        pn.poly(pts + [P_(-103, -24), P_(27, -24)], fill=(196, 150, 72)); pn.pop(); return
     if spear:
         pn.line([P_(22, 10), P_(22, -150)], (150, 112, 70), 4.5)
         pn.poly([P_(22, -168), P_(17, -150), P_(27, -150)], fill=(112, 116, 124), outline=INK, width=2)

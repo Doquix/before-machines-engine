@@ -117,3 +117,39 @@ def direction(pn, x, y, ang, s, size=1.0, t=0.0):
         pts = [(cx_ - ux * 14 * k + nx * 20 * k, cy_ - uy * 14 * k + ny * 20 * k), (cx_ + ux * 10 * k, cy_ + uy * 10 * k),
                (cx_ - ux * 14 * k - nx * 20 * k, cy_ - uy * 14 * k - ny * 20 * k)]
         pn.line(pts, INK, 13 * k); pn.line(pts, NEUTRAL, 8 * k)
+
+def glow_env(t, t0, hold=1.0, fin=0.28, fout=0.35):
+    """Smooth envelope for glows: eased fade up, a gentle breathing hold, eased fade out (no overshoot)."""
+    a = t - t0
+    if a < 0 or a > fin + hold + fout: return 0.0
+    if a < fin: return eio(a / fin)
+    if a < fin + hold: return 0.9 + 0.1 * math.cos(2 * math.pi * (a - fin) / 0.9)
+    return 1.0 - eio((a - fin - hold) / fout)
+
+def glow(draw_fn, s, color=YELLOW, line=9, halo=30, inner=0.28):
+    """YELLOW glow around an object's real outline: covered, correct, protected (replaces the yellow ring).
+    Smooth bloom: an anti aliased bright rim, a tight glow and a wide soft glow, plus a light inner wash.
+    draw_fn(pen) draws just that object on a fresh layer (same coordinates as the scene); returns an RGBA overlay
+    (1080x1920) to alpha_composite over the finished frame. s is the strength (use glow_env)."""
+    from PIL import Image, ImageFilter, ImageChops
+    if s <= 0.01: return None
+    s = min(1.0, s)
+    lay = new_layer(); pn = Pen(lay, cam=False); draw_fn(pn)
+    a = lay.split()[3].resize((W, H), Image.BOX)
+    k = line | 1
+    outer = a.filter(ImageFilter.MaxFilter(k))
+    rim = ImageChops.subtract(outer, a).filter(ImageFilter.GaussianBlur(1.6))
+    tight = outer.filter(ImageFilter.GaussianBlur(halo * 0.35))
+    wide = outer.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(halo))
+    bloom = ImageChops.lighter(tight.point(lambda v: min(255, int(v * 1.4))), wide.point(lambda v: min(255, int(v * 1.6))))
+    bloom = ImageChops.subtract(bloom, a.point(lambda v: int(v * 0.85)))
+    out = Image.new('RGBA', (W, H), color + (0,))
+    out.putalpha(bloom.point(lambda v: int(v * s)))
+    hot = Image.new('RGBA', (W, H), lerpc(color, (255, 255, 236), 0.6) + (0,))
+    hot.putalpha(rim.point(lambda v: int(min(255, v * 1.3) * s)))
+    out.alpha_composite(hot)
+    if inner > 0:            # the object itself lights up a little
+        lit = Image.new('RGBA', (W, H), lerpc(color, (255, 255, 240), 0.35) + (0,))
+        lit.putalpha(a.point(lambda v: int(v * inner * s)))
+        out.alpha_composite(lit)
+    return out
