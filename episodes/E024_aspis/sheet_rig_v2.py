@@ -23,13 +23,13 @@ pn.line([(540, 230), (540, GY + 20)], MUTED, 2)
 # row 2: new rig action set (idle with spear grounded, walk, brace, overhand thrust)
 GY2 = 1270; K2 = 1.0
 xs = [140, 400, 660, 920]
-C.hoplite(pn, xs[0], GY2, K2, 1, out='hop_keeper', expr='neutral', spear_hand=(30, -104), spear_ang=-math.pi / 2, spear_back=104)
-C.hoplite(pn, xs[1], GY2, K2, 1, p=R.pose('walk'), out='hop_b', expr='determined', spear_hand=(34, -110),
-          spear_ang=-math.pi / 2 + 0.22, spear_back=96)
-C.hoplite(pn, xs[2], GY2, K2, 1, p=R.pose('brace'), out='hop_a', expr='determined', spear_hand=(40, -122), spear_ang=0.0,
-          spear_back=150, shield_dx=8)
-C.hoplite(pn, xs[3], GY2, K2, -1, p=R.pose('brace', torso=12, head=-6), out='hop_b', expr='angry', spear_hand=(34, -190),
-          spear_ang=math.pi - 0.2, spear_back=140, shield_dx=10)
+C.hoplite(pn, xs[0], GY2, K2, -1, out='hop_keeper', expr='neutral', spear_hand=(6, -104), spear_ang=-math.pi / 2, spear_back=104)
+C.hoplite(pn, xs[1], GY2, K2, -1, p=R.pose('walk'), out='hop_b', expr='determined', spear_hand=(10, -110),
+          spear_ang=-math.pi / 2 - 0.22, spear_back=96)
+C.hoplite(pn, xs[2], GY2, K2, -1, p=R.pose('brace'), out='hop_a', expr='determined', spear_hand=(22, -98),
+          spear_ang=math.pi + 0.06, spear_back=140, shield_dx=6)
+C.hoplite(pn, xs[3], GY2, K2, -1, p=R.pose('brace', torso=12, head=-6), out='hop_b', expr='angry', spear_hand=(40, -186),
+          spear_ang=math.pi - 0.2, spear_back=130, shield_dx=8)
 for x, t in zip(xs, ('IDLE', 'WALK', 'BRACE', 'THRUST')):
     pn.text(x, GY2 + 40, t, 24, INK, 'Black')
 

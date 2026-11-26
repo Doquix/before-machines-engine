@@ -49,7 +49,8 @@ def _defaults():
     P['thigh'] = [S('skin', _capsule(L['th'], 19, 15)), S('skin_sh', _strip(L['th'], 19, 15), w=0)]
     P['shin'] = [S('skin', _capsule(L['sh'], 15, 11)), S('skin_sh', _strip(L['sh'], 15, 11), w=0)]
     # mitten hands (pivot at the wrist): open hand, and a fist that wraps a shaft at y 8
-    P['hand'] = [S('skin', _ell(0, 8, 7.2, 8.8)), S('skin', _ell(6.2, 3.5, 3.6, 4.6))]
+    P['hand'] = [S('skin', [(3, 2), (9, -1), (12.5, 2.5), (11, 8), (5, 9)]), S('skin', _ell(-0.5, 8.5, 7.4, 9.0)),
+                 S('line', [(-4, 13), (-4, 16.5)], False, 1.4), S('line', [(0, 14), (0, 17.5)], False, 1.4)]
     P['fist'] = [S('skin', _ell(0, 8, 8.2, 7.6)), S('line', [(-5.5, 5.5), (5.5, 5.5)], False, 1.6),
                  S('line', [(-5.5, 9.5), (5.5, 9.5)], False, 1.6)]
     # bare foot (pivot at the ankle, toes toward +x = the facing side)
@@ -58,16 +59,16 @@ def _defaults():
     # body under the clothes: neck (0,0) to pelvis (0,100)
     P['torso'] = [S('skin', [(-27, 10), (-29, 22), (-23, 70), (-25, 98), (25, 98), (23, 70), (29, 22), (27, 10), (8, 2), (-8, 2)])]
     # Greek chiton: short wool tunic, belted, hem at mid thigh (garments stop above the knee)
-    P['chiton'] = [S('cloth', [(-12, 3), (-31, 12), (-30, 30), (-25, 64), (-29, 90), (-35, 126), (-14, 130), (0, 128),
-                               (14, 130), (35, 126), (29, 90), (25, 64), (30, 30), (31, 12), (12, 3), (0, 9)]),
-                   S('cloth_sh', [(-31, 12), (-30, 30), (-25, 64), (-29, 90), (-35, 126), (-24, 128), (-19, 92), (-17, 64), (-21, 26)], w=0),
-                   S('trim', [(-35, 120), (-14, 124), (0, 122), (14, 124), (35, 120), (35, 126), (14, 130), (0, 128), (-14, 130), (-35, 126)], w=0),
-                   S('fold', [(-10, 94), (-14, 124)], False, 1.8), S('fold', [(6, 96), (8, 124)], False, 1.8),
-                   S('fold', [(18, 92), (24, 122)], False, 1.8),
+    P['chiton'] = [S('cloth', [(-12, 3), (-31, 12), (-30, 30), (-25, 64), (-28, 86), (-33, 114), (-14, 118), (0, 116),
+                               (14, 118), (33, 114), (28, 86), (25, 64), (30, 30), (31, 12), (12, 3), (0, 9)]),
+                   S('cloth_sh', [(-31, 12), (-30, 30), (-25, 64), (-28, 86), (-33, 114), (-23, 116), (-18, 88), (-17, 64), (-21, 26)], w=0),
+                   S('trim', [(-33, 109), (-14, 113), (0, 111), (14, 113), (33, 109), (33, 114), (14, 118), (0, 116), (-14, 118), (-33, 114)], w=0),
+                   S('fold', [(-10, 90), (-13, 113)], False, 1.8), S('fold', [(6, 92), (8, 113)], False, 1.8),
+                   S('fold', [(18, 88), (23, 111)], False, 1.8),
                    S('belt', [(-26, 62), (26, 62), (26, 68), (-26, 68)], w=2.2)]
     # linothorax, tube and yoke type: linen body tube, shoulder yoke flaps tied down to the chest, two rows of pteruges
     pter = []
-    for row, (y0, y1, n) in enumerate(((86, 106, 8), (98, 118, 9))):
+    for row, (y0, y1, n) in enumerate(((86, 102, 8), (95, 111, 9))):
         span = 60 + row * 6; dx = span / n
         for i in range(n):
             x0 = -span / 2 + i * dx + 0.8
@@ -309,35 +310,37 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
     O = OUT2[out]
     if isinstance(p, str): p = R.POSES[p]
     p = dict(p); p['torso'] = p.get('torso', 0) + 1.0 * math.sin(t * 2.3 + x * 0.011)   # breathing
+    # front on body: the anatomical left arm is on screen right, so the shield goes on whichever arm is screen right
+    sS = 'F' if f == 1 else 'B'; sW = 'B' if sS == 'F' else 'F'
+    J0 = R.joints(p, f)
     hands = {}
-    if spear_hand is not None: hands['F'] = spear_hand
+    if spear_hand is not None:     # (forward offset from the spear shoulder, height); forward = toward the facing side
+        hands[sW] = (J0['sh' + sW][0] + f * spear_hand[0], spear_hand[1])
     if shield:   # shield forearm across the body toward the front, elbow low: the grip that carries the aspis
-        sB = R.joints(p, f)['shB']
-        hands['B'] = (sB[0] + f * 30, sB[1] + 34)
+        hands[sS] = (J0['sh' + sS][0] + f * 30, J0['sh' + sS][1] + 34)
     J = R.joints(p, f, hands=hands or None)
     pn.push(x, y, k)
     if shadow: pn.ell(f * 6, 3, 48, 9, fill=(20, 14, 10, 70))
-    # back to front: back arm, legs, body, clothes, armour, shield, spear, front arm, head
-    _arm(pn, J, 'B', O, f, hand=None if shield else 'hand')
+    # back to front: shield arm (hidden by the shield), legs, body, clothes, armour, spear, spear arm, shield, head
+    _arm(pn, J, sS, O, f, hand=None if shield else 'hand')
     _leg(pn, J, 'B', O, f); _leg(pn, J, 'F', O, f)
     nk, pe = J['neck'], J['pelvis']
     draw_part(pn, 'torso', nk, pe, f, O)
     if O.get('cloth'): draw_part(pn, 'chiton', nk, pe, f, O)
     if O.get('armour'): draw_part(pn, O['armour'], nk, pe, f, O)
-    if shield:
-        el, ha = J['elB'], J['haB']
-        cx, cy = lerp(el[0], ha[0], 0.35) + f * shield_dx, lerp(el[1], ha[1], 0.35)
-        aspis(pn, cx, cy, shield_r, f, device=device)
     tip = None
     if spear_hand is not None:
-        g = J['haF']; a_ = spear_ang if spear_ang is not None else -math.pi / 2
+        g = J['ha' + sW]; a_ = spear_ang if spear_ang is not None else -math.pi / 2
         res = dory(pn, g[0], g[1], a_, back=spear_back); tip = res.get('tip')
-        _arm(pn, J, 'F', O, f, hand=None)
-        el, ha = J['elF'], J['haF']
-        # the fist sits on the shaft: orient it along the shaft so the knuckles wrap it
+        _arm(pn, J, sW, O, f, hand=None)
+        el, ha = J['el' + sW], J['ha' + sW]
         draw_part(pn, 'fist', ha, (ha[0] + (ha[0] - el[0]), ha[1] + (ha[1] - el[1])), f, O)
     else:
-        _arm(pn, J, 'F', O, f, hand='hand')
+        _arm(pn, J, sW, O, f, hand='hand')
+    if shield:
+        el, ha = J['el' + sS], J['ha' + sS]
+        cx, cy = lerp(el[0], ha[0], 0.35) + f * shield_dx, lerp(el[1], ha[1], 0.35)
+        aspis(pn, cx, cy, shield_r, f, device=device)
     # head
     hx, hy = J['head']; r = L['head']
     if O.get('hair') and not O.get('helmet'):
