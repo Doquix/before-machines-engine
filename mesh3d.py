@@ -29,9 +29,10 @@ class Mesh:
     def face(s, idx, mat, crease=()):
         s.F.append((tuple(idx), mat))
         for a, b in crease: s.creases.add((min(a, b), max(a, b)))
-    def line(s, pts, col, w, normal=None):
-        """A cord or string. With normal, it is drawn only when that side faces the camera."""
-        s.L.append((np.array(pts, float), col, w, None if normal is None else np.array(normal, float)))
+    def line(s, pts, col, w, normal=None, ink=True):
+        """A cord or string (ink=True gives it an ink outline; False for surface marks such as fibres or text).
+        With normal, it is drawn only when that side faces the camera."""
+        s.L.append((np.array(pts, float), col, w, None if normal is None else np.array(normal, float), ink))
     def dot(s, p, r, mat, normal): s.dots.append((np.array(p, float), r, mat, np.array(normal, float)))
     def done(s):
         s.Vn = np.array(s.V, float)
@@ -101,7 +102,7 @@ def draw_mesh(pn, cam, m, pos, R=None, scale=1.0, outline=3.0, overrides=None):
         if np.dot(nc, -pc) <= 0 or pc[2] < 5: continue
         kk = cam.F / pc[2]
         pn.circ(cam.cx + pc[0] * kk, cam.hy + pc[1] * kk, max(0.8, r * kk * scale), fill=light(MAT[mat]['col'], 0.3), outline=INK, width=max(0.4, 0.5 * kk))
-    for pts, col, w, nrm in m.L:     # cords and strings
+    for pts, col, w, nrm, ink in m.L:     # cords and strings
         pw = (pts * scale) @ R.T + pos; pc = _to_cam(cam, pw)
         if nrm is not None:
             c0 = pc.mean(0); nc = _to_cam(cam, (pw.mean(0) + nrm @ R.T)[None])[0] - c0
@@ -109,7 +110,7 @@ def draw_mesh(pn, cam, m, pos, R=None, scale=1.0, outline=3.0, overrides=None):
         if (pc[:, 2] < 5).any(): continue
         kk = cam.F / pc[:, 2]
         sp = [(cam.cx + x * q, cam.hy + y * q) for (x, y, _), q in zip(pc, kk)]
-        pn.line(sp, INK, (w + 1.6) * float(kk.mean()) * scale)
+        if ink: pn.line(sp, INK, (w + 1.6) * float(kk.mean()) * scale)
         pn.line(sp, col, w * float(kk.mean()) * scale)
     pn.T = old
 
@@ -267,7 +268,15 @@ def papyrus_mesh(w=70.0, h=52.0, r=6.0, seg=14):
             y = -h / 2 + 9 + ln * 4.2
             u = (x0 + w / 2) / w
             z = -r * 0.9 - 4 * math.sin(math.pi * u) - 0.4
-            m.line([(x0, y, z), (x0 + (w - 30) / 3 - 2 - (ln % 3) * 2, y, z)], (70, 56, 40), 0.9, normal=(0, 0, -1))
+            m.line([(x0, y, z), (x0 + (w - 30) / 3 - 2 - (ln % 3) * 2, y, z)], (70, 56, 40), 0.9, normal=(0, 0, -1), ink=False)
+    # outside (verso) seen by the viewer: plain papyrus with horizontal fibres and the sheet joins (kolleseis)
+    def zs(xx): u = (xx + w / 2) / w; return -r * 0.9 - 4 * math.sin(math.pi * u) + 0.4
+    for ln in range(7):
+        y = -h / 2 + 7 + ln * 6.2
+        xs = [-w / 2 + 4 + i * (w - 8) / 8 for i in range(9)]
+        m.line([(xx, y + 0.6 * math.sin(xx * .3 + ln), zs(xx)) for xx in xs], (196, 176, 128), 0.7, normal=(0, 0, 1), ink=False)
+    for xj in (-w / 6, w / 6):
+        m.line([(xj, -h / 2 + 4, zs(xj)), (xj, h / 2 - 4, zs(xj))], (176, 154, 108), 1.1, normal=(0, 0, 1), ink=False)
     return m.done()
 
 MAT.update({'papyrus': dict(col=(214, 196, 150)), 'papyrus_d': dict(col=(176, 156, 110)), 'papyrus2': dict(col=(228, 214, 172), two=True)})

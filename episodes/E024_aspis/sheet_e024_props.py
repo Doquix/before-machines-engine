@@ -36,7 +36,7 @@ for i, (out, lab) in enumerate(row):
 GY2 = 1060
 x = 150; k = 1.0
 def held(pn_, J):
-    M.draw_mesh(pn_, SHEETCAM, M.get('papyrus'), (x, GY2 - 150 * k, -20 * k), M.rot(0, 0, 0), scale=1.55 * k)
+    M.draw_mesh(pn_, SHEETCAM, M.get('papyrus'), (x, GY2 - 150 * k, -20 * k), M.rot(math.pi, 0, 0), scale=1.55 * k)
 C.hoplite(pn, x, GY2, k, -1, out='hop_keeper', expr='thinking', look=(0, 0.9), shield=False,
           hands_in={'F': (-54, -150), 'B': (54, -150)}, held_fn=held)
 pn.text(x, GY2 + 36, 'BOOK ROLL', 20, INK, 'Black')
