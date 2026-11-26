@@ -69,10 +69,14 @@ add(sfx, bs(11) + 0.05, whoosh(0.6), 0.2); add(sfx, w(11, 1), drum(), 0.7)
 for j in range(10): add(sfx, w(12, 2) + j * 0.1, lp(noise(0.12), 8) * env(int(.12 * SR), .005, .05), 0.35)
 add(sfx, w(13, 1), scrape(0.8), 0.6)
 for j in range(8): add(sfx, bs(14) + j * 0.36, drum(0.5), 0.55 if j % 2 == 0 else 0.35)
-add(sfx, w(15, 0) + 0.15, clank(1.0, 300), 0.7); add(sfx, w(15, 0) + 0.6, thud(0.6, 55), 0.6)
+tb = w(15, 0)
+add(sfx, tb - 0.3, whoosh(0.3), 0.6); add(sfx, tb + 0.02, clank(0.9, 300), 0.7)      # enemy spear drives in and strikes
+add(sfx, tb + 0.05 + 0.12 + 0.7, thud(0.7, 50), 0.9); add(sfx, tb + 0.05 + 0.12 + 0.7, clank(0.8, 280), 0.4)   # he lands
 add(sfx, w(16, 5), mx(clank(1.2, 520) * 0.6, thud(0.5, 70)), 0.6)
 td = w(17, 8); add(sfx, td + 0.5, clank(1.1, 330), 0.8); add(sfx, td + 0.75, clank(0.6, 340), 0.35)
-add(sfx, w(18, 2), clank(0.4, 600), 0.35)
+th = w(18, 1) - 0.35
+add(sfx, th + 0.3, clank(0.3, 700), 0.2)                     # helmet lifted off
+add(sfx, th + 0.85 + 0.38, clank(0.6, 560), 0.45)            # it lands on its rim
 add(sfx, w(19, 3), scratch(0.5), 0.7)
 for j in range(3): add(sfx, bs(20) + 0.45 + 0.12 * j, clank(0.8, 360 + 30 * j), 0.5)
 # wind under the outdoor shots
