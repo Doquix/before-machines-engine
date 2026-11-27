@@ -1,6 +1,7 @@
 """Face system v2 (from E024): expressive faces in the house style, built from the principles of the anime "100 faces"
-expression charts the user picked as reference (heavy upper lash line, dark iris with highlights, an eye SHAPE per
-emotion, thin tapered brows, a small nose, open mouths with a coloured inside). Our own drawings, not a copy.
+expression charts the user picked as reference, now drawn in the plain ink style of the "How do I feel right now?"
+chart: white eyes with an ink outline and ONE solid ink pupil, no iris colour and NO eye highlights or sparkle (user
+rule), an eye SHAPE per emotion, tapered brows, a small nose, open mouths with a coloured inside. Our own drawings.
 No blush (user rule). Expression marks (sweat, tears, anger vein, shock lines) are ink or water coloured only.
 
 face2(pn, f, expr, look, blink, r=36, beard=None, beard_style=None, t=0.0, mark=None)
@@ -71,23 +72,15 @@ def _eye(pn, x, y, sp, f, look, side, blink):
     if blink > 0.8:
         pn.line([(x - rx, y + 1), (x + rx, y + 1)], INK, 2.8); return
     skin = R.FACE_SKIN or SKIN
-    pn.ell(x, y, rx, ry, fill=WHITE, outline=INK, width=1.5)
-    lx, ly = clamp(look[0] * f, -1, 1) * 2.6, look[1] * 2.6 + 0.8
+    pn.ell(x, y, rx, ry, fill=WHITE, outline=INK, width=2.2)
+    lx, ly = clamp(look[0] * f, -1, 1) * 2.8, look[1] * 2.8 + 0.6
+    # pupils follow the "How do I feel" chart: one solid ink dot, no iris ring, no highlight
     if kind in ('open', 'angry', 'half', 'teary'):
-        ir = 5.4 * ps
-        pn.ell(x + lx, y + ly, ir, ir * 1.12, fill=IRIS)
-        pn.circ(x + lx, y + ly + 0.4, ir * 0.5, fill=IRIS_D)
-        pn.circ(x + lx - 1.6, y + ly - 1.9, 1.5, fill=WHITE); pn.circ(x + lx + 1.4, y + ly + 1.6, 0.7, fill=WHITE)
+        pn.circ(x + lx, y + ly, 3.9 * ps, fill=INK)
     elif kind == 'wide':
-        pn.circ(x + lx * 0.6, y + ly * 0.6, 2.3 * ps + 0.6, fill=IRIS_D)
-    elif kind == 'stars':
-        cx, cy = x + lx * 0.5, y + ly * 0.5
-        pts = []
-        for i in range(10):
-            a = -math.pi / 2 + math.pi * i / 5; rr = 4.8 if i % 2 == 0 else 2.0
-            pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
-        pn.poly(pts, fill=IRIS)
-        pn.circ(cx - 1.2, cy - 1.4, 1.0, fill=WHITE)
+        pn.circ(x + lx * 0.6, y + ly * 0.6, 1.9 * ps + 0.5, fill=INK)
+    elif kind == 'stars':          # awe: big solid pupils filling the eye (chart "Interested")
+        pn.circ(x + lx * 0.4, y + ly * 0.4, 5.6, fill=INK)
     # lids: cover the top of the eye in skin (half lidded, angry cut inner side, worried cut outer side)
     if kind == 'angry' or (kind == 'open' and sp['brow'] < -10):
         pn.poly([(x - rx - 1, y - ry - 2), (x + rx + 1, y - ry - 2), (x + side * rx + side, y - ry * 0.2), (x - side * rx - side, y - ry * 0.75)], fill=skin)
@@ -95,12 +88,11 @@ def _eye(pn, x, y, sp, f, look, side, blink):
         yl = y - ry + 2 * ry * lid
         pn.poly([(x - rx - 1, y - ry - 2), (x + rx + 1, y - ry - 2), (x + rx + 1, yl), (x - rx - 1, yl)], fill=skin)
         pn.line([(x - rx - 0.5, yl), (x + rx + 0.5, yl)], INK, 2.6)
-    elif kind != 'wide':          # heavy upper lash line with a flick at the outer corner
-        pts = [(x + rx * math.cos(math.radians(a)), y + ry * math.sin(math.radians(a)) * 1.02) for a in range(195, 346, 15)]
-        if side < 0: pts = pts[::-1]
-        pn.line(pts, INK, 4.2)           # heavy upper lash line (no flick: these are soldiers, not idols)
+    elif kind != 'wide':          # slightly heavier upper rim, like a pen pressing harder on the top stroke
+        pts = [(x + rx * math.cos(math.radians(a)), y + ry * math.sin(math.radians(a)) * 1.0) for a in range(200, 341, 14)]
+        pn.line(pts, INK, 3.0)
     if kind == 'teary':           # a water line on the lower lid
-        pn.arc(x, y + 1, rx * 0.95, 20, 160, WATER, 2.6)
+        pn.arc(x, y + 1.5, rx * 0.9, 25, 155, WATER, 3.0)
 
 def _mouth(pn, f, kind, beard):
     mx, my = f * 1.5, 15.5
@@ -137,7 +129,6 @@ def _marks(pn, sp, f, r):
     if 'sweat' in m:
         x, y = -f * (r * 0.72), -r * 0.35
         pn.poly([(x, y - 7), (x + 3.6, y + 1.5), (x, y + 4.5), (x - 3.6, y + 1.5)], fill=WATER, outline=INK, width=1.4)
-        pn.circ(x - 0.9, y + 1.2, 1.0, fill=WHITE)
     if 'tears' in m:
         for side in (-1, 1):
             x0 = f * 2 + side * 12
