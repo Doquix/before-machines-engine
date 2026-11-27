@@ -59,7 +59,7 @@ def _brow(pn, x, y, side, tilt, f, raise_, w=5.2, nick=False):
     pn.poly(pts, fill=INK)
     if nick:                      # identity scar: a small skin coloured gap across the brow
         cx, cy = x + side * 1.5, y + raise_
-        pn.line([(cx - 1.6, cy - 5), (cx + 2.0, cy + 5)], R.FACE_SKIN or SKIN, 3.2, caps=False)
+        pn.line([(cx - 0.8, cy - 3.2), (cx + 1.0, cy + 3.2)], R.FACE_SKIN or SKIN, 2.4, caps=False)   # stays inside the brow
 
 def _eye(pn, x, y, sp, f, look, side, blink):
     kind, es, ps, lid = sp['eyes'], sp['es'], sp['ps'], max(sp['lid'], blink)
@@ -72,7 +72,7 @@ def _eye(pn, x, y, sp, f, look, side, blink):
     if blink > 0.8:
         pn.line([(x - rx, y + 1), (x + rx, y + 1)], INK, 2.8); return
     skin = R.FACE_SKIN or SKIN
-    pn.ell(x, y, rx, ry, fill=WHITE, outline=INK, width=2.2)
+    pn.ell(x, y, rx, ry, fill=WHITE, outline=INK, width=2.4)   # one even outline only: no lash rim (it read as a second brow)
     lx, ly = clamp(look[0] * f, -1, 1) * 2.8, look[1] * 2.8 + 0.6
     # pupils follow the "How do I feel" chart: one solid ink dot, no iris ring, no highlight
     if kind in ('open', 'angry', 'half', 'teary'):
@@ -88,9 +88,6 @@ def _eye(pn, x, y, sp, f, look, side, blink):
         yl = y - ry + 2 * ry * lid
         pn.poly([(x - rx - 1, y - ry - 2), (x + rx + 1, y - ry - 2), (x + rx + 1, yl), (x - rx - 1, yl)], fill=skin)
         pn.line([(x - rx - 0.5, yl), (x + rx + 0.5, yl)], INK, 2.6)
-    elif kind != 'wide':          # slightly heavier upper rim, like a pen pressing harder on the top stroke
-        pts = [(x + rx * math.cos(math.radians(a)), y + ry * math.sin(math.radians(a)) * 1.0) for a in range(200, 341, 14)]
-        pn.line(pts, INK, 3.0)
     if kind == 'teary':           # a water line on the lower lid
         pn.arc(x, y + 1.5, rx * 0.9, 25, 155, WATER, 3.0)
 
