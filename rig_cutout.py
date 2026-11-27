@@ -312,6 +312,11 @@ def _leg(pn, J, side, O, f):
     if O.get('greaves'): draw_part(pn, 'greave', J['knee' + side], J['foot' + side], f, O)
     draw_part(pn, 'foot', J['foot' + side], None, f, O)
 
+CLOSED_HELMETS = ('corinthian', 'great_helm', 'sallet_closed', 'armet', 'barbute_closed')
+def helmet_open(name):
+    """True if the forehead shows under this helmet ('_up' marks a closed helmet pushed up on the head)."""
+    return name.endswith('_up') or not name.startswith(CLOSED_HELMETS)
+
 def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', look=(0.7, 0), blink=0.0,
             spear_hand=None, spear_ang=None, spear_back=110, shield=True, shield_r=64, shield_dx=0.0, shadow=True,
             device=None, t=0.0, shield_fn=None, spear_fn=None, layer='all', hands_in=None, held_fn=None):
@@ -385,7 +390,9 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
     if O.get('helmet'):
         tilt = math.radians(p.get('torso', 0) + p.get('head', 0)) * f
         draw_part(pn, O['helmet'], (hx, hy), None, f, O, ang=-tilt)
-    if O.get('mark') == 'curl' and O.get('helmet'):   # redraw the Keeper's curl over the helmet brim
+    # Keeper's curl over the brim: only for open faced or pushed up helmets. A closed helmet worn down (corinthian,
+    # illyrian visor, great helm...) hides it, as it would in reality; he is then known by his clean shaven face and voice.
+    if O.get('mark') == 'curl' and O.get('helmet') and helmet_open(O['helmet']):
         pn.push(hx, hy, r / 36); F2.forehead_curl(pn, f, O.get('hair') or (60, 44, 32)); pn.pop()
     pn.pop()
     W_ = lambda pt: (x + pt[0] * k, y + pt[1] * k)
