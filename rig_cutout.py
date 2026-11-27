@@ -16,6 +16,7 @@ import math, os, re, sys
 import xml.etree.ElementTree as ET
 from lib import *
 import rig as R
+import faces as F2
 from detail import shade, light
 from props import aspis, dory
 
@@ -112,7 +113,7 @@ def _defaults():
                                  (22, 66), (-22, 66), (-40, 62), (-50, 40)]),
                       S('hair_sh', [(-50, -10), (-46, -36), (-30, -48), (-36, -10), (-38, 60), (-50, 40)], w=0),
                       S('line', [(-30, 30), (-28, 58)], False, 1.4), S('line', [(30, 30), (28, 58)], False, 1.4)]
-    # the Keeper's round glasses are part of the face code; hair under a helmet is not drawn
+    # faces come from faces.py (v2); the Keeper wears no glasses, his marker is OUT2 'mark'; hair under a helmet is not drawn
     return P
 
 # ---------------- SVG writer and reader ----------------
@@ -280,7 +281,7 @@ def draw_part(pn, name, a, b=None, f=1, O=None, ang=None, scale=1.0):
 OUT2 = {
     # E024 Greek hoplites, late 5th century BC (Mantinea, 418 BC)
     'hop_keeper': dict(skin=SKIN, cloth=(150, 54, 42), trim=(64, 40, 30), linen=(238, 230, 208), linen2=(218, 208, 182),
-                       metal=(196, 150, 72), crest=(40, 30, 24), belt=(96, 64, 38), helmet='corinthian_up', glasses=True,
+                       metal=(196, 150, 72), crest=(40, 30, 24), belt=(96, 64, 38), helmet='corinthian_up', mark='brow_nick',
                        armour='linothorax', greaves=True, beard=None),
     'hop_a': dict(skin=(228, 196, 160), cloth=(70, 92, 128), trim=(40, 50, 70), linen=(234, 226, 204), linen2=(212, 202, 176),
                   metal=(186, 144, 70), belt=(96, 64, 38), helmet='pilos', armour='linothorax', greaves=True,
@@ -376,11 +377,10 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         pn.circ(hx - f * 3, hy - 3, r + 3, fill=O['hair'], outline=INK, width=3)
     pn.circ(hx, hy, r, fill=O['skin'], outline=INK, width=3.4)
     if O.get('hair') and not O.get('helmet'):
-        pn.poly([(hx - r * .95, hy - 6), (hx - r * .7, hy - r * .78), (hx, hy - r - 3), (hx + r * .7, hy - r * .78), (hx + r * .95, hy - 6),
-                 (hx + r * .55, hy - r * .55), (hx - r * .55, hy - r * .55)], fill=O['hair'])
+        F2.fringe(pn, hx, hy, r, O['hair'])
     pn.push(hx, hy, r / 36)
     R.FACE_SKIN = O.get('skin')
-    R.face(pn, 0, 0, f, expr, look, blink, O.get('glasses', False), 36, O.get('beard'), O.get('beard_style'))
+    F2.face2(pn, f, expr, look, blink, 36, O.get('beard'), O.get('beard_style'), t, O.get('mark'))
     pn.pop()
     if O.get('helmet'):
         tilt = math.radians(p.get('torso', 0) + p.get('head', 0)) * f

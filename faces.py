@@ -151,6 +151,11 @@ def _marks(pn, sp, f, r):
         x, y = -f * (r + 6), -r * 0.6
         pn.poly([(x, y - 6), (x + 1.6, y - 1.6), (x + 6, y), (x + 1.6, y + 1.6), (x, y + 6), (x - 1.6, y + 1.6), (x - 6, y), (x - 1.6, y - 1.6)], fill=INK)
 
+def fringe(pn, hx, hy, r, hair):
+    """Hair fringe on a bare head, cut high (bottom edge at 0.72 r) so the brows always sit on bare forehead."""
+    pn.poly([(hx - r * .95, hy - 8), (hx - r * .7, hy - r * .8), (hx, hy - r - 3), (hx + r * .7, hy - r * .8), (hx + r * .95, hy - 8),
+             (hx + r * .6, hy - r * .72), (hx - r * .6, hy - r * .72)], fill=hair)
+
 def face2(pn, f, expr='neutral', look=(0.6, 0), blink=0.0, r=36, beard=None, beard_style=None, t=0.0, mark=None):
     sp = SPEC.get(expr, SPEC['neutral'])
     if sp['look'] is not None: look = sp['look']
@@ -162,7 +167,7 @@ def face2(pn, f, expr='neutral', look=(0.6, 0), blink=0.0, r=36, beard=None, bea
         tilt = sp['brow']
         if 'one_brow' in sp['marks'] and side == f: tilt, rs = 10, br - 4
         else: rs = br
-        _brow(pn, ex0 + side * 13.5, -16.5, side, tilt, f, rs, nick=(mark == 'brow_nick' and side == -f))
+        _brow(pn, ex0 + side * 13.5, -15.0, side, tilt, f, rs, nick=(mark == 'brow_nick' and side == -f))
     pn.arc(f * 3.5, 6.5, 2.2, 200 if f > 0 else -20, 340 if f > 0 else 120, INK, 1.8)       # small nose
     mouth_open = sp['mouth'] in ('laugh', 'scream', 'cry', 'smile_open', 'grit_open', 'o')
     if beard:

@@ -9,7 +9,7 @@ def head(pn, x, y, s, expr, skin=SKIN, hair=(70, 52, 38), beard=None, bs=None, m
     pn.push(x, y, s); r = 46
     pn.circ(-f * 3, -3, r + 3, fill=hair, outline=INK, width=3)
     pn.circ(0, 0, r, fill=skin, outline=INK, width=3.4)
-    pn.poly([(-r * .95, -6), (-r * .7, -r * .78), (0, -r - 3), (r * .7, -r * .78), (r * .95, -6), (r * .55, -r * .55), (-r * .55, -r * .55)], fill=hair)
+    FC.fringe(pn, 0, 0, r, hair)
     pn.push(0, 0, r / 36); R.FACE_SKIN = skin
     if old: R.face(pn, 0, 0, f, expr, (0.6, 0), 0.0, glasses, 36, beard, bs)
     else: FC.face2(pn, f, expr, (0.6, 0), 0.0, 36, beard, bs, mark=mark)
