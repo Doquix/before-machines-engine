@@ -6,7 +6,8 @@ No blush (user rule). Expression marks (sweat, tears, anger vein, shock lines) a
 
 face2(pn, f, expr, look, blink, r=36, beard=None, beard_style=None, t=0.0, mark=None)
 Face local units: head radius r = 36, face centred at (0, 0); rig_cutout scales it to the real head.
-mark: identity mark, e.g. 'brow_nick' for the Keeper (a small scar gap in his left eyebrow; he wears no glasses).
+mark: identity mark. The Keeper's is 'curl': one forehead curl that hangs out from under any helmet or fringe (drawn LAST,
+over the helmet, by forehead_curl). He wears no glasses. 'brow_nick' (a scar gap in the brow) is kept but retired.
 """
 import math
 from lib import *
@@ -153,7 +154,18 @@ def fringe(pn, hx, hy, r, hair):
     pn.poly([(hx - r * .95, hy - 8), (hx - r * .7, hy - r * .8), (hx, hy - r - 3), (hx + r * .7, hy - r * .8), (hx + r * .95, hy - 8),
              (hx + r * .6, hy - r * .72), (hx - r * .6, hy - r * .72)], fill=hair)
 
-def face2(pn, f, expr='neutral', look=(0.6, 0), blink=0.0, r=36, beard=None, beard_style=None, t=0.0, mark=None):
+def forehead_curl(pn, f, hair, r=36):
+    """The Keeper's identity curl, face local units. Drawn after hair AND helmet so it shows in every costume.
+    Sits between the brows (inner brow ends are at x = 9 from centre), hangs from y -29 to -17."""
+    cx, cy, rr = f * 2.5, -20.5, 3.6
+    pts = [(cx - f * 2.5, -30.5), (cx - f * 0.8, -27.0), (cx + f * 0.6, -24.4)]
+    for i in range(11):                                   # open loop (a closed ring read as a hook): from top right, down, back up the left
+        a = math.radians(-70 + i * 22)
+        pts.append((cx + f * rr * math.cos(a), cy + rr * math.sin(a) + 0.3))
+    pn.line(pts, INK, 6.6)
+    pn.line(pts, hair, 3.2)
+
+def face2(pn, f, expr='neutral', look=(0.6, 0), blink=0.0, r=36, beard=None, beard_style=None, t=0.0, mark=None, hair=(60, 44, 32)):
     sp = SPEC.get(expr, SPEC['neutral'])
     if sp['look'] is not None: look = sp['look']
     ex0 = f * 2.0
@@ -174,3 +186,4 @@ def face2(pn, f, expr='neutral', look=(0.6, 0), blink=0.0, r=36, beard=None, bea
     if 'pale' in sp['marks']:
         pn.poly([(-r * 0.75, -r * 0.55), (r * 0.75, -r * 0.55), (r * 0.6, -r * 0.2), (-r * 0.6, -r * 0.2)], fill=(120, 150, 190, 60))
     _marks(pn, sp, f, r)
+    if mark == 'curl': forehead_curl(pn, f, hair, r)

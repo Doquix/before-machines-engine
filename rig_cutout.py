@@ -281,7 +281,7 @@ def draw_part(pn, name, a, b=None, f=1, O=None, ang=None, scale=1.0):
 OUT2 = {
     # E024 Greek hoplites, late 5th century BC (Mantinea, 418 BC)
     'hop_keeper': dict(skin=SKIN, cloth=(150, 54, 42), trim=(64, 40, 30), linen=(238, 230, 208), linen2=(218, 208, 182),
-                       metal=(196, 150, 72), crest=(40, 30, 24), belt=(96, 64, 38), helmet='corinthian_up', mark='brow_nick',
+                       metal=(196, 150, 72), crest=(40, 30, 24), belt=(96, 64, 38), helmet='corinthian_up', mark='curl',
                        armour='linothorax', greaves=True, beard=None),
     'hop_a': dict(skin=(228, 196, 160), cloth=(70, 92, 128), trim=(40, 50, 70), linen=(234, 226, 204), linen2=(212, 202, 176),
                   metal=(186, 144, 70), belt=(96, 64, 38), helmet='pilos', armour='linothorax', greaves=True,
@@ -380,11 +380,13 @@ def hoplite(pn, x, y, k, f=1, p='idle', out='hop_keeper', expr='determined', loo
         F2.fringe(pn, hx, hy, r, O['hair'])
     pn.push(hx, hy, r / 36)
     R.FACE_SKIN = O.get('skin')
-    F2.face2(pn, f, expr, look, blink, 36, O.get('beard'), O.get('beard_style'), t, O.get('mark'))
+    F2.face2(pn, f, expr, look, blink, 36, O.get('beard'), O.get('beard_style'), t, O.get('mark'), O.get('hair') or (60, 44, 32))
     pn.pop()
     if O.get('helmet'):
         tilt = math.radians(p.get('torso', 0) + p.get('head', 0)) * f
         draw_part(pn, O['helmet'], (hx, hy), None, f, O, ang=-tilt)
+    if O.get('mark') == 'curl' and O.get('helmet'):   # redraw the Keeper's curl over the helmet brim
+        pn.push(hx, hy, r / 36); F2.forehead_curl(pn, f, O.get('hair') or (60, 44, 32)); pn.pop()
     pn.pop()
     W_ = lambda pt: (x + pt[0] * k, y + pt[1] * k)
     return dict(J=J, tip=W_(tip) if tip else None)
